@@ -39,3 +39,13 @@ Context: `argument-hint: [--run <name>] [--milestones <n>]` failed `claude plugi
 with a YAML parse error - the bracket is read as a flow sequence and `<` is an unexpected token.
 Decision: quote the value (`"[--run <name>] ..."`). Rejected: dropping the hint. Why: the hint is the
 usage line the runtime shows; quoting keeps it and validates.
+
+## M03 - marketplace named `dogwatch`, so install is `dogwatch@dogwatch` (2026-08-19)
+
+Context: a single-plugin in-repo marketplace needs a `name`; the plugin is also `dogwatch`. Decision:
+name the marketplace `dogwatch`, giving the install `claude plugin install dogwatch@dogwatch`.
+Rejected: a distinct name like `dogwatch-marketplace` to avoid the repeated word. Why: the repo is
+`fabrodz/dogwatch`; a marketplace named after it reads straight from the `add` command, and the
+`plugin@marketplace` redundancy is cosmetic. Category `workflow` on the entry; strict validation
+accepts it. Shared fields (name, description, version, author, license, homepage, keywords) are
+copied verbatim from `plugin.json` so `claude plugin tag` finds them in agreement.

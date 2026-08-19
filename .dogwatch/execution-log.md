@@ -100,3 +100,57 @@ not accept a path or `--plugin-dir`; the flag belongs to the top-level `claude` 
 and marketplace docs are M03's, so the README is left for that milestone.
 
 **Next step.** M03 - marketplace manifest and install docs.
+
+## M03 - Marketplace manifest and install docs (2026-08-19)
+
+**Built.** A single-plugin marketplace manifest at `.claude-plugin/marketplace.json`, beside
+`plugin.json`, and a rewrite of the install story in `README.md` and `docs/GUIDE.md` so the CLI and
+the plugin are documented as the two distinct things they are.
+
+- **Marketplace.** `name: dogwatch`, `owner.name: Fabian R.`, one `plugins[]` entry with
+  `source: "./"`. The entry copies every field it shares with `plugin.json` verbatim, so the two
+  agree. Install path: `claude plugin marketplace add fabrodz/dogwatch` then
+  `claude plugin install dogwatch@dogwatch`.
+- **README `## Install`.** Rewritten to two labelled paths: the CLI (required, the engine, from
+  source via `npm link`) and the plugin (optional, a Claude Code layer). States plainly that the
+  plugin does not put the `dogwatch` binary on PATH and needs the CLI to do anything; a first-time
+  user does the CLI install.
+- **README `## The supervisor`.** `dogwatch skill install` now framed: skip it if the plugin is
+  installed (the skill ships with it, same source), run it on a CLI-only install. Redundant after a
+  plugin install, not harmful.
+- **`docs/GUIDE.md`.** Long-form version of the same split in "Install and requirements" (adds
+  `dogwatch --help` confirmation, names the single-plugin-in-repo marketplace, explains why the CLI
+  comes first), the setup step 7, and the `### dogwatch skill install` command reference.
+- **Decision.** `docs/DECISIONS.md` D-019 records the marketplace living in-repo as a single-plugin
+  manifest and why a separate repo was rejected. Run-local `.dogwatch/decisions.md` records the
+  `dogwatch@dogwatch` naming and the `workflow` category.
+
+**Evidence per acceptance criterion.**
+
+- AC1 - `claude plugin validate . --strict` and `claude plugin validate .claude-plugin/marketplace.json
+  --strict` both print "Validation passed", exit 0, in `.dogwatch/evidence/M03-validate.txt`.
+- AC2 - shared fields hold the same value across `plugin.json` and the marketplace entry: `name`
+  "dogwatch" = "dogwatch"; `version` "0.3.0" = "0.3.0"; `description` byte-identical
+  ("Supervise a dogwatch autonomous run from Claude Code: ..."); `author.name` "Fabian R." =
+  "Fabian R."; `license` "MIT" = "MIT"; `homepage` = "https://github.com/fabrodz/dogwatch#readme";
+  `keywords` identical array. `claude plugin tag --dry-run --force` confirms the agreement it will
+  enforce in M04 (output in `.dogwatch/evidence/M03-validate.txt`).
+- AC3 - README `## Install` documents both paths; the explicit line is **"The plugin does not put the
+  `dogwatch` binary on your PATH."**
+- AC4 - GUIDE "Install and requirements", step 7 and the `dogwatch skill install` reference all match
+  the README's commands (`claude plugin marketplace add fabrodz/dogwatch`,
+  `claude plugin install dogwatch@dogwatch`, `npm link`); re-read both files side by side, no
+  instruction contradicts the other.
+- AC5 - `docs/DECISIONS.md` D-019 "The marketplace is a single-plugin manifest in this repository
+  (2026-08-19)".
+- AC6 - `npm run typecheck` exit 0, `npm test` exit 0 (81 pass, 0 fail), `npm run build` exit 0;
+  counts in `.dogwatch/evidence/M03-test.txt`.
+
+**Problems hit.** With both `plugin.json` and `marketplace.json` under `.claude-plugin/`,
+`claude plugin validate .` resolves to the marketplace manifest; the plugin manifest still validates
+directly via `claude plugin validate .claude-plugin/plugin.json --strict` (exit 0), so both are
+covered.
+
+**Descoped.** None.
+
+**Next step.** M04 - release plumbing, CI gate, closing v0.4.

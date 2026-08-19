@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dogwatch",
+  "description": "The dogwatch plugin: an active supervisor for autonomous coding runs, distributed straight from its own repository.",
+  "owner": {
+    "name": "Fabian R."
+  },
+  "plugins": [
+    {
+      "name": "dogwatch",
+      "description": "Supervise a dogwatch autonomous run from Claude Code: an active supervisor skill that reads the run, applies a bounded intervention playbook, and keeps a long overnight run alive.",
+      "version": "0.3.0",
+      "source": "./",
+      "author": {
+        "name": "Fabian R."
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/fabrodz/dogwatch#readme",
+      "repository": "https://github.com/fabrodz/dogwatch",
+      "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones", "supervisor"],
+      "category": "workflow"
+    }
+  ]
+}

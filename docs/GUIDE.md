@@ -88,12 +88,34 @@ Do not use it when:
 
 ## Install and requirements
 
-Not on npm yet. Install from source:
+There are two things you can install, and they do different jobs. The **CLI** is the engine: the
+`dogwatch` binary that runs a run, grades each session and owns the state machine. Nothing works
+without it. The **plugin** is a Claude Code layer on top: it adds the supervisor skill and four slash
+commands to a Claude session, and every one of them shells out to the same `dogwatch` binary. The
+plugin is not a self-contained install; it does not put `dogwatch` on your PATH.
+
+**The CLI (required).** Not on npm yet, so install from source:
 
 ```sh
 git clone https://github.com/fabrodz/dogwatch.git
 cd dogwatch && npm install && npm run build && npm link
 ```
+
+`npm link` puts `dogwatch` on your PATH. Confirm with `dogwatch --help`.
+
+**The plugin (optional).** Adds `/dogwatch-init`, `/dogwatch-status`, `/dogwatch-supervise` and
+`/dogwatch-report`, plus the supervisor skill, inside Claude Code:
+
+```sh
+claude plugin marketplace add fabrodz/dogwatch
+claude plugin install dogwatch@dogwatch
+```
+
+The marketplace lives in this same repository (a single-plugin marketplace), so the one `add`
+command points at the repo and the `install` pulls the plugin from it. Because the plugin's commands
+and skill all call the `dogwatch` binary, install the CLI first; the plugin on its own has nothing to
+call. A first-time user needs only the CLI. Add the plugin when you would rather drive and supervise
+the run from inside a Claude session than from a terminal.
 
 Requirements:
 
@@ -285,6 +307,9 @@ pulse
 ```
 
 ### 7. Optionally, put a supervisor on it
+
+If you installed the plugin, the supervisor skill came with it; skip this command. On a CLI-only
+install, write the skill into the project first:
 
 ```sh
 dogwatch skill install
@@ -703,6 +728,10 @@ Writes the supervisor skill to `.claude/skills/dogwatch-supervisor/SKILL.md` in 
 `~/.claude/skills/` with `--global`. `--print` dumps the skill text to stdout without writing
 anything, which is how to read the playbook before installing it. It refuses to overwrite an existing
 file without `--force`.
+
+If you installed the plugin, this is redundant: the plugin ships the same skill from the same source,
+so the skill is already available in Claude Code and there is nothing to write. `skill install` is for
+CLI-only users, who have the engine but not the plugin's components.
 
 ### dogwatch kill
 

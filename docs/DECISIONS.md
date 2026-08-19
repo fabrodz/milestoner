@@ -262,3 +262,22 @@ No command hands a model a path to `state.json`, to `unblock` or to `steer` that
 denies: `state.json` is named only inside a guard, and the two human-only commands never appear as
 runnable invocations. `src/plugin-commands.test.ts` enforces both, alongside the presence and
 frontmatter of every shipped command.
+
+## D-019 - The marketplace is a single-plugin manifest in this repository (2026-08-19)
+
+The plugin is distributed from a `.claude-plugin/marketplace.json` that lives beside `plugin.json`
+in this repository, with one entry whose `source` is `"./"`. A user runs `claude plugin marketplace
+add fabrodz/dogwatch` then `claude plugin install dogwatch@dogwatch`; the marketplace and the plugin
+it lists are the same repo. `claude plugin validate --strict` accepts it, and `claude plugin tag`
+confirms the entry agrees with `plugin.json` on name and version - the agreement M04 automates.
+
+Rejected: a separate marketplace repository. That is only worth its second repo, second release and
+second CI when a second plugin is coming; there is one plugin and no plan for another. An in-repo
+single-plugin marketplace is what `claude plugin marketplace add <repo>` is built for, keeps the
+manifest versioned with the plugin it describes, and is the cheaper option until a second plugin
+makes the split pay for itself.
+
+This is the second half of [D-002](#d-002---distribution-npm-first-claude-code-plugin-later-2026-08-18):
+the plugin channel now has a marketplace to install from. It does not replace npm. The CLI remains
+the engine and the required install; the plugin, delivered through this marketplace, is a Claude Code
+layer over it and does not put the `dogwatch` binary on PATH.

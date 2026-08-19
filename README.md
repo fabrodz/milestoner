@@ -12,7 +12,11 @@ Status: **v0.3**. Engine, the active supervisor as an installable Claude Code sk
 
 ## Install
 
-Not on npm yet. Install from source:
+Two install paths, and they are not alternatives: the CLI is the engine, the plugin is a Claude Code
+layer on top of it.
+
+**The CLI - required.** The `dogwatch` binary is the engine: it runs a run, grades each session and
+owns the state machine. Not on npm yet, so install from source:
 
 ```sh
 git clone https://github.com/fabrodz/dogwatch.git
@@ -20,6 +24,21 @@ cd dogwatch && npm install && npm run build && npm link
 ```
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
+
+**The plugin - optional.** A Claude Code plugin that adds the supervisor skill and four slash commands
+(`/dogwatch-init`, `/dogwatch-status`, `/dogwatch-supervise`, `/dogwatch-report`) inside a Claude
+session:
+
+```sh
+claude plugin marketplace add fabrodz/dogwatch
+claude plugin install dogwatch@dogwatch
+```
+
+**The plugin does not put the `dogwatch` binary on your PATH.** Its slash commands and its supervisor
+skill all shell out to that binary, so the plugin needs the CLI install above to do anything; it is a
+convenience surface over the engine, not a second copy of it. A first-time user should do the CLI
+install and add the plugin only to drive and supervise the run from inside Claude Code rather than a
+terminal.
 
 Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
 the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
@@ -100,11 +119,15 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
 The engine keeps a run correct. The supervisor keeps it *alive*: a Claude session that wakes every
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
+If you installed the plugin, the supervisor skill is already there and there is nothing to install;
+skip to the loop. On a CLI-only install, write the skill into the project first:
+
 ```sh
 dogwatch skill install
 ```
 
-Then, in a Claude Code session at the project root:
+`skill install` and the plugin deliver the same skill from the same source, so running it after a
+plugin install is redundant, not harmful. Either way, in a Claude Code session at the project root:
 
 ```
 /loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
