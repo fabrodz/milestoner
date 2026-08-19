@@ -17,6 +17,8 @@ export interface AttemptRecord {
   detail?: string;
   /** First line of the steering in force when this attempt launched, if any. */
   steering?: string;
+  /** Which agent ran it. Without this a run that rotated agents cannot be read back. */
+  agent?: string;
 }
 
 export interface Milestone {
@@ -40,6 +42,8 @@ export interface RunState {
 }
 
 export interface AgentConfig {
+  /** Shown in logs, the attempt history and the report. Defaults to the command. */
+  name?: string;
   /** Executable to spawn. The whole invocation is a config string from day one so a
    *  second agent (Cursor, Codex) only needs a config change, not an engine change. */
   command: string;
@@ -60,6 +64,12 @@ export interface InfraConfig {
   genericWaitSeconds: number;
   /** Case-insensitive substrings that mark a usage/rate limit in the transcript. */
   usageLimitPatterns: string[];
+  /**
+   * Case-insensitive substrings that mark an agent or backend failure which is not a usage limit:
+   * a model endpoint that never answered, an expired login, a dropped stream. Same refund as a
+   * usage limit, but the short wait: there is no announced reset to sit out.
+   */
+  infraFailurePatterns: string[];
 }
 
 export interface PulseflowConfig {
@@ -68,6 +78,11 @@ export interface PulseflowConfig {
   maxAttempts: number;
   retryDelaySeconds: number;
   agent: AgentConfig;
+  /**
+   * Tried in order when `agent` is unavailable: out of quota, or failing for a reason the infra
+   * rules recognise. Empty means the runner waits the limit out instead, which is the old behaviour.
+   */
+  fallbackAgents: AgentConfig[];
   infra: InfraConfig;
   /** Paths (relative to projectRoot) whose mtime proves the run is alive. The transcript
    *  is never one: headless sessions flush it only at exit. */
@@ -102,6 +117,8 @@ export interface Pulse {
   sessionStartedAt: string | null;
   /** The agent process, so a supervisor can kill a hung session without touching the runner. */
   agentPid: number | null;
+  /** Name of the agent currently in use, when the run has fallbacks configured. */
+  agent?: string | null;
   transcript: string | null;
   lastEvent: string;
   lastEventAt: string;

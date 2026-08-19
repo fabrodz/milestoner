@@ -117,6 +117,7 @@ export function status(options: StatusOptions): number {
     const sessionMs = pulse.sessionStartedAt ? Date.now() - Date.parse(pulse.sessionStartedAt) : null;
     const agent = pulse.agentPid != null ? `, agent pid ${pulse.agentPid}${isProcessAlive(pulse.agentPid) ? "" : color.yellow(" (gone)")}` : "";
     console.log(`  runner pid ${pulse.pid} on ${color.bold(pulse.milestoneId ?? "-")} attempt ${pulse.attempt ?? "-"}${agent}`);
+    if (pulse.agent) console.log(`  agent       ${color.bold(pulse.agent)}`);
     console.log(`  last event  ${pulse.lastEvent} (${humanDuration(Date.now() - Date.parse(pulse.lastEventAt))} ago)`);
     if (sessionMs !== null) console.log(`  session     ${humanDuration(sessionMs)}`);
   }
