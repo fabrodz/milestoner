@@ -633,6 +633,50 @@ The timeline is what `status` cannot give you. The gaps carry the information: a
 looks nothing like a slow session, and the infrastructure retries that were never charged against
 the attempt budget are finally visible after the fact.
 
+### dogwatch serve
+
+```sh
+dogwatch serve [--port <n>] [--write] [--token <value>]
+```
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--port <n>` | `4400` | Port on the loopback interface. |
+| `--write` | off | Enable the controls. Without it every mutating route answers 403. |
+| `--token <value>` | generated | Fix the key instead of generating one. For scripts and tests; a generated key is better for daily use. |
+
+A local web panel over the same run `status` describes, refreshed by server-sent events. It reads
+`state.json`, `pulse.json` and the two logs, and its write surface is exactly the CLI's: steer,
+unblock, kill, attend, start a runner, stop one after the current session. It calls the same
+functions the commands do, so there is one audit trail rather than two - a kill from the panel lands
+in `supervisor-log.md` like any other.
+
+Stopping a run sends `SIGINT` to the runner, which is its own "finish this session, then stop".
+Starting one spawns a detached `dogwatch run`: closing the panel must not end an overnight run, and
+everything that manages a running runner already works on a separate process.
+
+#### What you are running
+
+This is the part to read before the flags. Everything the panel can do happens on the machine it
+runs on with the permissions of whoever started it. Starting a run launches an agent with
+`--dangerously-skip-permissions`. `attend` executes `environment.attendCommand` through a shell.
+A write-enabled panel is therefore a remote code execution endpoint by construction, and it is built
+on that assumption rather than in spite of it:
+
+| Control | What it stops |
+| --- | --- |
+| Binds `127.0.0.1`, not configurable | Anything off this machine reaching it at all. |
+| Key required on every request, compared in constant time | A local process guessing its way in, or learning the key a byte at a time. |
+| `Host` must be a loopback name | DNS rebinding: an attacker's domain resolving to 127.0.0.1 and scripting your panel from a page you opened. |
+| `Origin` must be this exact server | A page on another local port posting to your run. |
+| Read-only unless `--write` | Everything above mattering by accident. |
+| Transcript names resolved inside `logs/` and re-checked | `?name=../../../../etc/passwd`. |
+
+The key travels in the URL so the link is enough to open the panel. That also means the URL *is* the
+credential: do not paste it into a chat, and do not port-forward or tunnel the port. If you want the
+panel reachable from elsewhere, put an authenticating proxy in front of it and own that decision
+explicitly - there is no flag that will do it for you.
+
 ### dogwatch skill install
 
 ```sh

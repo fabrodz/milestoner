@@ -47,6 +47,13 @@ All notable changes to this project are documented here. The format follows
   the primary returns when its quota does. Never triggers on a work verdict. The agent that ran each
   attempt is recorded in `state.json`, `run-log.md`, the report and `status`.
 
+- `dogwatch serve`: a local web panel for a run. Shows what `status` shows, refreshed over
+  server-sent events, and exposes the CLI's own write surface - steer, unblock, kill, attend, start
+  and stop a runner - by calling the same functions, so interventions land in the same logs. Bound
+  to loopback, key required per request, `Host` and `Origin` checked, read-only unless `--write`.
+  A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
+  shell; the README and the guide say so plainly.
+
 ### Changed
 
 - Renamed from `pulseflow` to `dogwatch`. The state directory is `.dogwatch/`, the command is
@@ -74,6 +81,13 @@ All notable changes to this project are documented here. The format follows
 - The active supervisor as an installable Claude Code skill (`dogwatch skill install`).
 - `dogwatch kill` and `dogwatch attend`, the supervisor's only interventions, both logged.
 - The environment adapter as a config string.
+
+- `dogwatch serve`: a local web panel for a run. Shows what `status` shows, refreshed over
+  server-sent events, and exposes the CLI's own write surface - steer, unblock, kill, attend, start
+  and stop a runner - by calling the same functions, so interventions land in the same logs. Bound
+  to loopback, key required per request, `Host` and `Origin` checked, read-only unless `--write`.
+  A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
+  shell; the README and the guide say so plainly.
 
 ### Changed
 

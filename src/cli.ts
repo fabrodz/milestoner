@@ -6,6 +6,7 @@ import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
 import { report } from "./commands/report.js";
+import { serve } from "./commands/serve.js";
 import { installSkill } from "./commands/skill.js";
 import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
@@ -35,6 +36,10 @@ ${color.bold("dogwatch")} - supervised autonomous-run engine for coding agents
 
   dogwatch report [--out <path>] [--open]
       Write a single self-contained HTML report of the run.
+
+  dogwatch serve [--port <n>] [--write]
+      Local web panel for the run. Binds 127.0.0.1 only and prints a URL carrying a
+      one-time key. --write enables the controls; without it the panel only reads.
 
   dogwatch skill install [--global] [--force] [--print]
       Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
@@ -108,6 +113,9 @@ async function main(): Promise<number> {
       clear: { type: "boolean" },
       out: { type: "string" },
       open: { type: "boolean" },
+      port: { type: "string" },
+      write: { type: "boolean" },
+      token: { type: "string" },
     },
   });
 
@@ -178,6 +186,15 @@ async function main(): Promise<number> {
 
   if (command === "report") {
     return report({ config, layout: project.layout, out: values.out, open: Boolean(values.open) });
+  }
+
+  if (command === "serve") {
+    const port = values.port ? Number(values.port) : 4400;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      fail("--port must be an integer between 1 and 65535");
+      return 1;
+    }
+    return serve({ config, layout: project.layout, port, write: Boolean(values.write), token: values.token });
   }
 
   if (command === "kill") {

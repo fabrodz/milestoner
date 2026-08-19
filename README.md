@@ -66,6 +66,7 @@ dogwatch status
 | `dogwatch unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
 | `dogwatch steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `dogwatch report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
+| `dogwatch serve [--port <n>] [--write]` | Local web panel for the run. Loopback only, key in the URL. |
 | `dogwatch skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
 | `dogwatch kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `dogwatch attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
@@ -156,6 +157,38 @@ acceptance criterion. A steer that makes a milestone impossible comes back as `b
 
 The supervisor cannot steer. If it thinks a run needs correcting, it proposes the wording and you
 decide.
+
+## The web panel
+
+```sh
+dogwatch serve --write
+```
+
+Prints a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
+server-sent events, and lets you act on it: set or clear steering, unblock a milestone, kill a hung
+session, run the environment adapter, start a runner or stop it after the current session.
+
+It is deliberately the *same* surface as the CLI, calling the same functions. Nothing is possible
+here that `dogwatch` cannot do from a terminal, which is what keeps one audit trail rather than two.
+
+The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
+four, and you want to read the diagnosis and steer it from your phone without finding a laptop.
+
+**Read what this is before you run it.** Everything the panel can do, it does with your account's
+permissions on the machine it runs on: starting a run launches an agent with
+`--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. That makes
+a write-enabled panel a remote code execution endpoint by construction, so:
+
+- it binds `127.0.0.1` only, and that is not configurable;
+- every request needs the key from the URL, compared in constant time;
+- a `Host` header that is not loopback is refused, which is what stops a page at an attacker's
+  domain resolving to your machine and talking to it;
+- a write from another origin is refused;
+- without `--write` the panel is read-only and every mutating route answers 403.
+
+Treat the URL like a password, and do not port-forward it or put it behind a tunnel. If you want
+something reachable from outside the machine, put a real authenticating proxy in front and accept
+that you now own that decision.
 
 ## The run report
 
