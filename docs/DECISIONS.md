@@ -229,3 +229,36 @@ CLI is distributed as a single compiled `dist/cli.js`; reaching for a sibling fi
 break the one-file install that D-001 buys. Compiling the text into the binary and generating the
 plugin copy from the same constant keeps one source without coupling the CLI to the repository
 layout.
+
+## D-018 - Four slash commands ship; run, serve, and the human-only commands do not (2026-08-19)
+
+The plugin ships four commands under `commands/`: `/dogwatch-init`, `/dogwatch-status`,
+`/dogwatch-supervise` and `/dogwatch-report`. The test comes from what belongs *inside* a session:
+a command earns its place when it is worth running without leaving the session, is not a long-lived
+process, and is not a decision or intervention reserved to a human or to the supervisor.
+
+- `/dogwatch-init` scaffolds a run and walks the user through authoring the prompts - all in-session
+  file work.
+- `/dogwatch-status` is a read-only read of the run.
+- `/dogwatch-report` is a read-only artifact generator; it writes the HTML report and opens it,
+  touching no state.
+- `/dogwatch-supervise` runs one supervision cycle by invoking the `dogwatch-supervisor` skill. It
+  does not duplicate the playbook; the skill remains the single source (D-017).
+
+Rejected, each for a stated reason:
+
+- `run` and `serve` are long-lived processes that must **survive** the session that started them. A
+  headless runner or a loopback panel wrapped in a slash command would die with the conversation, so
+  the command would be actively misleading. They stay terminal invocations.
+- `unblock` and `steer` are human-only decisions the supervisor is explicitly forbidden to take
+  (D-012, D-014). A slash command that let a model run them would quietly undo that boundary, so no
+  command spells them as a runnable invocation - a test asserts this.
+- `kill` and `attend` are supervisor interventions, reached through the playbook the
+  `/dogwatch-supervise` cycle already runs, not something a human types by hand.
+- `skill install` is redundant for a plugin user: the plugin already carries the supervisor skill as
+  a component (D-017), so there is nothing to install.
+
+No command hands a model a path to `state.json`, to `unblock` or to `steer` that the supervisor
+denies: `state.json` is named only inside a guard, and the two human-only commands never appear as
+runnable invocations. `src/plugin-commands.test.ts` enforces both, alongside the presence and
+frontmatter of every shipped command.

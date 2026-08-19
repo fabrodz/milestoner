@@ -22,3 +22,20 @@ neither file. `npm pack --dry-run` verified: 4 files, no plugin paths.
 Context: `plugin.json` needs `author.name`; `package.json` has no `author` field to agree with.
 Decision: use "Fabian R.", the LICENSE copyright holder. Rejected: the git user name "Fabrodz".
 Why: the LICENSE is the existing public attribution in the tree; the git handle is not.
+
+## M02 - commands are static markdown, not generated from a template (2026-08-19)
+
+Context: M01's skill ships twice (CLI-written file plus plugin component) so it needs a template
+compiled into `dist/cli.js` and a drift guard. The commands ship only as plugin components; the CLI
+never writes them. Decision: author them as static files under `commands/` and let the test validate
+them directly. Rejected: putting the text in `src/templates/` with a `gen:` script and a byte-equality
+guard like the skill. Why: there is no second copy to drift against, so a template would add a build
+step and a guard for a problem that does not exist. The M02 task made the template guard conditional
+on generation, and nothing here is generated.
+
+## M02 - `argument-hint` values must be quoted (2026-08-19)
+
+Context: `argument-hint: [--run <name>] [--milestones <n>]` failed `claude plugin validate --strict`
+with a YAML parse error - the bracket is read as a flow sequence and `<` is an unexpected token.
+Decision: quote the value (`"[--run <name>] ..."`). Rejected: dropping the hint. Why: the hint is the
+usage line the runtime shows; quoting keeps it and validates.

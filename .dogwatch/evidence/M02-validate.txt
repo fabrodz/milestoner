@@ -1,0 +1,4 @@
+Validating plugin manifest: /Users/fabianrodriguez/Documents/Unlock/dogwatch/.claude-plugin/plugin.json
+
+✔ Validation passed
+validate-exit=0
