@@ -55,6 +55,11 @@ All notable changes to this project are documented here. The format follows
   shell; the README and the guide say so plainly, and document SSH forwarding as the one supported
   way to reach it from another device.
 
+  The panel leads with a plain-language verdict - what is happening, why, and when it needs a human,
+  the single action the session asked for. Engine events are rendered from `run-log.md`'s machine
+  format into sentences with relative times, outcomes read as words rather than enum values, and the
+  internal vocabulary ("attempts charged", "infra-failure") is gone from the page.
+
 ### Changed
 
 - Renamed from `pulseflow` to `dogwatch`. The state directory is `.dogwatch/`, the command is
@@ -90,6 +95,11 @@ All notable changes to this project are documented here. The format follows
   A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
   shell; the README and the guide say so plainly, and document SSH forwarding as the one supported
   way to reach it from another device.
+
+  The panel leads with a plain-language verdict - what is happening, why, and when it needs a human,
+  the single action the session asked for. Engine events are rendered from `run-log.md`'s machine
+  format into sentences with relative times, outcomes read as words rather than enum values, and the
+  internal vocabulary ("attempts charged", "infra-failure") is gone from the page.
 
 ### Changed
 
