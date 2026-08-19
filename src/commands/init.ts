@@ -64,7 +64,10 @@ export function init(options: InitOptions): number {
 
   const state: RunState = { run, createdAt: iso(), runComplete: false, milestones };
 
-  writeJsonAtomic(layout.config, defaultConfig(run, "."));
+  // projectRoot is where the config was found, never what it says: writing it would only invite
+  // an edit that does nothing.
+  const { projectRoot: _root, ...config } = defaultConfig(run, options.projectRoot);
+  writeJsonAtomic(layout.config, config);
   info("config.json");
 
   if (!existsSync(layout.state) || options.force) {

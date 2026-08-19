@@ -21,7 +21,8 @@ export function attend(options: AttendOptions): number {
   const command = options.config.environment.attendCommand;
   if (!command) {
     fail('no environment adapter configured - set "environment.attendCommand" in .pulseflow/config.json');
-    info('  example: "powershell -ExecutionPolicy Bypass -File .pulseflow/adapters/unity-attend.ps1 -Seconds {{seconds}}"');
+    info("  any shell command that unsticks this project's environment; {{seconds}} is substituted");
+    info('  example: "bash .pulseflow/adapters/unstick.sh {{seconds}}"');
     return 1;
   }
 
