@@ -38,6 +38,8 @@ export interface RunState {
   run: string;
   createdAt: string;
   runComplete: boolean;
+  /** Bumped on every write. Lets a reader tell "nothing changed" from "changed back". */
+  rev: number;
   milestones: Milestone[];
 }
 

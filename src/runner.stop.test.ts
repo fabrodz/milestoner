@@ -29,6 +29,7 @@ function scaffold(): { root: string; layout: ReturnType<typeof layoutFor> } {
     run: "stop-test",
     createdAt: new Date(0).toISOString(),
     runComplete: false,
+    rev: 0,
     milestones: ["M01", "M02"].map((id) => ({
       id,
       title: id,

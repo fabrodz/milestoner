@@ -29,6 +29,7 @@ function scaffold(verdict: unknown) {
     run: "once-test",
     createdAt: new Date(0).toISOString(),
     runComplete: false,
+    rev: 0,
     milestones: [
       { id: "M01", title: "M01", prompt: "M01.md", status: "pending", attempts: 0, evidence: [], history: [] },
     ],

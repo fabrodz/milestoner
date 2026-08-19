@@ -7,7 +7,7 @@ import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { readSteering, type Steering } from "./steering.js";
-import { findMilestone, loadState, nextMilestone, saveState } from "./state.js";
+import { findMilestone, loadState, nextMilestone, updateState } from "./state.js";
 import type { AttemptRecord, KillMarker, Milestone, DogwatchConfig, RunState } from "./types.js";
 import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
 import { color, fail, humanDuration, info, ok, step, warn } from "./util/log.js";
@@ -156,8 +156,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
           fail(`no milestone with id "${options.milestoneId}"`);
           return "stopped";
         }
-        state.runComplete = true;
-        saveState(layout.state, state);
+        updateState(layout.dir, layout.state, (s) => {
+          s.runComplete = true;
+        });
         step(`RUN COMPLETE (${state.run}) - all milestones done`);
         logEvent(layout, "-", "run-complete", `${state.milestones.length} milestones`);
         return "complete";
@@ -184,16 +185,21 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
       if (next.attempts >= maxAttempts) {
         warn(`${next.id} exhausted ${maxAttempts} attempts - marking blocked`);
-        next.status = "blocked";
-        saveState(layout.state, state);
+        updateState(layout.dir, layout.state, (s) => {
+          const m = findMilestone(s, next.id);
+          if (m) m.status = "blocked";
+        });
         logEvent(layout, next.id, "attempts-exhausted", `${next.attempts}/${maxAttempts}`);
         continue;
       }
 
       const attempt = next.attempts + 1;
-      next.status = "in_progress";
-      next.startedAt = next.startedAt ?? iso();
-      saveState(layout.state, state);
+      updateState(layout.dir, layout.state, (s) => {
+        const m = findMilestone(s, next.id);
+        if (!m) return;
+        m.status = "in_progress";
+        m.startedAt = m.startedAt ?? iso();
+      });
 
       // A leftover drop box from an interrupted session would be graded as this attempt's result.
       removeIfExists(layout.result);
@@ -280,9 +286,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
         // Record and hand the milestone back as pending first: whatever happens next, a relaunch
         // must find a clean entry point rather than a milestone stuck in_progress.
-        const back = loadState(layout.state);
-        const m = findMilestone(back, next.id);
-        if (m) {
+        updateState(layout.dir, layout.state, (back) => {
+          const m = findMilestone(back, next.id);
+          if (!m) return;
           m.status = "pending";
           m.history.push({
             attempt,
@@ -296,8 +302,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
             steering: steering?.headline,
             agent: active.name,
           });
-          saveState(layout.state, back);
-        }
+        });
         if (infraRetries > config.infra.maxRetries) {
           logEvent(layout, next.id, `infra:${infra.reason}`, infra.detail);
           fail(`too many infrastructure failures (${infraRetries}) - giving up`);
@@ -349,9 +354,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         agent: active.name,
       };
 
-      const after = loadState(layout.state);
-      applyVerdict(after, next.id, record, verdict, maxAttempts);
-      saveState(layout.state, after);
+      const after = updateState(layout.dir, layout.state, (s) => applyVerdict(s, next.id, record, verdict, maxAttempts));
       logEvent(
         layout,
         next.id,

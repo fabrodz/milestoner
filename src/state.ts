@@ -1,3 +1,4 @@
+import { withStateLock } from "./lock.js";
 import { readJson, writeJsonAtomic } from "./util/fs.js";
 import { iso } from "./util/time.js";
 import type { Milestone, MilestoneStatus, RunState } from "./types.js";
@@ -35,6 +36,7 @@ export function normalizeState(raw: Record<string, unknown>): RunState {
     createdAt: String(raw.createdAt ?? iso()),
     // `mvpComplete` is the flag the reference run used before the field was renamed.
     runComplete: Boolean(raw.runComplete ?? raw.mvpComplete ?? false),
+    rev: Number(raw.rev ?? 0),
     milestones: milestones.map((m, i) => normalizeMilestone(m as Record<string, unknown>, i)),
   };
 }
@@ -44,7 +46,24 @@ export function loadState(statePath: string): RunState {
 }
 
 export function saveState(statePath: string, state: RunState): void {
-  writeJsonAtomic(statePath, state);
+  writeJsonAtomic(statePath, { ...state, rev: (state.rev ?? 0) + 1 });
+}
+
+/**
+ * Read, change and write state.json without losing a concurrent update. Every mutation goes through
+ * here: an atomic write stops a torn file, not a lost update, and the two writers that matter - the
+ * runner and whatever the user just asked for - do overlap.
+ *
+ * Returns the state as written, so a caller can report what it actually did rather than what it
+ * intended.
+ */
+export function updateState(dir: string, statePath: string, mutate: (state: RunState) => void): RunState {
+  return withStateLock(dir, () => {
+    const state = loadState(statePath);
+    mutate(state);
+    saveState(statePath, state);
+    return state;
+  });
 }
 
 export function findMilestone(state: RunState, id: string): Milestone | undefined {

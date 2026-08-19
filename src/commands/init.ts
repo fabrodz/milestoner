@@ -62,7 +62,7 @@ export function init(options: InitOptions): number {
     if (created) info(`prompts/${promptFile}`);
   }
 
-  const state: RunState = { run, createdAt: iso(), runComplete: false, milestones };
+  const state: RunState = { run, createdAt: iso(), runComplete: false, rev: 0, milestones };
 
   // projectRoot is where the config was found, never what it says: writing it would only invite
   // an edit that does nothing.
