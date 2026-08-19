@@ -52,7 +52,8 @@ All notable changes to this project are documented here. The format follows
   and stop a runner - by calling the same functions, so interventions land in the same logs. Bound
   to loopback, key required per request, `Host` and `Origin` checked, read-only unless `--write`.
   A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
-  shell; the README and the guide say so plainly.
+  shell; the README and the guide say so plainly, and document SSH forwarding as the one supported
+  way to reach it from another device.
 
 ### Changed
 
@@ -87,7 +88,8 @@ All notable changes to this project are documented here. The format follows
   and stop a runner - by calling the same functions, so interventions land in the same logs. Bound
   to loopback, key required per request, `Host` and `Origin` checked, read-only unless `--write`.
   A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
-  shell; the README and the guide say so plainly.
+  shell; the README and the guide say so plainly, and document SSH forwarding as the one supported
+  way to reach it from another device.
 
 ### Changed
 

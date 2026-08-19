@@ -673,9 +673,25 @@ on that assumption rather than in spite of it:
 | Transcript names resolved inside `logs/` and re-checked | `?name=../../../../etc/passwd`. |
 
 The key travels in the URL so the link is enough to open the panel. That also means the URL *is* the
-credential: do not paste it into a chat, and do not port-forward or tunnel the port. If you want the
-panel reachable from elsewhere, put an authenticating proxy in front of it and own that decision
-explicitly - there is no flag that will do it for you.
+credential: do not paste it into a chat or a ticket.
+
+#### Reaching it from your phone
+
+The panel binds loopback and there is no flag to change that, so getting to it from another device is
+a transport question, not a dogwatch one. Forward the port over SSH:
+
+```sh
+ssh -N -L 4400:127.0.0.1:4400 you@the-machine
+```
+
+SSH authenticates you before anything reaches the panel and encrypts the session; the panel stays on
+loopback at both ends, and the key in the URL still applies. Open `http://127.0.0.1:4400/?token=...`
+on the phone and you have the run: the diagnosis, the last transcript, and the steering box.
+
+What not to do: publish the port, or run it through a tunnelling service that gives out a public URL
+without authentication. Either one hands an agent running with `--dangerously-skip-permissions` to
+whoever finds the address. If you want a permanent hosted setup, put a real authenticating proxy in
+front and understand that you have taken on that decision.
 
 ### dogwatch skill install
 

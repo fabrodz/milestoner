@@ -52,6 +52,13 @@ pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;
   max-width:90vw}
 #toast.on{opacity:1}
 .ro{color:var(--muted);font-size:.82rem;font-style:italic}
+table.att{width:100%;border-collapse:collapse;margin-top:.7rem;font-size:.82rem}
+table.att td{padding:.25rem .5rem .25rem 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.att td:first-child{color:var(--muted);width:2.5rem;font-variant-numeric:tabular-nums}
+button.link{border:none;background:none;padding:0;color:var(--progress);text-decoration:underline;
+  font-size:.82rem;cursor:pointer}
+button.link:hover{opacity:.75}
+.pill.incomplete{background:var(--incomplete)}.pill.infra-failure{background:var(--infra)}
 </style>
 </head>
 <body>
@@ -73,6 +80,12 @@ pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;
       <button data-w onclick="post('/api/steer',{clear:true})">Clear</button>
       <span class="meta" id="steerNow"></span>
     </div>
+  </div>
+
+  <div class="card" id="logView" style="display:none">
+    <div class="row"><strong>Transcript</strong><span class="meta" id="logName"></span>
+      <button style="margin-left:auto" onclick="closeLog()">Close</button></div>
+    <pre id="logBody" style="max-height:26rem"></pre>
   </div>
 
   <h2>Engine events</h2>
@@ -133,7 +146,8 @@ function render(d) {
     (p && p.runnerAlive
       ? '<span class="pill alive">running</span><strong>' + esc(p.milestoneId || "-") + "</strong>" +
         '<span class="meta">attempt ' + esc(p.attempt) + " · " + esc(p.lastEvent) + " · session " + dur(p.sessionSeconds) +
-        (p.agent ? " · agent " + esc(p.agent) : "") + live + "</span>"
+        (p.agent ? " · agent " + esc(p.agent) : "") + live + "</span>" +
+        (p.transcript ? '<button class="link" onclick="viewLog(' + JSON.stringify(p.transcript) + ')">live transcript</button>' : "")
       : d.runComplete
         ? '<span class="pill done">complete</span>'
         : '<span class="pill dead">no runner</span><span class="meta">nothing is driving this run' + live + "</span>") +
@@ -156,11 +170,20 @@ function render(d) {
         '<button data-w onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Unblock, keep attempts</button></div>'
       : "";
     const last = m.history[m.history.length - 1];
+    const att = m.history.length
+      ? '<table class="att"><tbody>' + m.history.map(h =>
+          "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(h.outcome) + '">' + esc(h.outcome) + "</span></td>" +
+          "<td>" + dur(h.seconds) + "</td><td>" + esc(h.agent || "") + "</td>" +
+          '<td><button class="link" onclick="viewLog(' + JSON.stringify(h.transcript) + ')">transcript</button></td></tr>' +
+          (h.detail ? '<tr><td></td><td colspan="4" class="meta">' + esc(h.detail) + "</td></tr>" : "") +
+          (h.steering ? '<tr><td></td><td colspan="4" class="meta">steering: ' + esc(h.steering) + "</td></tr>" : "")
+        ).join("") + "</tbody></table>"
+      : "";
     return '<div class="card ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
       esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) + "</div>" +
       '<p class="meta">' + m.history.length + " session" + (m.history.length === 1 ? "" : "s") + " · " +
       m.attempts + "/" + d.maxAttempts + " attempts charged" +
-      (last && last.agent ? " · last agent " + esc(last.agent) : "") + "</p>" + dg + ev + un + "</div>";
+      (last && last.agent ? " · last agent " + esc(last.agent) : "") + "</p>" + dg + ev + att + un + "</div>";
   }).join("");
 
   document.getElementById("steerNow").textContent = d.steering ? "in force" : "none in force";
@@ -175,6 +198,22 @@ function render(d) {
     document.getElementById("sub").after(n);
   }
 }
+async function viewLog(name) {
+  const box = document.getElementById("logView");
+  const body = document.getElementById("logBody");
+  document.getElementById("logName").textContent = name;
+  body.textContent = "loading…";
+  box.style.display = "block";
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  try {
+    const r = await fetch("/api/transcript?token=" + encodeURIComponent(TOKEN) + "&name=" + encodeURIComponent(name), { headers: auth });
+    body.textContent = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
+    // A transcript is read to find out how it ended, so start at the end.
+    body.scrollTop = body.scrollHeight;
+  } catch (e) { body.textContent = "request failed: " + e.message; }
+}
+function closeLog() { document.getElementById("logView").style.display = "none"; }
+
 function killAgent() {
   const reason = prompt("Why is this session being killed? It goes in the supervisor log.", "no progress");
   if (reason !== null) post("/api/kill", { reason: reason || "killed from the web panel" });

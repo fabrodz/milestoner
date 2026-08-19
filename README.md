@@ -172,7 +172,8 @@ It is deliberately the *same* surface as the CLI, calling the same functions. No
 here that `dogwatch` cannot do from a terminal, which is what keeps one audit trail rather than two.
 
 The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
-four, and you want to read the diagnosis and steer it from your phone without finding a laptop.
+four, and you want to read the diagnosis and the last transcript and steer it from your phone
+without finding a laptop. Reaching it from the phone is the next section.
 
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with
@@ -186,9 +187,19 @@ a write-enabled panel a remote code execution endpoint by construction, so:
 - a write from another origin is refused;
 - without `--write` the panel is read-only and every mutating route answers 403.
 
-Treat the URL like a password, and do not port-forward it or put it behind a tunnel. If you want
-something reachable from outside the machine, put a real authenticating proxy in front and accept
-that you now own that decision.
+Treat the URL like a password: it is one.
+
+**Reaching it from another device.** Do not expose the port. Forward it over SSH, which authenticates
+you before a single byte reaches the panel and encrypts what follows:
+
+```sh
+ssh -N -L 4400:127.0.0.1:4400 you@the-machine
+```
+
+The panel then answers at `http://127.0.0.1:4400` on your laptop or phone, still bound to loopback
+on both ends. That is the supported way to get to it from anywhere. Publishing the port directly, or
+putting it behind a tunnel that does not authenticate, hands an unsandboxed agent to whoever finds
+the URL.
 
 ## The run report
 

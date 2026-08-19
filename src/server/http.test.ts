@@ -24,7 +24,11 @@ function scaffold(): ReturnType<typeof layoutFor> {
     rev: 3,
     milestones: [
       { id: "M01", title: "First", prompt: "M01.md", status: "blocked", attempts: 1, evidence: ["AC1: ok"],
-        diagnosis: { symptom: "port busy", tried: [], userAction: "free the port" }, history: [] },
+        diagnosis: { symptom: "port busy", tried: [], userAction: "free the port" },
+        history: [
+          { attempt: 1, startedAt: new Date(0).toISOString(), endedAt: new Date(1000).toISOString(), seconds: 1,
+            exitCode: 0, transcript: "M01-a.log", outcome: "blocked", detail: "d", steering: "s", agent: "claude" },
+        ] },
     ],
   };
   writeFileSync(layout.state, JSON.stringify(state));
@@ -157,5 +161,15 @@ test("the page only reads fields the state view actually sends", async () => {
   const milestone = (d.milestones as Array<Record<string, unknown>>)[0]!;
   for (const [, key] of page.matchAll(/\bm\.([a-zA-Z]+)/g)) {
     assert.ok(key! in milestone, `the page reads m.${key}, which a milestone does not carry`);
+  }
+
+  const attempt = (milestone.history as Array<Record<string, unknown>>)[0]!;
+  for (const [, key] of page.matchAll(/\bh\.([a-zA-Z]+)/g)) {
+    assert.ok(key! in attempt, `the page reads h.${key}, which an attempt record does not carry`);
+  }
+
+  const pulseKeys = ["milestoneId", "attempt", "lastEvent", "sessionSeconds", "agent", "transcript", "runnerAlive"];
+  for (const [, key] of page.matchAll(/\bp\.([a-zA-Z]+)/g)) {
+    assert.ok(pulseKeys.includes(key!), `the page reads p.${key}, which the pulse does not carry`);
   }
 });
