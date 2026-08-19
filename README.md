@@ -1,4 +1,4 @@
-# pulseflow
+# PulseFlow
 
 Supervised autonomous-run engine for coding agents. A milestone state machine that launches one
 fresh headless agent session per milestone, grades what each session claims against written
