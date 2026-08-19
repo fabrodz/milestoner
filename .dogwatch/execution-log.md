@@ -154,3 +154,67 @@ covered.
 **Descoped.** None.
 
 **Next step.** M04 - release plumbing, CI gate, closing v0.4.
+
+## M04 - Release plumbing, CI gate, and closing v0.4 (2026-08-19)
+
+**Built.** The version is single-sourced, CI fails on a bad or drifting manifest, and the project's
+own records say v0.4 shipped. This is the last milestone of the run, and it also closes the dogfood:
+v0.4 was built as a four-milestone dogwatch run, so the "not yet validated" line the README carried is
+now false and rewritten to say so.
+
+- **Single-sourced version.** `package.json` is the source. `scripts/sync-version.mjs`
+  (`npm run sync:version`, wired into `build` beside `gen:skill`) does a line-level replace of the
+  version in `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, preserving their
+  hand-formatting. `src/version.test.ts` reads all three and fails when they disagree.
+- **CI manifest gate.** New `manifests` job in `.github/workflows/ci.yml`. `scripts/check-manifests.mjs`
+  (`npm run check:manifests`) parses both manifests, asserts required fields and the version
+  agreement, and is the gate on every runner. `claude plugin validate --strict` runs only when
+  `command -v claude` finds the CLI, with the absent-CLI case handled explicitly and stated in the
+  workflow.
+- **CHANGELOG.** `## [Unreleased]` renamed to `## [0.4.0] - 2026-08-19`; four new entries at the top
+  of its Added section cover the plugin manifest and skill component (M01), the four slash commands
+  (M02), the marketplace and install docs (M03), and the single-sourced version and manifest gate
+  (M04). `package.json` bumped to `0.4.0`; the sync script propagated it to both manifests.
+- **README.** Status line now reads v0.4 and names the plugin; the roadmap marks v0.4 done; the "Not
+  yet validated" sentence is rewritten to state precisely what this run demonstrated (four milestones
+  M01-M04, fresh Claude Code session each, graded against evidence) and what it did not (a run long
+  enough to hit a usage limit or fallback, a non-Claude agent across a whole run, the supervisor loop
+  against a live multi-milestone run).
+- **GUIDE.** The limitations bullet no longer says plugin packaging is missing; it now states
+  packaging shipped in v0.4 and that the CLI remains the engine and the required install.
+
+**Evidence per acceptance criterion.**
+
+- AC1 - `src/version.test.ts` "the version is single-sourced across package.json, plugin.json and the
+  marketplace entry". Deliberate-mismatch check: set `plugin.json` version to `9.9.9`, the test gave
+  `not ok 1 ... # fail 1` and `npm run check:manifests` exited 1 with "version drift: plugin.json
+  9.9.9 != package.json 0.4.0"; restored, `ok 1 ... # pass 1`.
+- AC2 - `.github/workflows/ci.yml` job `manifests`. Absent-CLI handling is explicit:
+  `if command -v claude >/dev/null 2>&1; then claude plugin validate . --strict; ... else echo
+  "claude CLI not present on this runner; the schema check above is the gate. Skipping strict
+  validation."; fi`. `npm run check:manifests` is the runner-independent gate above it.
+- AC3 - `CHANGELOG.md` has `## [0.4.0] - 2026-08-19` covering M01-M04; `package.json` reads
+  `"version": "0.4.0"`.
+- AC4 - README roadmap line "**v0.4** plugin packaging: ... Done."; validation statement rewritten
+  (quoted above and in the README) with the milestone count, the agent, and what remains untested.
+- AC5 - GUIDE now reads "**Plugin packaging shipped in v0.4.** Besides the CLI-written skill, the
+  supervisor and four slash commands install as a Claude Code plugin from an in-repo marketplace ...".
+- AC6 - Read the execution log end to end: no `### Engine findings` section was ever opened across
+  M01-M04 (`grep "Engine findings"` returns nothing). Count is 0, so nothing to fix or carry into the
+  CHANGELOG.
+- AC7 - `npm run typecheck` exit 0, `npm test` exit 0 (82 pass, 0 fail, up from 81 with the new
+  version test), `npm run build` exit 0, `claude plugin validate . --strict` exit 0. Counts in
+  `.dogwatch/evidence/M04-test.txt`, validator output in `.dogwatch/evidence/M04-validate.txt`.
+
+**Problems hit.** None. Environment gate green on entry (Node v20.10.0, build 0, 81 tests passing,
+`claude plugin validate --help` exit 0).
+
+**Decisions.** Two run-local (`.dogwatch/decisions.md`): package.json is the version source with a
+sync script deriving the manifests; CI gates manifests with a no-CLI schema check and runs strict
+validate only when the CLI is present. No new permanent decision: D-019 already recorded the
+`claude plugin tag` agreement this milestone automates.
+
+**Descoped.** None. Left the GUIDE's "v0.3" version headers untouched: AC5 is scoped to the
+limitations bullet, and a full version-header pass across the guide is outside this milestone.
+
+**Next step.** None. This is the last milestone of v04-plugin; the run is complete.

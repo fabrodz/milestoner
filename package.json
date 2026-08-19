@@ -1,6 +1,6 @@
 {
   "name": "dogwatch",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Supervised autonomous-run engine for coding agents: milestone state machine, evidence gates, infra-failure discrimination.",
   "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
   "license": "MIT",
@@ -13,7 +13,9 @@
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "gen:skill": "node --import tsx scripts/gen-skill.mjs",
-    "build": "npm run gen:skill && tsup",
+    "sync:version": "node scripts/sync-version.mjs",
+    "check:manifests": "node scripts/check-manifests.mjs",
+    "build": "npm run gen:skill && npm run sync:version && tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",

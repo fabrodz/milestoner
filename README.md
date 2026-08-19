@@ -8,7 +8,7 @@ The name is the thesis. The dog watch is the night shift at sea: the one nobody 
 crew needs. That is the differentiator, knowing a long run is still alive at four in the morning and
 acting when it isn't.
 
-Status: **v0.3**. Engine, the active supervisor as an installable Claude Code skill, mid-flight steering, and an HTML run report.
+Status: **v0.4**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, and an HTML run report.
 
 ## Install
 
@@ -370,12 +370,16 @@ agent announces its own failures in prose rather than dying instantly, add its w
 - **v0.2** active supervisor as an installable Claude Code skill; intervention log; environment
   adapter as a config string. Done.
 - **v0.3** single-file HTML run report; steering file support. Done.
-- **v0.4** plugin packaging. A second agent behind the config string is done: see
-  [Running a different agent](#running-a-different-agent).
+- **v0.4** plugin packaging: manifest, the supervisor skill and four slash commands as plugin
+  components, and an in-repo single-plugin marketplace. Done. A second agent behind the config
+  string is done too: see [Running a different agent](#running-a-different-agent).
 
-Not yet validated: a full multi-milestone run driven by a real agent end to end. Everything above is
-exercised by unit tests and by scripted agents, plus one real supervision cycle against a blocked
-run, and single milestones driven by Claude Code and by Codex.
+Validated end to end by this release: v0.4 was itself built as a four-milestone dogwatch run
+(M01-M04), each milestone a fresh Claude Code session graded against its written evidence, so a full
+multi-milestone run driven by a real agent is no longer unvalidated. What that run did not exercise:
+a run long enough to hit a real usage limit or agent fallback mid-flight, a non-Claude agent across a
+whole run rather than a single milestone, and the supervisor loop against a live multi-milestone run
+rather than the one blocked run it has been tried on.
 
 ## Changelog
 

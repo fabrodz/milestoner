@@ -1504,7 +1504,9 @@ strength of that guarantee is the quality of your criteria. Review the tags.
 ## Limits of v0.3
 
 - **Not published to npm.** Install from source. The name is claimed but nothing is published yet.
-- **No plugin packaging** (v0.4). The supervisor is a skill the CLI writes, not a marketplace plugin.
+- **Plugin packaging shipped in v0.4.** Besides the CLI-written skill, the supervisor and four slash
+  commands install as a Claude Code plugin from an in-repo marketplace; see the install section of
+  [../README.md](../README.md). The CLI is still the engine and the required install.
 - **Two agents exercised.** Claude Code and Codex; see
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.

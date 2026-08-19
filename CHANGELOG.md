@@ -5,7 +5,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-19
+
 ### Added
+
+- Claude Code plugin packaging. The repository is now a plugin as well as an npm CLI: a
+  `.claude-plugin/plugin.json` manifest, the supervisor shipped as a plugin component at
+  `skills/dogwatch-supervisor/SKILL.md`, four slash commands (`/dogwatch-init`, `/dogwatch-status`,
+  `/dogwatch-supervise`, `/dogwatch-report`) under `commands/`, and an in-repo single-plugin
+  marketplace at `.claude-plugin/marketplace.json`. Install with
+  `claude plugin marketplace add fabrodz/dogwatch` then `claude plugin install dogwatch@dogwatch`.
+  The plugin is a Claude Code layer over the engine; it does not put the `dogwatch` binary on PATH,
+  so it needs the CLI install to do anything.
+- The supervisor skill now ships from one source. The plugin component and the file
+  `dogwatch skill install` writes both come from `SKILL_TEMPLATE`; `npm run gen:skill` (wired into
+  `build`) regenerates the shipped copy, and a test asserts the two are byte-identical so they
+  cannot drift.
+- Single-sourced version. `package.json` is the source; `npm run sync:version` derives the version
+  into both plugin manifests, and a test fails when the three declarations disagree.
+- The manifest cannot silently rot. `npm run check:manifests` validates the plugin and marketplace
+  manifests with a schema-level check that needs no CLI, wired into CI so a bad or drifting manifest
+  fails the build; the strict `claude plugin validate` runs in addition wherever the CLI is present.
 
 - MIT `LICENSE` file. The package declared the licence without shipping one.
 - CI on GitHub Actions: typecheck, tests and build on Node 20, 22 and 24, on Linux and Windows.
