@@ -73,3 +73,64 @@ every run afterwards.
 - `docs/GUIDE.md` was not written in this session's normal flow and has never been reviewed line by
   line by its author; it was read and fact-checked against the code on 2026-08-19, and the one real
   discrepancy it exposed (the interrupt semantics) was fixed in `3ae7b68`.
+
+## Product goals not yet on the roadmap
+
+Two goals stated on 2026-08-19. Neither is a feature to bolt on: both are mostly about removing
+assumptions that are currently baked into defaults and into code paths that have never run.
+
+### Any agent, not just Claude Code
+
+The seam already exists (D-005): `agent.command` plus an `agent.args` template, and the engine
+never reads an exit code, so a different agent is meant to be a config change. What is actually in
+the way:
+
+- **The prompt can only be delivered as an argument.** `{{kickoff}}` is substituted into `args`.
+  An agent that expects its prompt on stdin, or as a file path, cannot be configured at all. This
+  needs a `promptDelivery: "arg" | "stdin" | "file"` option, and it is the one real engine change
+  of the three.
+- **The infrastructure heuristics are Claude-worded.** `usageLimitPatterns` defaults to Claude's
+  phrasing, and `secondsUntilReset` parses Claude Code's literal `resets 3:00pm`. Both are
+  configurable, but a user swapping agents inherits wrong defaults silently: the run would spend
+  attempts on what is really a quota wall. Per-agent presets, not per-user guesswork.
+- **The default args carry `--dangerously-skip-permissions`**, which is Claude-specific and
+  meaningless elsewhere.
+- **No agent other than Claude Code has ever been launched.** Everything above is reasoning from
+  the code, not from an observed failure.
+
+One distinction to keep honest: pulseflow drives **agent CLIs**, not model endpoints. An agent must
+be able to read files, run commands and write `result.json`. Ollama is a model server, not an
+agent, so "works with ollama" means "works with an agent harness pointed at a local model", not a
+config line. Making pulseflow itself the agent is a different product.
+
+Done looks like: a `promptDelivery` option, a small set of tested per-agent presets shipped with the
+engine (each carrying its own infra patterns), and at least one non-Claude agent driven through a
+real milestone end to end.
+
+### Windows, macOS and Linux
+
+The code is written to be portable and has only ever run on Windows. Concretely:
+
+- **The POSIX kill only reaches the direct child.** Windows uses `taskkill /T /F`, which kills the
+  process tree; POSIX sends `SIGTERM` to the child alone, and the process is not spawned
+  `detached`, so there is no process group to signal. If the agent CLI is a wrapper script, the
+  real process survives a `pulseflow kill` on macOS and Linux, which quietly breaks playbook rule 4.
+- **The whole non-Windows spawn path is untested.** `resolveExecutable` returns early on POSIX and
+  the `.cmd` shim branch never fires, so the code is simpler there - but simpler is not the same as
+  verified.
+- **No CI.** The test suite already spawns real child processes (`runner.stop.test.ts`), so a
+  three-OS matrix would exercise the parts that actually differ, cheaply.
+- Paths recorded in `state.json` history and `pulse.json` use the host separator, so a run moved
+  between machines reads inconsistently. Cosmetic.
+- The only environment adapter that exists is PowerShell, which is inherent to what it does.
+
+Done looks like: CI on `windows-latest`, `macos-latest` and `ubuntu-latest`; the POSIX kill fixed to
+signal a process group; and the README stating which combinations have actually been exercised
+rather than which ones ought to work.
+
+### Ordering
+
+The three-OS CI is the piece worth doing immediately and in parallel with everything else: it is
+cheap, it protects every later change, and it does not depend on the validation above. The agent
+presets are worth less until the engine has been proven once with the agent that already works -
+otherwise a failed run leaves two suspects instead of one.
