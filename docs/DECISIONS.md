@@ -135,8 +135,10 @@ runner grade a deliberate kill as work.
 ## D-013 - The environment adapter is one config string, not a plugin API (2026-08-18)
 
 `environment.attendCommand` is a shell command line with a `{{seconds}}` placeholder, run by
-`pulseflow attend`. The Unity adapter from the reference run is that command line pointed at a
-PowerShell script; a headless web project leaves it null and playbook rule 3 simply cannot fire.
+`pulseflow attend`. Being a string is what keeps the engine free of any one environment: the adapter
+from the reference run points it at a PowerShell script for a GUI editor, but restarting a wedged
+dev server or re-pairing a device is the same one-line change. A headless project leaves it null and
+playbook rule 3 simply cannot fire.
 
 Rejected: a TypeScript adapter interface with lifecycle hooks. There is exactly one adapter in
 existence and one hook it needs. A plugin API before the second adapter would be guesswork.

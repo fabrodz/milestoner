@@ -11,11 +11,33 @@ Status: **v0.3**. Engine, the active supervisor as an installable Claude Code sk
 
 ## Install
 
+Not on npm yet. Install from source:
+
 ```sh
-npm install -g pulseflow   # or: npx pulseflow <command>
+git clone https://github.com/fabrodz/pulseflow.git
+cd pulseflow && npm install && npm run build && npm link
 ```
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
+
+## What you are agreeing to
+
+pulseflow exists to run a coding agent for hours while you are not watching, so the default
+`agent.args` include `--dangerously-skip-permissions`. A headless session cannot answer a permission
+prompt; without that flag it hangs until the timeout instead of working.
+
+The consequence is real and worth stating plainly: **for as long as the run lasts, the agent can
+read, write and delete anything your user account can, and run any command, unattended.** The engine
+does not sandbox it and cannot review what it does.
+
+Before leaving a run overnight:
+
+- Run it in a project directory you would be willing to restore from git.
+- Commit or push first. The protocol template tags every green milestone, which is what makes
+  `git reset --hard <tag>` a real rollback.
+- Prefer a VM, container or dedicated user account when the project is not yours.
+- Consider removing `--dangerously-skip-permissions` and supplying a narrower allowlist through your
+  agent's own settings. The engine passes `agent.args` through verbatim, so this is a config change.
 
 ## Use
 
@@ -37,8 +59,8 @@ pulseflow status
 | `pulseflow steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `pulseflow report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `pulseflow skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
-| `pulseflow kill [--reason <text>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
-| `pulseflow attend [--seconds <n>]` | Supervisor intervention: run the configured environment adapter. |
+| `pulseflow kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
+| `pulseflow attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
 Exit codes: `0` ok, `1` error, `2` blocked.
 
@@ -90,10 +112,15 @@ a session owns them. Clearing a block stays a human decision.
 it as incomplete, consumes an attempt and relaunches with a fresh context. The kill is recorded so
 it cannot be mistaken for an infrastructure death and silently refunded.
 
-**Environment adapter.** Playbook rule 3 unsticks a host-bound environment (window focus, a native
-modal, a wedged tool server) by running `environment.attendCommand`. Point it at a script of your
-own; the Unity one from the original run is in `reference/unity-attend.ps1`, ready to copy into a
-project. A headless project leaves the command null and the rule simply cannot fire.
+**Environment adapter.** Some environments get stuck in ways no agent can fix from inside its own
+session: a GUI editor loses focus and stops ticking, a native modal blocks the main thread, a
+language server or dev server wedges, a connected device drops off the bus. Playbook rule 3 runs
+`environment.attendCommand` against exactly that, and nothing else.
+
+The engine knows nothing about any of these; the adapter is one command line you write. The one
+shipped as an example, `reference/unity-attend.ps1`, is a Unity focus keeper plus Win32 modal
+dismissal, because that is the environment these runs came from. A headless project leaves the
+command null and the rule simply cannot fire.
 
 ```json
 "environment": {
@@ -174,7 +201,9 @@ never charged against the attempt budget are visible after the fact.
     "maxRetries": 30,
     "usageLimitWaitSeconds": 600,
     "genericWaitSeconds": 60,
-    "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"]
+    "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"],
+    "infraFailurePatterns": ["stream disconnected", "connection refused", "econnrefused",
+                             "authentication failed", "not logged in"]
   },
   "liveness": ["src", "tests/results/latest.txt"],
   "environment": { "attendCommand": null, "attendSeconds": 120 }
@@ -187,16 +216,95 @@ never charged against the attempt budget are visible after the fact.
 `liveness` is the list of paths whose mtime proves work is happening. Set it: without it `status`
 can tell you a process exists, but not that it is doing anything.
 
+## Running a different agent
+
+The agent is a command line, so a second agent is a config change. Claude Code is the default and
+the one exercised most; the recipes below were run against this engine.
+
+**OpenAI Codex** (`codex exec`, verified against codex-cli 0.133.0):
+
+```json
+"agent": {
+  "command": "codex",
+  "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+           "--skip-git-repo-check", "-C", "{{projectRoot}}"],
+  "modelArgs": ["--model", "{{model}}"],
+  "model": null,
+  "env": {}
+}
+```
+
+Codex needs `-C` because it does not inherit the working directory the way `claude -p` does, and
+`--skip-git-repo-check` only if the project is not a git repository. Its usage-limit message is
+caught by the stock `infra.usageLimitPatterns`: a session that hit an OpenAI quota was refunded and
+waited, with no engine change.
+
+**A local model through Ollama.** Ollama is a model server, not an agent: it has no tools and cannot
+read or write a file, so it cannot execute a milestone on its own. Drive it through an agentic CLI.
+With Codex, that is two extra arguments:
+
+```json
+"args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+         "-C", "{{projectRoot}}", "--oss", "--local-provider", "ollama"],
+"model": "qwen2.5-coder:7b"
+```
+
+`ollama serve` has to be running. Expect this to be the weakest link by far: a 7B model given this
+protocol invented a script it never wrote, printed its verdict to stdout instead of writing
+`result.json`, and claimed `done`. The engine graded it `incomplete` and retried, which is the point
+of the evidence gate, but no amount of grading turns a small model into a milestone executor.
+
+### Falling back to a second agent
+
+A run that hits a usage limit at 2am with a reset at 5am sleeps three hours. If another agent is
+authenticated, it does not have to:
+
+```json
+"agent": { "name": "claude", "command": "claude", "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
+"fallbackAgents": [
+  { "name": "codex", "command": "codex",
+    "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox", "-C", "{{projectRoot}}"] }
+]
+```
+
+When a session fails for a reason the infra rules recognise, the failing agent is benched and the
+next free one takes over **immediately, without sleeping**. The attempt is still not consumed. Only
+when every agent is cooling down does the runner wait, and then only for the shortest of them.
+
+The bench is a cooldown, not a demotion: a usage limit benches the agent until its announced reset,
+so the primary comes back the moment its quota does rather than being written off for the rest of
+the run.
+
+It never triggers on a work failure. An `incomplete` verdict means the milestone was not finished,
+which is what the attempt budget is for; swapping the agent there would quietly turn a quality
+problem into a different agent's problem.
+
+**The risk is silent degradation**, so the rotation is recorded everywhere it can be read back: the
+agent that ran each attempt is in `state.json`, in the attempt table of the report, in `run-log.md`,
+and in `status --json` while the run is live. Absent `fallbackAgents`, none of this changes: a pool
+of one benches its only agent and waits, exactly as before.
+
+**Anything else.** The engine only needs a command that (a) accepts a prompt as an argument or in
+`args`, (b) can read and write files in the project, and (c) exits when it is finished. If the
+agent announces its own failures in prose rather than dying instantly, add its wording to
+`infra.infraFailurePatterns` so those failures are refunded instead of charged.
+
 ## Roadmap
 
 - **v0.1** engine: `init`, `run`, `status`, `unblock`. Done.
 - **v0.2** active supervisor as an installable Claude Code skill; intervention log; environment
   adapter as a config string. Done.
 - **v0.3** single-file HTML run report; steering file support. Done.
-- **v0.4** plugin packaging; a second agent behind the config string.
+- **v0.4** plugin packaging. A second agent behind the config string is done: see
+  [Running a different agent](#running-a-different-agent).
 
-Not yet validated: a full run driven by a real agent end to end. Everything above is exercised by
-unit tests and by scripted agents, plus one real supervision cycle against a blocked run.
+Not yet validated: a full multi-milestone run driven by a real agent end to end. Everything above is
+exercised by unit tests and by scripted agents, plus one real supervision cycle against a blocked
+run, and single milestones driven by Claude Code and by Codex.
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 
@@ -208,14 +316,23 @@ config reference, grading and infra rules, use cases, recipes and troubleshootin
 [BRIEF.md](BRIEF.md) is the genesis document: where this comes from (two real overnight runs on a
 Unity 6 game), what made those runs work, and the competitive landscape.
 [docs/DECISIONS.md](docs/DECISIONS.md) records the product decisions and what was rejected.
-`reference/` holds the original PowerShell implementation verbatim, as the behavioural spec.
+`reference/` holds the original PowerShell implementation as the behavioural spec: the orchestrator,
+the supervisor prompts and the protocol from one Unity project's overnight runs, with that project's
+names and paths replaced by placeholders. It is a dated artifact, not a second entry point. Nothing
+in `src/` knows what Unity is.
 
 ## Development
 
 ```sh
 npm install
 npm test         # rule-level tests: infra classification, grading, state migration, quoting,
-                 # config merging, and the supervisor playbook's shape
+                 # config merging, exit codes, the report, and the supervisor playbook's shape
 npm run typecheck
 npm run build
 ```
+
+CI runs all three on Node 20, 22 and 24, on Linux and Windows.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
