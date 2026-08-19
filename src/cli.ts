@@ -201,13 +201,17 @@ async function main(): Promise<number> {
   }
 
   if (command === "run") {
-    const controller = new AbortController();
+    const stopController = new AbortController();
+    const killController = new AbortController();
     let interrupts = 0;
     process.on("SIGINT", () => {
       interrupts += 1;
       if (interrupts === 1) {
-        warn("\ninterrupt received - stopping after the current session (Ctrl-C again to kill it now)");
-        controller.abort();
+        warn("\ninterrupt received - finishing the current session, then stopping (Ctrl-C again to kill it now)");
+        stopController.abort();
+      } else if (interrupts === 2) {
+        warn("killing the agent session - the milestone stays in_progress and is retried on the next run");
+        killController.abort();
       } else {
         process.exit(130);
       }
@@ -226,7 +230,8 @@ async function main(): Promise<number> {
       model: values.model,
       once: Boolean(values.once),
       milestoneId: values.milestone,
-      signal: controller.signal,
+      signal: killController.signal,
+      stopSignal: stopController.signal,
     });
     return outcome === "complete" || outcome === "stopped" ? 0 : outcome === "blocked" ? 2 : 1;
   }

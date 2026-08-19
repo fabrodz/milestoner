@@ -20,7 +20,10 @@ export interface RunOptions {
   /** Stop after the first milestone attempt instead of draining the run. */
   once?: boolean;
   milestoneId?: string;
+  /** Hard stop: kill the running session now, leave the milestone in_progress. */
   signal: AbortSignal;
+  /** Graceful stop: let the current session finish and be graded, then launch nothing more. */
+  stopSignal?: AbortSignal;
 }
 
 export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted";
@@ -97,6 +100,8 @@ function applyVerdict(
 
 export async function run(options: RunOptions): Promise<RunExit> {
   const { config, layout, signal } = options;
+  const stopping = () => signal.aborted || options.stopSignal?.aborted === true;
+  const anySignal = options.stopSignal ? AbortSignal.any([signal, options.stopSignal]) : signal;
   const maxAttempts = options.maxAttempts ?? config.maxAttempts;
   if (options.model) config.agent.model = options.model;
 
@@ -126,7 +131,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
   try {
     for (;;) {
-      if (signal.aborted) return "stopped";
+      if (stopping()) return "stopped";
       const state = loadState(layout.state);
 
       if (state.runComplete) {
@@ -224,9 +229,10 @@ export async function run(options: RunOptions): Promise<RunExit> {
         },
       });
 
+      // Only a hard stop skips grading: a session that ran to the end has a verdict worth keeping.
       if (signal.aborted) {
-        warn("interrupted - leaving the milestone in_progress");
-        logEvent(layout, next.id, "interrupted", `after ${humanDuration(outcome.ms)}`);
+        warn("killed - leaving the milestone in_progress");
+        logEvent(layout, next.id, "interrupted", `killed after ${humanDuration(outcome.ms)}`);
         return "stopped";
       }
 
@@ -285,7 +291,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
             `attempt NOT consumed (${infraRetries}/${config.infra.maxRetries})`,
         );
         pulse(next, attempt, null, `waiting out ${infra.reason}`);
-        await sleep(infra.waitSeconds, signal);
+        await sleep(infra.waitSeconds, anySignal);
         continue;
       }
       infraRetries = 0;
@@ -325,7 +331,11 @@ export async function run(options: RunOptions): Promise<RunExit> {
       }
 
       if (options.once) return "stopped";
-      if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, signal);
+      if (stopping()) {
+        warn("stopping as requested - the run resumes with `pulseflow run`");
+        return "stopped";
+      }
+      if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);
     }
   } finally {
     clearPulse(layout.pulse);
