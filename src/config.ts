@@ -1,7 +1,7 @@
 import { readJson } from "./util/fs.js";
-import type { RunpulseConfig } from "./types.js";
+import type { PulseflowConfig } from "./types.js";
 
-export function defaultConfig(run: string, projectRoot: string): RunpulseConfig {
+export function defaultConfig(run: string, projectRoot: string): PulseflowConfig {
   return {
     run,
     projectRoot,
@@ -29,8 +29,8 @@ export function defaultConfig(run: string, projectRoot: string): RunpulseConfig 
 
 const REQUIRED = ["run", "agent", "infra"] as const;
 
-export function loadConfig(configPath: string, projectRoot: string): RunpulseConfig {
-  const raw = readJson<Partial<RunpulseConfig>>(configPath);
+export function loadConfig(configPath: string, projectRoot: string): PulseflowConfig {
+  const raw = readJson<Partial<PulseflowConfig>>(configPath);
   for (const key of REQUIRED) {
     if (raw[key] === undefined) throw new Error(`${configPath}: missing required field "${key}"`);
   }
@@ -52,7 +52,7 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => vars[name] ?? match);
 }
 
-export function buildAgentArgs(config: RunpulseConfig, vars: Record<string, string>): string[] {
+export function buildAgentArgs(config: PulseflowConfig, vars: Record<string, string>): string[] {
   const args = config.agent.args.map((a) => renderTemplate(a, vars));
   if (config.agent.model) {
     args.push(...config.agent.modelArgs.map((a) => renderTemplate(a, { ...vars, model: config.agent.model! })));

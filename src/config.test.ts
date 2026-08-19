@@ -12,7 +12,7 @@ test("placeholders are substituted, unknown ones stay visible", () => {
 
 test("model args are appended only when a model is configured", () => {
   const config = defaultConfig("t", "/p");
-  const vars = { kickoff: "do M01", promptFile: "/p/.runpulse/prompts/M01.md", milestoneId: "M01", projectRoot: "/p", model: "" };
+  const vars = { kickoff: "do M01", promptFile: "/p/.pulseflow/prompts/M01.md", milestoneId: "M01", projectRoot: "/p", model: "" };
   assert.deepEqual(buildAgentArgs(config, vars), ["-p", "do M01", "--dangerously-skip-permissions"]);
 
   config.agent.model = "claude-opus-5";
@@ -27,7 +27,7 @@ test("a different agent is only a config change", () => {
 });
 
 test("a partial config keeps the defaults it does not mention", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "runpulse-")), "config.json");
+  const file = join(mkdtempSync(join(tmpdir(), "pulseflow-")), "config.json");
   writeFileSync(file, JSON.stringify({ run: "partial", agent: { command: "codex" }, infra: { deathSeconds: 30 } }));
   const config = loadConfig(file, "/p");
 
@@ -41,7 +41,7 @@ test("a partial config keeps the defaults it does not mention", () => {
 });
 
 test("a config without the required fields is rejected", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "runpulse-")), "config.json");
+  const file = join(mkdtempSync(join(tmpdir(), "pulseflow-")), "config.json");
   writeFileSync(file, JSON.stringify({ run: "no-agent" }));
   assert.throws(() => loadConfig(file, "/p"), /missing required field "agent"/);
 });

@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { renderTemplate } from "../config.js";
 import type { Layout } from "../paths.js";
 import { appendSupervisorLog } from "../supervisorLog.js";
-import type { RunpulseConfig } from "../types.js";
+import type { PulseflowConfig } from "../types.js";
 import { fail, info, ok } from "../util/log.js";
 
 export interface AttendOptions {
-  config: RunpulseConfig;
+  config: PulseflowConfig;
   layout: Layout;
   seconds?: number;
   rule: string;
@@ -20,8 +20,8 @@ export interface AttendOptions {
 export function attend(options: AttendOptions): number {
   const command = options.config.environment.attendCommand;
   if (!command) {
-    fail('no environment adapter configured - set "environment.attendCommand" in .runpulse/config.json');
-    info('  example: "powershell -ExecutionPolicy Bypass -File .runpulse/adapters/unity-attend.ps1 -Seconds {{seconds}}"');
+    fail('no environment adapter configured - set "environment.attendCommand" in .pulseflow/config.json');
+    info('  example: "powershell -ExecutionPolicy Bypass -File .pulseflow/adapters/unity-attend.ps1 -Seconds {{seconds}}"');
     return 1;
   }
 

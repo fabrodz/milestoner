@@ -19,7 +19,7 @@ sit behind the same agent-config seam.
 
 ## D-002 - Distribution: npm first, Claude Code plugin later (2026-08-18)
 
-`npx runpulse init|run|status|unblock` in v0.1. The supervisor ships as a Claude Code skill in v0.2
+`npx pulseflow init|run|status|unblock` in v0.1. The supervisor ships as a Claude Code skill in v0.2
 and the whole thing gets plugin packaging in v0.4.
 
 The split follows the natural shape: the runner is a process that must survive a dead session, so
@@ -33,7 +33,7 @@ insufficient.
 
 ## D-004 - Observability: `status` plus a pulse block in v0.1 (2026-08-18)
 
-`runpulse status` prints the milestone table and a **pulse** block: is a runner process alive, what
+`pulseflow status` prints the milestone table and a **pulse** block: is a runner process alive, what
 is it on, how long has the current session been running, and how old is the newest liveness signal.
 
 Liveness comes from side signals only - watched source dirs, test-result files, tool logs - never
@@ -46,7 +46,7 @@ poll is the minimum that makes the pulse real.
 ## D-005 - The agent command is a config string from day one (2026-08-18)
 
 `agent.command` plus an `agent.args` template with `{{kickoff}}`, `{{promptFile}}`,
-`{{milestoneId}}`, `{{projectRoot}}`, `{{runpulseDir}}` and `{{model}}` placeholders. Swapping
+`{{milestoneId}}`, `{{projectRoot}}`, `{{pulseflowDir}}` and `{{model}}` placeholders. Swapping
 Claude Code for Codex or Cursor is a config edit; the engine never learns agent names.
 
 Only Claude Code is tested in v0.1. The seam is cheap now and expensive to retrofit.
@@ -56,14 +56,14 @@ Only Claude Code is tested in v0.1. The seam is cheap now and expensive to retro
 Departure from the reference implementation, where the executor session edited `state.json`
 directly and the orchestrator trusted it.
 
-The session now writes one small drop box, `.runpulse/result.json`:
+The session now writes one small drop box, `.pulseflow/result.json`:
 
 ```json
 { "milestone": "M01", "status": "done", "evidence": ["AC1: ..."], "notes": "" }
 ```
 
 The engine grades it, merges it into `state.json`, and archives the raw claim under
-`.runpulse/results/<id>-attempt<n>.json`. The agent's write surface shrinks from the whole state
+`.pulseflow/results/<id>-attempt<n>.json`. The agent's write surface shrinks from the whole state
 machine to one file it cannot corrupt anything else with, and every attempt keeps its own record.
 
 The trust rule from the reference survives intact: the verdict comes from what the session wrote,
@@ -95,9 +95,9 @@ Clearing it is always a human decision - the engine never resets a block on its 
 
 ## D-010 - The supervisor is a skill, installed by the CLI (2026-08-18)
 
-`runpulse skill install` writes `.claude/skills/runpulse-supervisor/SKILL.md` into the project
+`pulseflow skill install` writes `.claude/skills/pulseflow-supervisor/SKILL.md` into the project
 (`--global` for `~/.claude/skills/`). The user starts it with
-`/loop 10m Use the runpulse-supervisor skill to perform one supervision cycle.`
+`/loop 10m Use the pulseflow-supervisor skill to perform one supervision cycle.`
 
 Rejected for now: shipping it as a plugin. Plugin packaging is v0.4 and brings a marketplace repo
 with it; a file the CLI writes needs neither. The skill text lives in the engine
@@ -118,16 +118,16 @@ supervision rule needs to know belongs in that JSON, not in the skill's prose.
 
 The supervisor's entire write surface is three commands plus its own log:
 
-- `runpulse kill --reason <text>` kills the **agent session**, never the runner. The runner then
+- `pulseflow kill --reason <text>` kills the **agent session**, never the runner. The runner then
   grades the session as incomplete, consumes the attempt and relaunches with fresh context.
-- `runpulse attend` runs the project's configured environment adapter.
-- `runpulse run` relaunches a dead runner.
+- `pulseflow attend` runs the project's configured environment adapter.
+- `pulseflow run` relaunches a dead runner.
 
 Nothing else: no editing project code, no editing state.json, no running the project's own tools
-while a session owns them. `runpulse unblock` is deliberately excluded - clearing a block stays a
+while a session owns them. `pulseflow unblock` is deliberately excluded - clearing a block stays a
 human decision, per D-009.
 
-`kill` writes `.runpulse/kill.json` before killing. Without it, a session killed after 20 quiet
+`kill` writes `.pulseflow/kill.json` before killing. Without it, a session killed after 20 quiet
 minutes can still look like an infrastructure death (short, tiny transcript) and D-008 would refund
 the attempt, so the intervention would cost nothing and could repeat forever. The marker makes the
 runner grade a deliberate kill as work.
@@ -135,7 +135,7 @@ runner grade a deliberate kill as work.
 ## D-013 - The environment adapter is one config string, not a plugin API (2026-08-18)
 
 `environment.attendCommand` is a shell command line with a `{{seconds}}` placeholder, run by
-`runpulse attend`. The Unity adapter from the reference run is that command line pointed at a
+`pulseflow attend`. The Unity adapter from the reference run is that command line pointed at a
 PowerShell script; a headless web project leaves it null and playbook rule 3 simply cannot fire.
 
 Rejected: a TypeScript adapter interface with lifecycle hooks. There is exactly one adapter in
@@ -143,9 +143,9 @@ existence and one hook it needs. A plugin API before the second adapter would be
 
 ## D-014 - Steering persists and is inlined into the kickoff (2026-08-19)
 
-`.runpulse/STEERING.md` is the user's mid-flight channel: a correction that reaches the next
-session without killing the current one. `runpulse steer "<text>"` writes it, `--append` adds a
-line, `--clear` removes it, and bare `runpulse steer` shows what is in force.
+`.pulseflow/STEERING.md` is the user's mid-flight channel: a correction that reaches the next
+session without killing the current one. `pulseflow steer "<text>"` writes it, `--append` adds a
+line, `--clear` removes it, and bare `pulseflow steer` shows what is in force.
 
 Two choices inside it:
 
@@ -168,7 +168,7 @@ wording in its report and the user runs the command.
 
 ## D-015 - The report is one self-contained HTML file, generated on demand (2026-08-19)
 
-`runpulse report [--out <path>] [--open]` renders `state.json` plus both logs into a single file:
+`pulseflow report [--out <path>] [--open]` renders `state.json` plus both logs into a single file:
 stat tiles, a wall-clock timeline of every session that ran, one card per milestone with its
 evidence and diagnosis, the attempt table, and the intervention log.
 
@@ -183,3 +183,27 @@ Everything in it is agent-authored text, so every value is HTML-escaped. That is
 
 Rejected: a live web view with a server. The report answers "what happened overnight"; `status`
 and the supervisor already answer "what is happening now".
+
+## D-016 - Renamed to pulseflow (2026-08-19)
+
+The package, the binary and the state directory are `pulseflow` / `.pulseflow`. Every reference in
+the source, the templates, the supervisor skill and the docs moved with it. D-001 to D-015 describe
+the same decisions; only the name changed.
+
+Nothing was published under the old name, so there is no npm deprecation to do. The one thing that
+breaks is a run set up before the rename: its state lives in `.runpulse/`, which the CLI no longer
+looks for as a working project. It is still detected, and every command that needs a project stops
+with the migration instead of a generic "not found":
+
+```
+found <path>/.runpulse - this run was set up before the tool was renamed to pulseflow
+  ren "<path>/.runpulse" .pulseflow
+```
+
+The layout is derived from the directory name and nothing inside stores it, so renaming the
+directory is the whole migration - a run in progress keeps its state, evidence and history. A test
+asserts that every path in the layout hangs off the directory name, which is what makes that true.
+
+`skill install` also warns when a `runpulse-supervisor` skill from before the rename is still
+present, since it tells the agent to run commands that no longer exist. It reports it rather than
+deleting it: files under `.claude/` are the user's.

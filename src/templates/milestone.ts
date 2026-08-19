@@ -22,7 +22,7 @@ for the run.
 ## Acceptance criteria
 
 Each one must be verifiable by something written down; you will report one evidence line per
-criterion in \`.runpulse/result.json\`.
+criterion in \`.pulseflow/result.json\`.
 
 - **AC1** - ... (evidence: test count in \`<file>\`)
 - **AC2** - ... (evidence: screenshot in \`<dir>\`)
@@ -33,5 +33,5 @@ criterion in \`.runpulse/result.json\`.
 - All acceptance criteria evidenced.
 - Build clean, test suite green.
 - Committed and tagged \`{{run}}/{{id}}\`.
-- \`.runpulse/result.json\` written with \`status: "done"\` and the evidence lines.
+- \`.pulseflow/result.json\` written with \`status: "done"\` and the evidence lines.
 `;

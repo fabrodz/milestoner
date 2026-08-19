@@ -1,12 +1,15 @@
 {
-  "name": "runpulse",
+  "name": "pulseflow",
   "version": "0.3.0",
   "description": "Supervised autonomous-run engine for coding agents: milestone state machine, evidence gates, infra-failure discrimination.",
   "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/fabrodz/pulseflow.git" },
+  "homepage": "https://github.com/fabrodz/pulseflow#readme",
+  "bugs": { "url": "https://github.com/fabrodz/pulseflow/issues" },
   "type": "module",
   "engines": { "node": ">=20" },
-  "bin": { "runpulse": "./dist/cli.js" },
+  "bin": { "pulseflow": "./dist/cli.js" },
   "files": ["dist", "README.md"],
   "scripts": {
     "build": "tsup",

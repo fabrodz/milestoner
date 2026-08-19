@@ -156,7 +156,7 @@ export function buildReport(input: ReportInput): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>runpulse - ${escapeHtml(state.run)}</title>
+<title>pulseflow - ${escapeHtml(state.run)}</title>
 <style>
 :root {
   --bg: #fbfbfa; --fg: #1c1c1a; --muted: #6b6b66; --line: #e2e2dd; --panel: #ffffff;
@@ -239,7 +239,7 @@ footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; text-align: ce
   ${logBlock("Interventions", input.supervisorLog, "no supervisor intervened in this run")}
   ${logBlock("Engine events", input.runLog, "no engine events recorded")}
 
-  <footer>runpulse report &middot; ${escapeHtml(String(state.milestones.length))} milestones &middot; generated locally, no external assets</footer>
+  <footer>pulseflow report &middot; ${escapeHtml(String(state.milestones.length))} milestones &middot; generated locally, no external assets</footer>
 </main>
 </body>
 </html>

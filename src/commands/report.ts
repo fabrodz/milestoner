@@ -48,7 +48,7 @@ export function report(options: ReportOptions): number {
           : ["xdg-open", [out]];
     spawn(cmd, args, { detached: true, stdio: "ignore" }).unref();
   } else {
-    info(`  open it with ${color.bold("runpulse report --open")}`);
+    info(`  open it with ${color.bold("pulseflow report --open")}`);
   }
   return 0;
 }

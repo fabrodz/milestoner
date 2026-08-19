@@ -20,9 +20,9 @@ const milestone: Milestone = {
 
 test("the kickoff points at the protocol, the prompt and the result contract", () => {
   const kickoff = buildKickoff(config, layout, milestone, null);
-  assert.match(kickoff, /\.runpulse\/protocol\.md/);
-  assert.match(kickoff, /\.runpulse\/prompts\/M01\.md/);
-  assert.match(kickoff, /\.runpulse\/result\.json/);
+  assert.match(kickoff, /\.pulseflow\/protocol\.md/);
+  assert.match(kickoff, /\.pulseflow\/prompts\/M01\.md/);
+  assert.match(kickoff, /\.pulseflow\/result\.json/);
   assert.match(kickoff, /Do not edit state\.json/);
   assert.ok(!kickoff.includes("STEERING"), "no steering section when there is none");
 });
