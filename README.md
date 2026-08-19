@@ -20,6 +20,16 @@ cd pulseflow && npm install && npm run build && npm link
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
 
+Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
+the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
+`xdg-open`), and launching through an npm `.cmd` shim on Windows with the quoting `cmd.exe` needs.
+The one thing you supply per platform is the environment adapter, because unsticking a host is
+inherently host-shaped; examples for both families ship in `reference/`.
+
+`reference/` also holds the PowerShell orchestrator these runs originally used. It is PowerShell
+because that is where it ran, and it is the implementation this engine **replaces**, not a component
+of it: there is nothing to port.
+
 ## What you are agreeing to
 
 pulseflow exists to run a coding agent for hours while you are not watching, so the default
@@ -117,10 +127,10 @@ session: a GUI editor loses focus and stops ticking, a native modal blocks the m
 language server or dev server wedges, a connected device drops off the bus. Playbook rule 3 runs
 `environment.attendCommand` against exactly that, and nothing else.
 
-The engine knows nothing about any of these; the adapter is one command line you write. The one
-shipped as an example, `reference/unity-attend.ps1`, is a Unity focus keeper plus Win32 modal
-dismissal, because that is the environment these runs came from. A headless project leaves the
-command null and the rule simply cannot fire.
+The engine knows nothing about any of these; the adapter is one command line you write. Two
+examples ship: `reference/attend.sh` for macOS and Linux, and `reference/unity-attend.ps1` for
+Windows, which is a Unity focus keeper plus Win32 modal dismissal because that is the environment
+these runs came from. A headless project leaves the command null and the rule simply cannot fire.
 
 ```json
 "environment": {

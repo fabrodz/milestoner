@@ -1111,9 +1111,27 @@ it does:
 `supervisor-log.md`.
 
 Anything you can run from a shell qualifies: `pkill -f 'ts-server' && npm run dev:detached`,
-`adb reconnect`, `osascript -e '...'`, a PowerShell script, a two-line bash file. The example shipped
-in `reference/unity-attend.ps1` is a Unity focus keeper plus Win32 modal dismissal, because that is
-the environment these runs came from; it is a sample to read, not a dependency.
+`adb reconnect`, `osascript -e '...'`, a PowerShell script, a two-line bash file.
+
+Two samples ship in `reference/`, to read rather than depend on:
+
+| Script | Platform | What it does |
+| --- | --- | --- |
+| `attend.sh` | macOS, Linux | Keeps a named application focused for the requested seconds; on macOS it also dismisses a modal button when Accessibility permission has been granted. |
+| `unity-attend.ps1` | Windows | A Unity focus keeper plus Win32 modal dismissal, the adapter the original overnight runs used. |
+
+```json
+"attendCommand": "bash .pulseflow/adapters/attend.sh {{seconds}} Unity"
+```
+
+Whatever the language, an adapter has the same four obligations, and both samples follow them:
+
+1. take the seconds to spend and return within roughly that time;
+2. print one line per thing it did - the last line is what lands in `supervisor-log.md`;
+3. exit `0` when it did its job and non-zero when it could not, so rule 3 can tell "nudged the
+   environment" from "the environment is not there";
+4. be idempotent and safe to run mid-session: never touch project files, never kill the agent,
+   never restart what the session is holding.
 
 A headless project leaves `attendCommand` at `null`. Then `pulseflow attend` fails with an explanation
 and playbook rule 3 simply cannot fire, which is the correct behaviour: there is nothing to unstick.
