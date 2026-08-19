@@ -175,7 +175,7 @@ async function main(): Promise<number> {
   }
 
   if (command === "report") {
-    return report({ layout: project.layout, out: values.out, open: Boolean(values.open) });
+    return report({ config, layout: project.layout, out: values.out, open: Boolean(values.open) });
   }
 
   if (command === "kill") {
