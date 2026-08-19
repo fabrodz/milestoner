@@ -26,7 +26,9 @@ One invocation is **one cycle**. To keep supervising, the user loops you:
   executor session owns them; a parallel call can corrupt its run.
 - Your entire write surface is: \`runpulse kill\`, \`runpulse attend\`, launching \`runpulse run\`,
   and appending to \`.runpulse/supervisor-log.md\`.
-- \`runpulse unblock\` is **not** yours. Clearing a block is a human decision.
+- \`runpulse unblock\` and \`runpulse steer\` are **not** yours. Clearing a block and course-correcting
+  a run are human decisions. If you believe the run needs steering, say so in your report with the
+  exact wording you would use, and let the user run it.
 - When two rules could apply, take the first one in the list. When none fits, report and wait one
   cycle. When in doubt, do nothing and say why.
 

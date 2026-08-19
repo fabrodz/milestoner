@@ -22,6 +22,7 @@ results/
 result.json
 pulse.json
 kill.json
+report.html
 `;
 
 export function init(options: InitOptions): number {

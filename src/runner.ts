@@ -5,6 +5,7 @@ import type { Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
+import { readSteering, type Steering } from "./steering.js";
 import { findMilestone, loadState, nextMilestone, saveState } from "./state.js";
 import type { AttemptRecord, KillMarker, Milestone, RunpulseConfig, RunState } from "./types.js";
 import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
@@ -33,13 +34,18 @@ function logEvent(layout: Layout, milestoneId: string, event: string, detail: st
   appendFileSync(layout.runLog, `${iso()} | ${milestoneId} | ${event} | ${detail}\n`, "utf8");
 }
 
-function buildKickoff(config: RunpulseConfig, layout: Layout, milestone: Milestone): string {
+export function buildKickoff(
+  config: RunpulseConfig,
+  layout: Layout,
+  milestone: Milestone,
+  steering: Steering | null,
+): string {
   const rel = (p: string) => relative(config.projectRoot, p).replaceAll("\\", "/");
   const contract =
     `{"milestone":"${milestone.id}","status":"done"|"blocked",` +
     `"evidence":["one line per acceptance criterion, how it was verified"],` +
     `"diagnosis":{"symptom":"","tried":[""],"userAction":""},"notes":""}`;
-  return [
+  const kickoff = [
     `You are executing exactly one milestone of the autonomous run "${config.run}".`,
     `Working directory: ${config.projectRoot}.`,
     `First read ${rel(layout.protocol)} and follow it exactly.`,
@@ -48,6 +54,19 @@ function buildKickoff(config: RunpulseConfig, layout: Layout, milestone: Milesto
     `"done" requires written evidence for every acceptance criterion; "blocked" requires a diagnosis.`,
     `Do not edit state.json, the engine owns it. Do not start any other milestone.`,
   ].join(" ");
+
+  if (!steering) return kickoff;
+
+  // Inlined rather than referenced by path: a correction the session never opens is not steering.
+  return [
+    kickoff,
+    "",
+    `STEERING from the user, written after this run started (${rel(layout.steering)}).`,
+    `It overrides the milestone prompt wherever they conflict, and it does not license`,
+    `dropping an acceptance criterion. If it makes the milestone impossible, report blocked.`,
+    "",
+    steering.text,
+  ].join("\n");
 }
 
 function applyVerdict(
@@ -168,8 +187,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
       const transcript = join(layout.logs, `${next.id}-${fileStamp()}.log`);
       transcriptPath = relative(config.projectRoot, transcript);
       const promptFile = join(layout.prompts, next.prompt);
+      const steering = readSteering(layout.steering);
       const args = buildAgentArgs(config, {
-        kickoff: buildKickoff(config, layout, next),
+        kickoff: buildKickoff(config, layout, next, steering),
         promptFile,
         milestoneId: next.id,
         projectRoot: config.projectRoot,
@@ -180,9 +200,10 @@ export async function run(options: RunOptions): Promise<RunExit> {
       step(`${next.id} - ${next.title}  (attempt ${attempt}/${maxAttempts})`);
       info(`prompt     ${relative(config.projectRoot, promptFile)}`);
       info(`transcript ${relative(config.projectRoot, transcript)}`);
+      if (steering) info(`steering   ${color.bold(steering.headline)}`);
       const sessionStartedAt = iso();
       pulse(next, attempt, sessionStartedAt, "session-launched");
-      logEvent(layout, next.id, "launch", `attempt ${attempt}/${maxAttempts}`);
+      logEvent(layout, next.id, "launch", `attempt ${attempt}/${maxAttempts}${steering ? `, steering: ${steering.headline}` : ""}`);
 
       const outcome = await runSession({
         command: config.agent.command,
@@ -248,6 +269,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
             transcript: relative(config.projectRoot, transcript),
             outcome: "infra-failure",
             detail: `${infra.reason}: ${infra.detail}`,
+            steering: steering?.headline,
           });
           saveState(layout.state, back);
         }
@@ -281,6 +303,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         transcript: relative(config.projectRoot, transcript),
         outcome: verdict.outcome,
         detail: verdict.warnings.join("; ") || undefined,
+        steering: steering?.headline,
       };
 
       const after = loadState(layout.state);

@@ -7,7 +7,7 @@ evidence, and refuses to spend a retry on a usage limit.
 The name is the thesis: the differentiator is the *pulse*, knowing a long run is alive and acting
 when it isn't.
 
-Status: **v0.2**. Engine plus the active supervisor as an installable Claude Code skill.
+Status: **v0.3**. Engine, the active supervisor as an installable Claude Code skill, mid-flight steering, and an HTML run report.
 
 ## Install
 
@@ -34,6 +34,8 @@ runpulse status
 | `runpulse run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
 | `runpulse status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
 | `runpulse unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
+| `runpulse steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
+| `runpulse report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `runpulse skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
 | `runpulse kill [--reason <text>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `runpulse attend [--seconds <n>]` | Supervisor intervention: run the configured environment adapter. |
@@ -100,6 +102,40 @@ project. A headless project leaves the command null and the rule simply cannot f
 }
 ```
 
+## Steering a run in flight
+
+You do not have to kill a run to correct it. `runpulse steer` writes `.runpulse/STEERING.md`, and
+every session launched from that point on gets the text inlined into its kickoff as an override on
+the milestone prompt:
+
+```sh
+runpulse steer "prefer the simpler fix over the general one"
+runpulse steer --append "do not touch the public API"
+runpulse steer            # show what is in force
+runpulse steer --clear    # back to the milestone prompts alone
+```
+
+It persists until you clear it, and every attempt records the steering that was in force, so it is
+always visible which sessions saw it. It overrides the prompt; it does not license dropping an
+acceptance criterion. A steer that makes a milestone impossible comes back as `blocked`.
+
+The supervisor cannot steer. If it thinks a run needs correcting, it proposes the wording and you
+decide.
+
+## The run report
+
+```sh
+runpulse report --open
+```
+
+One self-contained HTML file: stat tiles, a wall-clock timeline of every session that ran, a card
+per milestone with its evidence and diagnosis, the attempt table, and the interventions. No
+scripts, no external assets, so it opens offline and survives being sent to someone.
+
+The timeline is the part `status` cannot give you: the gaps are as informative as the bars. A
+usage-limit wait looks different from a slow session, and the infrastructure retries that were
+never charged against the attempt budget are visible after the fact.
+
 ## Layout
 
 ```
@@ -110,6 +146,8 @@ project. A headless project leaves the command null and the rule simply cannot f
   prompts/M01.md       hand-written milestone specs: objective, tasks, gates, exit
   results/             archived per-attempt claims
   logs/                session transcripts
+  STEERING.md          your mid-flight corrections (absent = none)
+  report.html          generated run report
   run-log.md           append-only engine events
   supervisor-log.md    append-only interventions
   execution-log.md     the agent's own narrative log
@@ -154,8 +192,11 @@ can tell you a process exists, but not that it is doing anything.
 - **v0.1** engine: `init`, `run`, `status`, `unblock`. Done.
 - **v0.2** active supervisor as an installable Claude Code skill; intervention log; environment
   adapter as a config string. Done.
-- **v0.3** single-file HTML run report; steering file support.
+- **v0.3** single-file HTML run report; steering file support. Done.
 - **v0.4** plugin packaging; a second agent behind the config string.
+
+Not yet validated: a full run driven by a real agent end to end. Everything above is exercised by
+unit tests and by scripted agents, plus one real supervision cycle against a blocked run.
 
 ## Documentation
 

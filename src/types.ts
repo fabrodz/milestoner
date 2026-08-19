@@ -15,6 +15,8 @@ export interface AttemptRecord {
   transcript: string;
   outcome: "done" | "blocked" | "incomplete" | "infra-failure";
   detail?: string;
+  /** First line of the steering in force when this attempt launched, if any. */
+  steering?: string;
 }
 
 export interface Milestone {

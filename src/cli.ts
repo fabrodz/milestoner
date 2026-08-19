@@ -5,7 +5,9 @@ import { parseArgs } from "node:util";
 import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
+import { report } from "./commands/report.js";
 import { installSkill } from "./commands/skill.js";
+import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
@@ -27,6 +29,12 @@ ${color.bold("runpulse")} - supervised autonomous-run engine for coding agents
 
   runpulse unblock <id> [--keep-attempts]
       Clear a block after fixing it and set the milestone back to pending.
+
+  runpulse steer ["<text>"] [--append] [--clear]
+      Course-correct a run in flight. Applies to the next session launched.
+
+  runpulse report [--out <path>] [--open]
+      Write a single self-contained HTML report of the run.
 
   runpulse skill install [--global] [--force] [--print]
       Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
@@ -80,6 +88,10 @@ async function main(): Promise<number> {
       reason: { type: "string" },
       rule: { type: "string" },
       seconds: { type: "string" },
+      append: { type: "boolean" },
+      clear: { type: "boolean" },
+      out: { type: "string" },
+      open: { type: "boolean" },
     },
   });
 
@@ -137,6 +149,19 @@ async function main(): Promise<number> {
       return 1;
     }
     return unblock({ layout: project.layout, milestoneId: id, keepAttempts: Boolean(values["keep-attempts"]) });
+  }
+
+  if (command === "steer") {
+    return steer({
+      layout: project.layout,
+      text: positionals.slice(1).join(" ") || undefined,
+      append: Boolean(values.append),
+      clear: Boolean(values.clear),
+    });
+  }
+
+  if (command === "report") {
+    return report({ layout: project.layout, out: values.out, open: Boolean(values.open) });
   }
 
   if (command === "kill") {

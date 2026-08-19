@@ -14,7 +14,7 @@ test("the playbook only reaches for commands the engine actually exposes", () =>
   // Only the ones written as code: prose says "runpulse autonomous run" too.
   const invocations = [...SKILL_TEMPLATE.matchAll(/(?:`|^)runpulse ([a-z]+)/gm)];
   const commands = new Set(invocations.map((m) => m[1]).filter((c): c is string => Boolean(c)));
-  assert.deepEqual([...commands].sort(), ["attend", "kill", "run", "status", "unblock"]);
+  assert.deepEqual([...commands].sort(), ["attend", "kill", "run", "status", "steer", "unblock"]);
 });
 
 test("the playbook keeps its bounded shape", () => {

@@ -140,3 +140,46 @@ PowerShell script; a headless web project leaves it null and playbook rule 3 sim
 
 Rejected: a TypeScript adapter interface with lifecycle hooks. There is exactly one adapter in
 existence and one hook it needs. A plugin API before the second adapter would be guesswork.
+
+## D-014 - Steering persists and is inlined into the kickoff (2026-08-19)
+
+`.runpulse/STEERING.md` is the user's mid-flight channel: a correction that reaches the next
+session without killing the current one. `runpulse steer "<text>"` writes it, `--append` adds a
+line, `--clear` removes it, and bare `runpulse steer` shows what is in force.
+
+Two choices inside it:
+
+**Inlined, not referenced.** The runner injects the text into the kickoff rather than telling the
+session to go read a path. A correction the session never opens is not steering. Injection is
+capped at 4000 characters so it cannot crowd out the milestone prompt; longer text is truncated
+with a marker rather than silently dropped. Everything inside HTML comments is stripped, so the
+note explaining the file to the human never reaches the agent.
+
+**Persistent until cleared.** A correction that applied to one milestone and then silently vanished
+would be worse than no channel at all. The cost is that stale steering keeps applying, so every
+attempt records the headline that was in force - visible in the run log, in `state.json` history,
+and in the report.
+
+Steering does not license dropping an acceptance criterion; the kickoff says so. A steer that makes
+a milestone impossible should come back as `blocked`, not as a quietly reduced milestone.
+
+The supervisor cannot write it (D-012). If it thinks the run needs steering, it proposes the
+wording in its report and the user runs the command.
+
+## D-015 - The report is one self-contained HTML file, generated on demand (2026-08-19)
+
+`runpulse report [--out <path>] [--open]` renders `state.json` plus both logs into a single file:
+stat tiles, a wall-clock timeline of every session that ran, one card per milestone with its
+evidence and diagnosis, the attempt table, and the intervention log.
+
+No scripts, no external assets, no build step - it opens from a file:// path, survives being
+emailed, and works offline. Enforced by a test, not by convention.
+
+Two things the report makes visible that `status` cannot: the **gaps** (a usage-limit wait looks
+different from a slow session when both are on the same timeline), and the **infrastructure retries
+that were not charged**, which is the rule from D-008 made auditable after the fact.
+
+Everything in it is agent-authored text, so every value is HTML-escaped. That is also a test.
+
+Rejected: a live web view with a server. The report answers "what happened overnight"; `status`
+and the supervisor already answer "what is happening now".

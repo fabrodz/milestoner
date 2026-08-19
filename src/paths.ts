@@ -19,6 +19,9 @@ export interface Layout {
   supervisorLog: string;
   /** Written by `runpulse kill`, consumed by the runner on the next session end. */
   kill: string;
+  /** The user's mid-flight channel into a running run. */
+  steering: string;
+  report: string;
 }
 
 export function layoutFor(projectRoot: string): Layout {
@@ -37,6 +40,8 @@ export function layoutFor(projectRoot: string): Layout {
     runLog: join(dir, "run-log.md"),
     supervisorLog: join(dir, "supervisor-log.md"),
     kill: join(dir, "kill.json"),
+    steering: join(dir, "STEERING.md"),
+    report: join(dir, "report.html"),
   };
 }
 
