@@ -12,7 +12,8 @@
   "bin": { "dogwatch": "./dist/cli.js" },
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
-    "build": "tsup",
+    "gen:skill": "node --import tsx scripts/gen-skill.mjs",
+    "build": "npm run gen:skill && tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",

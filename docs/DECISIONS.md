@@ -210,3 +210,22 @@ asserts that every path in the layout hangs off the directory name, which is wha
 `skill install` also warns when a `runpulse-supervisor` skill from before the rename is still
 present, since it tells the agent to run commands that no longer exist. It reports it rather than
 deleting it: files under `.claude/` are the user's.
+
+## D-017 - The skill ships twice, from one source (2026-08-19)
+
+Supersedes the "for now" in [D-010](#d-010---the-supervisor-is-a-skill-installed-by-the-cli-2026-08-18).
+v0.4 makes the repository a Claude Code plugin, so the supervisor skill now ships as a plugin
+component at `skills/dogwatch-supervisor/SKILL.md` **as well as** the file `dogwatch skill install`
+writes. Both come from the same `SKILL_TEMPLATE` in `src/templates/skill.ts`: `npm run gen:skill`
+(wired into `build`) regenerates the shipped copy, and a test asserts the two are byte-identical, so
+they cannot drift.
+
+D-010 stays true: the CLI keeps writing the file, because the npm consumer has no plugin. This is
+the deferred half of [D-002](#d-002---distribution-npm-first-claude-code-plugin-later-2026-08-18) -
+a second distribution channel beside npm, not a replacement.
+
+Rejected: making the plugin component the source and having the CLI read it at install time. The
+CLI is distributed as a single compiled `dist/cli.js`; reaching for a sibling file at runtime would
+break the one-file install that D-001 buys. Compiling the text into the binary and generating the
+plugin copy from the same constant keeps one source without coupling the CLI to the repository
+layout.
