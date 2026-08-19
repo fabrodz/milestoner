@@ -134,3 +134,72 @@ The three-OS CI is the piece worth doing immediately and in parallel with everyt
 cheap, it protects every later change, and it does not depend on the validation above. The agent
 presets are worth less until the engine has been proven once with the agent that already works -
 otherwise a failed run leaves two suspects instead of one.
+
+## Idea under evaluation: a web UI
+
+Proposed 2026-08-19: a web interface to monitor the runs that are executing, their milestones and
+status, with the ability to build flows.
+
+That is three separate things with very different costs, and they should be decided separately.
+
+### 1. Live monitoring (read-only)
+
+Cheap, and already half built. `pulseflow status --json` is a complete snapshot by design (D-011)
+and `report.html` already renders milestones, evidence, diagnoses, the attempt history and a
+wall-clock timeline. A live view is that renderer plus a local server that re-reads the same files.
+
+The honest question is who watches it. The product's whole thesis is that a supervisor acts so a
+human does not have to: if the supervisor works, you are asleep and the live view has no audience.
+Its real value is narrower but genuine - the first runs on a new project, while you are still
+deciding whether to trust it, and the moment you walk back to the machine and want the state at a
+glance without a terminal.
+
+Note that D-004 already deferred exactly this ("live web view later") and the report was chosen
+instead, because "what happened overnight" was the question that mattered.
+
+### 2. Several runs at once
+
+This is the part that is not a UI feature at all. Today a run is strictly one per project
+directory, and the CLI finds it by walking up from the working directory. There is no notion of
+"the runs on this machine", so there is nothing for a dashboard to list.
+
+The missing primitive is a machine-level registry - runners registering their project path and pid
+somewhere like `~/.pulseflow/runs.json`, and pruning themselves on exit. That is useful on its own,
+before any UI: `pulseflow runs` listing every live run with its milestone and liveness verdict is a
+CLI command worth having regardless.
+
+Build the registry first. A dashboard without it can only ever show the directory it was started
+in, which is what `status` already does.
+
+### 3. Building flows
+
+This one is a product-identity decision, not a feature, and it deserves an explicit answer before
+any work.
+
+Milestone prompts are hand-written on purpose. The engine never generates them silently; that is
+the deliberate friction, and it is the stated difference from Ralph's PRD-and-task generation. A
+flow builder that assembles milestones from boxes and arrows would produce exactly the vague specs
+the evidence gate exists to catch: acceptance criteria that name no evidence, milestones with two
+unrelated gates, work with no verifiable end state.
+
+There is a defensible version: a UI that helps you *see* an existing run's shape - dependencies,
+ordering, which milestone owns which acceptance criterion - and edits `state.json` ordering and
+titles, while the prompt files stay hand-written text. That is a viewer with light editing, not a
+flow builder, and it does not touch the decision above.
+
+If the goal really is authoring flows in a GUI, that is a different product from the one BRIEF.md
+describes, and it should supersede that decision in writing rather than arrive as a screen.
+
+### Security, if any UI ever gets a write path
+
+A local server that can launch or kill agent sessions is remote code execution by design - the
+default agent args include `--dangerously-skip-permissions`. Bind to loopback only, require a token
+generated per process, and keep the write surface to the same narrow set the supervisor has
+(`kill`, `attend`, `run`). A read-only view has none of this problem, which is another argument for
+shipping that first.
+
+### Read
+
+Worth doing, in this order, and none of it before the engine has been proven on a real milestone:
+the multi-run registry as a CLI command, then a read-only live view reusing the report renderer,
+then a decision in writing about flow authoring before any editing UI exists.
