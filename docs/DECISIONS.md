@@ -6,8 +6,9 @@ one that points back at it, not editing history.
 
 ## D-001 - Runtime: Node CLI, not shell scripts (2026-08-18)
 
-The engine is a Node CLI distributed on npm. `reference/orchestrator.ps1` is the behavioural
-specification, not the codebase.
+The engine is a Node CLI distributed on npm. The PowerShell orchestrator from the original runs was
+the behavioural specification, not the codebase; it was removed once every rule it carried existed
+in `src/` under test, and it remains in the git history.
 
 Rejected: keeping PowerShell. It is Windows-only, it string-parses JSON, and every rule that
 matters (attempts, infra discrimination, evidence grading) is untestable there. Those rules are the

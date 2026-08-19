@@ -35,7 +35,7 @@ dogwatch's differentiation (verified gaps as of 2026-08-18):
 - **Milestone state machine with gates + evidence + attempts + blocked-with-diagnosis** vs a flat task list.
 - **Active supervisor that intervenes** vs passive observability.
 - **Infra-failure discrimination** (usage limits don't burn retries).
-- **Host-bound environments**: runs that need a live GUI process on the host (Unity/Unreal/Godot editors via MCP, live devices) are incompatible with Docker sandboxes. Environment quirks (window focus, native modal dialogs) are handled by pluggable **environment adapters** — the Unity adapter (focus keeper + Win32 modal dismissal) already exists as `reference/unity-attend.ps1`.
+- **Host-bound environments**: runs that need a live GUI process on the host (Unity/Unreal/Godot editors via MCP, live devices) are incompatible with Docker sandboxes. Environment quirks (window focus, native modal dialogs) are handled by pluggable **environment adapters** — the Unity adapter (focus keeper + Win32 modal dismissal) already exists as `examples/adapters/unity-attend.ps1`.
 
 Honest note: for plain sandboxable CLI projects, ralph-loop is good; dogwatch must win on run *reliability* (the pulse) and on discipline (gates/evidence), or by absorbing those projects too with a lower-friction UX.
 
@@ -45,16 +45,24 @@ Honest note: for plain sandboxable CLI projects, ralph-loop is good; dogwatch mu
 2. **Project protocol** (parameterized template): commit conventions, where evidence goes, testing rules, session start/end ritual, decision logging. One `_protocol.md` per project, generated from a template by `init`.
 3. **Milestone prompts** (always hand-written per project): objective, tasks, gates, exit. This is where the actual work is specified; the engine never generates these silently.
 
-## Reference implementation (in `./reference/`)
+## Reference implementation
 
-Copied from the reference run (Windows/PowerShell, Claude Code CLI), with the project's own names and paths replaced by placeholders:
+The run this was seeded from carried its own tooling (Windows/PowerShell, Claude Code CLI): an
+orchestrator script, a project protocol, an active supervisor prompt and a read-only predecessor, a
+Unity environment adapter, and a state file. They were the behavioural specification while the
+engine was written.
 
-- `orchestrator.ps1` — the session runner: state machine loop, attempts, blocked, infra-failure wait-without-consuming, `-StatePath`/`-Model` params.
-- `_protocol.md` — the project protocol used by every executor session (Unity-flavored; separate the generic ritual from the Unity bits).
-- `SUPERVISOR.md` — the active supervisor prompt: gather → playbook (8 rules, first match wins) → compact report; run via `/loop 10m`.
-- `MONITOR.md` — the earlier read-only supervisor (superseded by SUPERVISOR; useful as the "observe-only" mode).
-- `unity-attend.ps1` — the first environment adapter: window focus keeper + Win32 modal dismissal.
-- `state-example.json` — a real state file (v1.1 run, 5 milestones).
+Each has a successor in the product and the originals have been removed from the tree; they are in
+the git history:
+
+| Original | What replaced it |
+| --- | --- |
+| `orchestrator.ps1` | `src/runner.ts` and the rest of the engine |
+| `_protocol.md` | `src/templates/protocol.ts`, written by `dogwatch init` |
+| `SUPERVISOR.md` | `src/templates/skill.ts`, written by `dogwatch skill install`, with tests over its playbook |
+| `MONITOR.md` | superseded by the supervisor before the engine existed |
+| `state-example.json` | `src/state.test.ts`, which exercises the legacy format it documented |
+| `unity-attend.ps1` | still shipped, in `examples/adapters/`: the adapter is the one piece the engine cannot supply |
 
 ## Product decisions to make first (in this order)
 

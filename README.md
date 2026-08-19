@@ -25,11 +25,8 @@ Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-sp
 the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
 `xdg-open`), and launching through an npm `.cmd` shim on Windows with the quoting `cmd.exe` needs.
 The one thing you supply per platform is the environment adapter, because unsticking a host is
-inherently host-shaped; examples for both families ship in `reference/`.
-
-`reference/` also holds the PowerShell orchestrator these runs originally used. It is PowerShell
-because that is where it ran, and it is the implementation this engine **replaces**, not a component
-of it: there is nothing to port.
+inherently host-shaped; examples for both families ship in
+[examples/adapters/](examples/adapters/).
 
 ## What you are agreeing to
 
@@ -129,9 +126,9 @@ language server or dev server wedges, a connected device drops off the bus. Play
 `environment.attendCommand` against exactly that, and nothing else.
 
 The engine knows nothing about any of these; the adapter is one command line you write. Two
-examples ship: `reference/attend.sh` for macOS and Linux, and `reference/unity-attend.ps1` for
-Windows, which is a Unity focus keeper plus Win32 modal dismissal because that is the environment
-these runs came from. A headless project leaves the command null and the rule simply cannot fire.
+examples ship in [examples/adapters/](examples/adapters/), one per platform family, along with the
+four obligations any adapter has. A headless project leaves the command null and the rule simply
+cannot fire.
 
 ```json
 "environment": {
@@ -327,10 +324,9 @@ config reference, grading and infra rules, use cases, recipes and troubleshootin
 [BRIEF.md](BRIEF.md) is the genesis document: where this comes from (two real overnight runs on a
 Unity 6 game), what made those runs work, and the competitive landscape.
 [docs/DECISIONS.md](docs/DECISIONS.md) records the product decisions and what was rejected.
-`reference/` holds the original PowerShell implementation as the behavioural spec: the orchestrator,
-the supervisor prompts and the protocol from one Unity project's overnight runs, with that project's
-names and paths replaced by placeholders. It is a dated artifact, not a second entry point. Nothing
-in `src/` knows what Unity is.
+The PowerShell orchestrator these runs grew from is not in the tree: every rule it carried now
+lives in `src/` with tests, and keeping the ancestor beside the engine only invited the question of
+which one to run. It is in the git history if you want to read it.
 
 ## Development
 

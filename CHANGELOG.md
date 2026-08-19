@@ -35,9 +35,9 @@ All notable changes to this project are documented here. The format follows
   startup failure for kilobytes and were charged an attempt for it.
 - A "Running a different agent" section in the README and the guide, with verified Codex and
   Ollama-through-Codex recipes.
-- `reference/attend.sh`: the macOS and Linux counterpart to `unity-attend.ps1`, so the environment
-  adapter has a starting point on every platform rather than only on Windows. Both follow the same
-  contract, which the guide now states explicitly.
+- `examples/adapters/attend.sh`: the macOS and Linux counterpart to `unity-attend.ps1`, so the
+  environment adapter has a starting point on every platform rather than only on Windows. Both
+  follow the same contract, which `examples/adapters/README.md` and the guide now state explicitly.
 - CI covers macOS as well as Linux and Windows. The platform-specific paths (the `cmd.exe` shim,
   `taskkill`, the report opener) had no macOS runner exercising them.
 - `fallbackAgents`: a list of agents to fall back to when the one in use is out of quota or failing

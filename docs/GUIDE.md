@@ -1113,7 +1113,7 @@ it does:
 Anything you can run from a shell qualifies: `pkill -f 'ts-server' && npm run dev:detached`,
 `adb reconnect`, `osascript -e '...'`, a PowerShell script, a two-line bash file.
 
-Two samples ship in `reference/`, to read rather than depend on:
+Two samples ship in [../examples/adapters/](../examples/adapters/), to read rather than depend on:
 
 | Script | Platform | What it does |
 | --- | --- | --- |
