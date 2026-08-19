@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import { defaultConfig, renderTemplate } from "../config.js";
 import { layoutFor } from "../paths.js";
 import { MILESTONE_TEMPLATE } from "../templates/milestone.js";
+import { SUPERVISOR_LOG_HEADER } from "../supervisorLog.js";
 import { PROTOCOL_TEMPLATE } from "../templates/protocol.js";
 import type { Milestone, RunState } from "../types.js";
 import { ensureDir, writeFileIfMissing, writeJsonAtomic } from "../util/fs.js";
@@ -20,6 +21,7 @@ const RUNPULSE_GITIGNORE = `logs/
 results/
 result.json
 pulse.json
+kill.json
 `;
 
 export function init(options: InitOptions): number {
@@ -75,6 +77,7 @@ export function init(options: InitOptions): number {
   if (writeFileIfMissing(join(layout.dir, ".gitignore"), RUNPULSE_GITIGNORE)) info(".gitignore");
   if (writeFileIfMissing(join(layout.dir, "execution-log.md"), `# Execution log - ${run}\n`)) info("execution-log.md");
   if (writeFileIfMissing(join(layout.dir, "decisions.md"), `# Decisions - ${run}\n`)) info("decisions.md");
+  if (writeFileIfMissing(layout.supervisorLog, SUPERVISOR_LOG_HEADER)) info("supervisor-log.md");
 
   step(`initialized .runpulse/ for run "${run}"`);
   console.log(`
@@ -85,6 +88,10 @@ Next:
   4. Point ${color.bold('"liveness"')} in config.json at the paths that prove work is happening
      (source dirs, test-result files, tool logs). The transcript is never one.
   5. ${color.bold("runpulse run")}
+
+To supervise a long run, install the supervisor skill and loop it:
+  ${color.bold("runpulse skill install")}
+  ${color.bold("/loop 10m Use the runpulse-supervisor skill to perform one supervision cycle.")}
 `);
   ok("ready");
   return 0;

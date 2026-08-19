@@ -42,6 +42,8 @@ export interface SessionOptions {
   cwd: string;
   env: Record<string, string>;
   transcript: string;
+  /** Called with the agent process id, so a supervisor can reach the session without the runner. */
+  onSpawn?: (pid: number | undefined) => void;
   /** Called about once a minute with the elapsed milliseconds, for the heartbeat line. */
   onTick?: (elapsedMs: number) => void;
   tickSeconds?: number;
@@ -86,6 +88,7 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
 
   child.stdout.pipe(out, { end: false });
   child.stderr.pipe(out, { end: false });
+  options.onSpawn?.(child.pid);
 
   const tickMs = (options.tickSeconds ?? 60) * 1000;
   const ticker = options.onTick ? setInterval(() => options.onTick!(Date.now() - started), tickMs) : null;

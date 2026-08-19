@@ -92,3 +92,51 @@ The MVP run burned three attempts in forty seconds against a usage limit before 
 Supervisor skill and the adapter interface stay in v0.2 as the roadmap has them. `unblock` is the
 one addition: with the engine owning state.json, clearing a block cannot be a hand edit any more.
 Clearing it is always a human decision - the engine never resets a block on its own.
+
+## D-010 - The supervisor is a skill, installed by the CLI (2026-08-18)
+
+`runpulse skill install` writes `.claude/skills/runpulse-supervisor/SKILL.md` into the project
+(`--global` for `~/.claude/skills/`). The user starts it with
+`/loop 10m Use the runpulse-supervisor skill to perform one supervision cycle.`
+
+Rejected for now: shipping it as a plugin. Plugin packaging is v0.4 and brings a marketplace repo
+with it; a file the CLI writes needs neither. The skill text lives in the engine
+(`src/templates/skill.ts`) so the playbook and the commands it calls are versioned together and
+tested against each other.
+
+## D-011 - The supervisor reads the run through `status --json`, not by parsing files (2026-08-18)
+
+One call returns everything the playbook keys on: statuses, attempts, evidence counts, diagnoses,
+runner liveness, agent pid, current transcript, newest liveness signal with an age verdict, whether
+an adapter is configured, and the tail of both logs.
+
+The reference supervisor stat-ed Unity log paths and grepped `Get-CimInstance Win32_Process`. That
+is per-project and per-OS, which is exactly what a generic engine must absorb. Anything a
+supervision rule needs to know belongs in that JSON, not in the skill's prose.
+
+## D-012 - Interventions are engine commands with a narrow surface (2026-08-18)
+
+The supervisor's entire write surface is three commands plus its own log:
+
+- `runpulse kill --reason <text>` kills the **agent session**, never the runner. The runner then
+  grades the session as incomplete, consumes the attempt and relaunches with fresh context.
+- `runpulse attend` runs the project's configured environment adapter.
+- `runpulse run` relaunches a dead runner.
+
+Nothing else: no editing project code, no editing state.json, no running the project's own tools
+while a session owns them. `runpulse unblock` is deliberately excluded - clearing a block stays a
+human decision, per D-009.
+
+`kill` writes `.runpulse/kill.json` before killing. Without it, a session killed after 20 quiet
+minutes can still look like an infrastructure death (short, tiny transcript) and D-008 would refund
+the attempt, so the intervention would cost nothing and could repeat forever. The marker makes the
+runner grade a deliberate kill as work.
+
+## D-013 - The environment adapter is one config string, not a plugin API (2026-08-18)
+
+`environment.attendCommand` is a shell command line with a `{{seconds}}` placeholder, run by
+`runpulse attend`. The Unity adapter from the reference run is that command line pointed at a
+PowerShell script; a headless web project leaves it null and playbook rule 3 simply cannot fire.
+
+Rejected: a TypeScript adapter interface with lifecycle hooks. There is exactly one adapter in
+existence and one hook it needs. A plugin API before the second adapter would be guesswork.

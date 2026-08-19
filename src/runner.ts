@@ -6,8 +6,8 @@ import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { findMilestone, loadState, nextMilestone, saveState } from "./state.js";
-import type { AttemptRecord, Milestone, RunpulseConfig, RunState } from "./types.js";
-import { ensureDir, removeIfExists } from "./util/fs.js";
+import type { AttemptRecord, KillMarker, Milestone, RunpulseConfig, RunState } from "./types.js";
+import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
 import { color, fail, humanDuration, info, ok, step, warn } from "./util/log.js";
 import { iso, sleep } from "./util/time.js";
 
@@ -87,6 +87,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
   let infraRetries = 0;
   const startedAt = iso();
 
+  let agentPid: number | null = null;
+  let transcriptPath: string | null = null;
+
   const pulse = (milestone: Milestone | null, attempt: number | null, sessionStartedAt: string | null, event: string) => {
     writePulse(layout.pulse, {
       pid: process.pid,
@@ -95,6 +98,8 @@ export async function run(options: RunOptions): Promise<RunExit> {
       milestoneId: milestone?.id ?? null,
       attempt,
       sessionStartedAt,
+      agentPid,
+      transcript: transcriptPath,
       lastEvent: event,
       lastEventAt: iso(),
     });
@@ -157,8 +162,11 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
       // A leftover drop box from an interrupted session would be graded as this attempt's result.
       removeIfExists(layout.result);
+      removeIfExists(layout.kill);
+      agentPid = null;
 
       const transcript = join(layout.logs, `${next.id}-${fileStamp()}.log`);
+      transcriptPath = relative(config.projectRoot, transcript);
       const promptFile = join(layout.prompts, next.prompt);
       const args = buildAgentArgs(config, {
         kickoff: buildKickoff(config, layout, next),
@@ -183,6 +191,10 @@ export async function run(options: RunOptions): Promise<RunExit> {
         env: config.agent.env,
         transcript,
         signal,
+        onSpawn: (pid) => {
+          agentPid = pid ?? null;
+          pulse(next, attempt, sessionStartedAt, "session-launched");
+        },
         onTick: (elapsed) => {
           const live = newestSignal(config.projectRoot, config.liveness);
           const age = live ? `, newest signal ${humanDuration(Date.now() - live.mtime.getTime())} old (${live.path})` : "";
@@ -201,10 +213,22 @@ export async function run(options: RunOptions): Promise<RunExit> {
       info(`session ended (exit ${outcome.exitCode ?? outcome.signal}, ${humanDuration(outcome.ms)}, ${outcome.bytes} B transcript)`);
 
       const rawResult = readResult(layout.result);
-      const infra = classifyInfraFailure(
-        { seconds, bytes: outcome.bytes, text: readTranscriptTail(transcript), wroteResult: rawResult !== null },
-        config.infra,
-      );
+
+      // A supervisor kill is an intervention against work that was going nowhere: it consumes the
+      // attempt, even though the session looks like an infrastructure death from the outside.
+      const killed = readJsonIfExists<KillMarker>(layout.kill);
+      removeIfExists(layout.kill);
+      if (killed && killed.milestoneId === next.id) {
+        warn(`session was killed by a supervisor: ${killed.reason}`);
+        logEvent(layout, next.id, "killed", killed.reason);
+      }
+
+      const infra = killed
+        ? null
+        : classifyInfraFailure(
+            { seconds, bytes: outcome.bytes, text: readTranscriptTail(transcript), wroteResult: rawResult !== null },
+            config.infra,
+          );
 
       if (infra) {
         infraRetries += 1;

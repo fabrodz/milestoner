@@ -70,6 +70,17 @@ export interface RunpulseConfig {
   /** Paths (relative to projectRoot) whose mtime proves the run is alive. The transcript
    *  is never one: headless sessions flush it only at exit. */
   liveness: string[];
+  environment: EnvironmentConfig;
+}
+
+export interface EnvironmentConfig {
+  /**
+   * The environment adapter: a command that unsticks a host-bound environment (refocus a window,
+   * dismiss a native modal, restart a tool server). Run by `runpulse attend`, which is the only
+   * environment intervention the supervisor is allowed to make. `{{seconds}}` is substituted.
+   */
+  attendCommand: string | null;
+  attendSeconds: number;
 }
 
 export interface MilestoneResult {
@@ -87,6 +98,17 @@ export interface Pulse {
   milestoneId: string | null;
   attempt: number | null;
   sessionStartedAt: string | null;
+  /** The agent process, so a supervisor can kill a hung session without touching the runner. */
+  agentPid: number | null;
+  transcript: string | null;
   lastEvent: string;
   lastEventAt: string;
+}
+
+/** Written by `runpulse kill` so the runner grades a deliberate kill as work, not infrastructure. */
+export interface KillMarker {
+  milestoneId: string;
+  agentPid: number;
+  at: string;
+  reason: string;
 }

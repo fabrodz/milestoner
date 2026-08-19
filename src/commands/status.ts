@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
@@ -15,6 +16,19 @@ const GLYPH: Record<Milestone["status"], string> = {
 const STALE_MS = 15 * 60 * 1000;
 const HUNG_MS = 25 * 60 * 1000;
 
+function verdictFor(ageMs: number | null): "alive" | "slow" | "hung" | "unknown" {
+  if (ageMs === null) return "unknown";
+  return ageMs < STALE_MS ? "alive" : ageMs < HUNG_MS ? "slow" : "hung";
+}
+
+function tailLines(file: string, count: number): string[] {
+  try {
+    return readFileSync(file, "utf8").split("\n").filter(Boolean).slice(-count);
+  } catch {
+    return [];
+  }
+}
+
 export interface StatusOptions {
   config: RunpulseConfig;
   layout: Layout;
@@ -31,22 +45,41 @@ export function status(options: StatusOptions): number {
   const signalAgeMs = live ? Date.now() - live.mtime.getTime() : null;
 
   if (options.json) {
+    // This is the supervisor's whole view of the run: everything the playbook keys on, in one call.
+    const agentAlive = pulse?.agentPid != null ? isProcessAlive(pulse.agentPid) : false;
     console.log(
       JSON.stringify(
         {
           run: state.run,
           runComplete: state.runComplete,
           ...counts,
+          maxAttempts: config.maxAttempts,
           milestones: state.milestones.map((m) => ({
             id: m.id,
             title: m.title,
             status: m.status,
             attempts: m.attempts,
             evidence: m.evidence.length,
+            diagnosis: m.diagnosis,
             finishedAt: m.finishedAt,
+            lastAttempt: m.history.at(-1) ?? null,
           })),
-          pulse: pulse ? { ...pulse, runnerAlive } : null,
-          liveness: live ? { path: live.path, mtime: live.mtime.toISOString(), ageSeconds: Math.round((signalAgeMs ?? 0) / 1000) } : null,
+          pulse: pulse
+            ? {
+                ...pulse,
+                runnerAlive,
+                agentAlive,
+                sessionSeconds: pulse.sessionStartedAt ? Math.round((Date.now() - Date.parse(pulse.sessionStartedAt)) / 1000) : null,
+                lastEventSeconds: Math.round((Date.now() - Date.parse(pulse.lastEventAt)) / 1000),
+              }
+            : null,
+          liveness: live
+            ? { path: live.path, mtime: live.mtime.toISOString(), ageSeconds: Math.round((signalAgeMs ?? 0) / 1000), verdict: verdictFor(signalAgeMs) }
+            : null,
+          livenessConfigured: config.liveness.length > 0,
+          attendConfigured: config.environment.attendCommand !== null,
+          recentEvents: tailLines(layout.runLog, 8),
+          recentInterventions: tailLines(layout.supervisorLog, 5),
         },
         null,
         2,
@@ -82,7 +115,8 @@ export function status(options: StatusOptions): number {
     console.log(`  the run stopped without finishing; relaunch with ${color.bold("runpulse run")}`);
   } else {
     const sessionMs = pulse.sessionStartedAt ? Date.now() - Date.parse(pulse.sessionStartedAt) : null;
-    console.log(`  runner pid ${pulse.pid} on ${color.bold(pulse.milestoneId ?? "-")} attempt ${pulse.attempt ?? "-"}`);
+    const agent = pulse.agentPid != null ? `, agent pid ${pulse.agentPid}${isProcessAlive(pulse.agentPid) ? "" : color.yellow(" (gone)")}` : "";
+    console.log(`  runner pid ${pulse.pid} on ${color.bold(pulse.milestoneId ?? "-")} attempt ${pulse.attempt ?? "-"}${agent}`);
     console.log(`  last event  ${pulse.lastEvent} (${humanDuration(Date.now() - Date.parse(pulse.lastEventAt))} ago)`);
     if (sessionMs !== null) console.log(`  session     ${humanDuration(sessionMs)}`);
   }

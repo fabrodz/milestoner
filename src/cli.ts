@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
+import { kill } from "./commands/kill.js";
+import { installSkill } from "./commands/skill.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
@@ -24,6 +27,16 @@ ${color.bold("runpulse")} - supervised autonomous-run engine for coding agents
 
   runpulse unblock <id> [--keep-attempts]
       Clear a block after fixing it and set the milestone back to pending.
+
+  runpulse skill install [--global] [--force] [--print]
+      Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
+
+  runpulse kill [--reason <text>] [--rule <n>]
+      Supervisor intervention: kill the hung agent session. The runner consumes the
+      attempt and relaunches. Never kills the runner.
+
+  runpulse attend [--seconds <n>] [--rule <n>]
+      Supervisor intervention: run the configured environment adapter to unstick the host.
 
 Exit codes: 0 ok, 1 error, 2 blocked.
 `;
@@ -62,6 +75,11 @@ async function main(): Promise<number> {
       once: { type: "boolean" },
       json: { type: "boolean" },
       "keep-attempts": { type: "boolean" },
+      global: { type: "boolean" },
+      print: { type: "boolean" },
+      reason: { type: "string" },
+      rule: { type: "string" },
+      seconds: { type: "string" },
     },
   });
 
@@ -90,6 +108,20 @@ async function main(): Promise<number> {
     });
   }
 
+  if (command === "skill") {
+    const action = positionals[1] ?? "install";
+    if (action !== "install") {
+      fail(`unknown skill action "${action}" - the only action is "install"`);
+      return 1;
+    }
+    return installSkill({
+      projectRoot: findProjectRoot() ?? resolve(process.cwd()),
+      global: Boolean(values.global),
+      force: Boolean(values.force),
+      print: Boolean(values.print),
+    });
+  }
+
   const project = requireProject();
   if (!project) return 1;
   const config = loadConfig(project.layout.config, project.root);
@@ -105,6 +137,28 @@ async function main(): Promise<number> {
       return 1;
     }
     return unblock({ layout: project.layout, milestoneId: id, keepAttempts: Boolean(values["keep-attempts"]) });
+  }
+
+  if (command === "kill") {
+    return kill({
+      layout: project.layout,
+      reason: values.reason ?? "no reason given",
+      rule: values.rule ? `rule ${values.rule}` : "manual",
+    });
+  }
+
+  if (command === "attend") {
+    const seconds = values.seconds ? Number(values.seconds) : undefined;
+    if (seconds !== undefined && (!Number.isInteger(seconds) || seconds < 1)) {
+      fail("--seconds must be a positive integer");
+      return 1;
+    }
+    return attend({
+      config,
+      layout: project.layout,
+      seconds,
+      rule: values.rule ? `rule ${values.rule}` : "manual",
+    });
   }
 
   if (command === "run") {

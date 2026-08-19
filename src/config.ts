@@ -23,6 +23,7 @@ export function defaultConfig(run: string, projectRoot: string): RunpulseConfig 
       usageLimitPatterns: ["session limit", "usage limit", "rate limit", "429"],
     },
     liveness: [],
+    environment: { attendCommand: null, attendSeconds: 120 },
   };
 }
 
@@ -42,6 +43,7 @@ export function loadConfig(configPath: string, projectRoot: string): RunpulseCon
     agent: { ...base.agent, ...raw.agent },
     infra: { ...base.infra, ...raw.infra },
     liveness: raw.liveness ?? base.liveness,
+    environment: { ...base.environment, ...raw.environment },
   };
 }
 

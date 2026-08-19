@@ -7,7 +7,7 @@ evidence, and refuses to spend a retry on a usage limit.
 The name is the thesis: the differentiator is the *pulse*, knowing a long run is alive and acting
 when it isn't.
 
-Status: **v0.1**. Engine only. The active supervisor lands in v0.2.
+Status: **v0.2**. Engine plus the active supervisor as an installable Claude Code skill.
 
 ## Install
 
@@ -34,6 +34,9 @@ runpulse status
 | `runpulse run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
 | `runpulse status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
 | `runpulse unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
+| `runpulse skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
+| `runpulse kill [--reason <text>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
+| `runpulse attend [--seconds <n>]` | Supervisor intervention: run the configured environment adapter. |
 
 Exit codes: `0` ok, `1` error, `2` blocked.
 
@@ -59,6 +62,44 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
 6. **Liveness comes from side signals.** Watched source dirs, test-result files and tool logs, never
    the transcript: a headless `claude -p` flushes it only at exit.
 
+## The supervisor
+
+The engine keeps a run correct. The supervisor keeps it *alive*: a Claude session that wakes every
+ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
+
+```sh
+runpulse skill install
+```
+
+Then, in a Claude Code session at the project root:
+
+```
+/loop 10m Use the runpulse-supervisor skill to perform one supervision cycle.
+```
+
+Each cycle it reads the whole run through `runpulse status --json` and applies the first matching
+rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
+blocked for real, or something it cannot explain. Its entire write surface is `runpulse kill`,
+`runpulse attend`, relaunching `runpulse run`, and appending to `.runpulse/supervisor-log.md`. It
+never edits project code, never touches `state.json`, and never runs the project's own tools while
+a session owns them. Clearing a block stays a human decision.
+
+`runpulse kill` targets the agent session, not the runner: the runner sees the session end, grades
+it as incomplete, consumes an attempt and relaunches with a fresh context. The kill is recorded so
+it cannot be mistaken for an infrastructure death and silently refunded.
+
+**Environment adapter.** Playbook rule 3 unsticks a host-bound environment (window focus, a native
+modal, a wedged tool server) by running `environment.attendCommand`. Point it at a script of your
+own; the Unity one from the original run is in `reference/unity-attend.ps1`, ready to copy into a
+project. A headless project leaves the command null and the rule simply cannot fire.
+
+```json
+"environment": {
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .runpulse/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendSeconds": 120
+}
+```
+
 ## Layout
 
 ```
@@ -70,6 +111,7 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
   results/             archived per-attempt claims
   logs/                session transcripts
   run-log.md           append-only engine events
+  supervisor-log.md    append-only interventions
   execution-log.md     the agent's own narrative log
   decisions.md         autonomous decisions the agent made
 ```
@@ -96,7 +138,8 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
     "genericWaitSeconds": 60,
     "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"]
   },
-  "liveness": ["src", "tests/results/latest.txt"]
+  "liveness": ["src", "tests/results/latest.txt"],
+  "environment": { "attendCommand": null, "attendSeconds": 120 }
 }
 ```
 
@@ -108,11 +151,16 @@ can tell you a process exists, but not that it is doing anything.
 
 ## Roadmap
 
-- **v0.1** engine: `init`, `run`, `status`, `unblock`.
-- **v0.2** active supervisor as an installable Claude Code skill; intervention log; adapter
-  interface with the Unity adapter as the reference example.
+- **v0.1** engine: `init`, `run`, `status`, `unblock`. Done.
+- **v0.2** active supervisor as an installable Claude Code skill; intervention log; environment
+  adapter as a config string. Done.
 - **v0.3** single-file HTML run report; steering file support.
 - **v0.4** plugin packaging; a second agent behind the config string.
+
+## Documentation
+
+[docs/GUIDE.md](docs/GUIDE.md) is the user guide: the mental model, a full walkthrough, command and
+config reference, grading and infra rules, use cases, recipes and troubleshooting.
 
 ## Background
 
@@ -125,7 +173,8 @@ Unity 6 game), what made those runs work, and the competitive landscape.
 
 ```sh
 npm install
-npm test         # rule-level tests: infra classification, grading, state migration, quoting
+npm test         # rule-level tests: infra classification, grading, state migration, quoting,
+                 # config merging, and the supervisor playbook's shape
 npm run typecheck
 npm run build
 ```

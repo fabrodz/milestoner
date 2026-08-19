@@ -16,6 +16,9 @@ export interface Layout {
   result: string;
   pulse: string;
   runLog: string;
+  supervisorLog: string;
+  /** Written by `runpulse kill`, consumed by the runner on the next session end. */
+  kill: string;
 }
 
 export function layoutFor(projectRoot: string): Layout {
@@ -32,6 +35,8 @@ export function layoutFor(projectRoot: string): Layout {
     result: join(dir, "result.json"),
     pulse: join(dir, "pulse.json"),
     runLog: join(dir, "run-log.md"),
+    supervisorLog: join(dir, "supervisor-log.md"),
+    kill: join(dir, "kill.json"),
   };
 }
 
