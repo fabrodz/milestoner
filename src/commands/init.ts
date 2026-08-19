@@ -17,7 +17,7 @@ export interface InitOptions {
   force: boolean;
 }
 
-const PULSEFLOW_GITIGNORE = `logs/
+const DOGWATCH_GITIGNORE = `logs/
 results/
 result.json
 pulse.json
@@ -78,24 +78,24 @@ export function init(options: InitOptions): number {
   }
 
   if (writeFileIfMissing(layout.protocol, renderTemplate(PROTOCOL_TEMPLATE, { run }))) info("protocol.md");
-  if (writeFileIfMissing(join(layout.dir, ".gitignore"), PULSEFLOW_GITIGNORE)) info(".gitignore");
+  if (writeFileIfMissing(join(layout.dir, ".gitignore"), DOGWATCH_GITIGNORE)) info(".gitignore");
   if (writeFileIfMissing(join(layout.dir, "execution-log.md"), `# Execution log - ${run}\n`)) info("execution-log.md");
   if (writeFileIfMissing(join(layout.dir, "decisions.md"), `# Decisions - ${run}\n`)) info("decisions.md");
   if (writeFileIfMissing(layout.supervisorLog, SUPERVISOR_LOG_HEADER)) info("supervisor-log.md");
 
-  step(`initialized .pulseflow/ for run "${run}"`);
+  step(`initialized .dogwatch/ for run "${run}"`);
   console.log(`
 Next:
-  1. ${color.bold("Edit .pulseflow/protocol.md")} - replace every TODO with this project's rules.
-  2. ${color.bold("Write .pulseflow/prompts/M01.md")} and friends - objective, tasks, acceptance criteria, exit.
-  3. Set the titles in .pulseflow/state.json to match.
+  1. ${color.bold("Edit .dogwatch/protocol.md")} - replace every TODO with this project's rules.
+  2. ${color.bold("Write .dogwatch/prompts/M01.md")} and friends - objective, tasks, acceptance criteria, exit.
+  3. Set the titles in .dogwatch/state.json to match.
   4. Point ${color.bold('"liveness"')} in config.json at the paths that prove work is happening
      (source dirs, test-result files, tool logs). The transcript is never one.
-  5. ${color.bold("pulseflow run")}
+  5. ${color.bold("dogwatch run")}
 
 To supervise a long run, install the supervisor skill and loop it:
-  ${color.bold("pulseflow skill install")}
-  ${color.bold("/loop 10m Use the pulseflow-supervisor skill to perform one supervision cycle.")}
+  ${color.bold("dogwatch skill install")}
+  ${color.bold("/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.")}
 `);
   ok("ready");
   return 0;

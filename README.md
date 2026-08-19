@@ -1,11 +1,12 @@
-# PulseFlow
+# DogWatch
 
 Supervised autonomous-run engine for coding agents. A milestone state machine that launches one
 fresh headless agent session per milestone, grades what each session claims against written
 evidence, and refuses to spend a retry on a usage limit.
 
-The name is the thesis: the differentiator is the *pulse*, knowing a long run is alive and acting
-when it isn't.
+The name is the thesis. The dog watch is the night shift at sea: the one nobody wants and every
+crew needs. That is the differentiator, knowing a long run is still alive at four in the morning and
+acting when it isn't.
 
 Status: **v0.3**. Engine, the active supervisor as an installable Claude Code skill, mid-flight steering, and an HTML run report.
 
@@ -14,8 +15,8 @@ Status: **v0.3**. Engine, the active supervisor as an installable Claude Code sk
 Not on npm yet. Install from source:
 
 ```sh
-git clone https://github.com/fabrodz/pulseflow.git
-cd pulseflow && npm install && npm run build && npm link
+git clone https://github.com/fabrodz/dogwatch.git
+cd dogwatch && npm install && npm run build && npm link
 ```
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
@@ -32,7 +33,7 @@ of it: there is nothing to port.
 
 ## What you are agreeing to
 
-pulseflow exists to run a coding agent for hours while you are not watching, so the default
+dogwatch exists to run a coding agent for hours while you are not watching, so the default
 `agent.args` include `--dangerously-skip-permissions`. A headless session cannot answer a permission
 prompt; without that flag it hangs until the timeout instead of working.
 
@@ -52,25 +53,25 @@ Before leaving a run overnight:
 ## Use
 
 ```sh
-pulseflow init --run my-run --milestones 5
-# write .pulseflow/protocol.md and the milestone prompts, then:
-pulseflow run
-pulseflow status
+dogwatch init --run my-run --milestones 5
+# write .dogwatch/protocol.md and the milestone prompts, then:
+dogwatch run
+dogwatch status
 ```
 
 ### Commands
 
 | Command | What it does |
 | --- | --- |
-| `pulseflow init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.pulseflow/`: config, state machine, protocol template, prompt skeletons. |
-| `pulseflow run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
-| `pulseflow status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
-| `pulseflow unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
-| `pulseflow steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
-| `pulseflow report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
-| `pulseflow skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
-| `pulseflow kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
-| `pulseflow attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
+| `dogwatch init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.dogwatch/`: config, state machine, protocol template, prompt skeletons. |
+| `dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
+| `dogwatch status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
+| `dogwatch unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
+| `dogwatch steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
+| `dogwatch report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
+| `dogwatch skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
+| `dogwatch kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
+| `dogwatch attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
 Exit codes: `0` ok, `1` error, `2` blocked.
 
@@ -79,14 +80,14 @@ Exit codes: `0` ok, `1` error, `2` blocked.
 ```
 init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete | blocked
                                             |
-                                            +-- writes .pulseflow/result.json, engine grades it
+                                            +-- writes .dogwatch/result.json, engine grades it
 ```
 
 1. **Fresh session per milestone.** Clean context every time. State lives in files, never in the
    conversation.
-2. **The engine owns `state.json`.** The session writes one small drop box, `.pulseflow/result.json`,
+2. **The engine owns `state.json`.** The session writes one small drop box, `.dogwatch/result.json`,
    with its status, its evidence lines and, when blocked, its diagnosis. The engine grades that,
-   merges it, and archives the raw claim under `.pulseflow/results/`.
+   merges it, and archives the raw claim under `.dogwatch/results/`.
 3. **Evidence is a gate.** `done` with no evidence line per acceptance criterion is downgraded to
    incomplete and retried. The verdict never comes from the exit code.
 4. **`blocked` needs a diagnosis**: exact symptom, everything tried, the single clearest user
@@ -102,23 +103,23 @@ The engine keeps a run correct. The supervisor keeps it *alive*: a Claude sessio
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
 ```sh
-pulseflow skill install
+dogwatch skill install
 ```
 
 Then, in a Claude Code session at the project root:
 
 ```
-/loop 10m Use the pulseflow-supervisor skill to perform one supervision cycle.
+/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
 ```
 
-Each cycle it reads the whole run through `pulseflow status --json` and applies the first matching
+Each cycle it reads the whole run through `dogwatch status --json` and applies the first matching
 rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
-blocked for real, or something it cannot explain. Its entire write surface is `pulseflow kill`,
-`pulseflow attend`, relaunching `pulseflow run`, and appending to `.pulseflow/supervisor-log.md`. It
+blocked for real, or something it cannot explain. Its entire write surface is `dogwatch kill`,
+`dogwatch attend`, relaunching `dogwatch run`, and appending to `.dogwatch/supervisor-log.md`. It
 never edits project code, never touches `state.json`, and never runs the project's own tools while
 a session owns them. Clearing a block stays a human decision.
 
-`pulseflow kill` targets the agent session, not the runner: the runner sees the session end, grades
+`dogwatch kill` targets the agent session, not the runner: the runner sees the session end, grades
 it as incomplete, consumes an attempt and relaunches with a fresh context. The kill is recorded so
 it cannot be mistaken for an infrastructure death and silently refunded.
 
@@ -134,22 +135,22 @@ these runs came from. A headless project leaves the command null and the rule si
 
 ```json
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .pulseflow/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .dogwatch/adapters/unity-attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```
 
 ## Steering a run in flight
 
-You do not have to kill a run to correct it. `pulseflow steer` writes `.pulseflow/STEERING.md`, and
+You do not have to kill a run to correct it. `dogwatch steer` writes `.dogwatch/STEERING.md`, and
 every session launched from that point on gets the text inlined into its kickoff as an override on
 the milestone prompt:
 
 ```sh
-pulseflow steer "prefer the simpler fix over the general one"
-pulseflow steer --append "do not touch the public API"
-pulseflow steer            # show what is in force
-pulseflow steer --clear    # back to the milestone prompts alone
+dogwatch steer "prefer the simpler fix over the general one"
+dogwatch steer --append "do not touch the public API"
+dogwatch steer            # show what is in force
+dogwatch steer --clear    # back to the milestone prompts alone
 ```
 
 It persists until you clear it, and every attempt records the steering that was in force, so it is
@@ -162,7 +163,7 @@ decide.
 ## The run report
 
 ```sh
-pulseflow report --open
+dogwatch report --open
 ```
 
 One self-contained HTML file: stat tiles, a wall-clock timeline of every session that ran, a card
@@ -176,7 +177,7 @@ never charged against the attempt budget are visible after the fact.
 ## Layout
 
 ```
-.pulseflow/
+.dogwatch/
   config.json          agent command, attempts, infra rules, liveness watch list
   state.json           the state machine (engine-owned)
   protocol.md          shared rules every session reads first
@@ -221,7 +222,7 @@ never charged against the attempt budget are visible after the fact.
 ```
 
 `args` placeholders: `{{kickoff}}`, `{{promptFile}}`, `{{milestoneId}}`, `{{projectRoot}}`,
-`{{pulseflowDir}}`, `{{model}}`. A different agent is a config change, not an engine change.
+`{{dogwatchDir}}`, `{{model}}`. A different agent is a config change, not an engine change.
 
 `liveness` is the list of paths whose mtime proves work is happening. Set it: without it `status`
 can tell you a process exists, but not that it is doing anything.

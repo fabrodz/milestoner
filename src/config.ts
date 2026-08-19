@@ -1,7 +1,7 @@
 import { readJson } from "./util/fs.js";
-import type { AgentConfig, PulseflowConfig } from "./types.js";
+import type { AgentConfig, DogwatchConfig } from "./types.js";
 
-export function defaultConfig(run: string, projectRoot: string): PulseflowConfig {
+export function defaultConfig(run: string, projectRoot: string): DogwatchConfig {
   return {
     run,
     projectRoot,
@@ -31,8 +31,8 @@ export function defaultConfig(run: string, projectRoot: string): PulseflowConfig
 
 const REQUIRED = ["run", "agent", "infra"] as const;
 
-export function loadConfig(configPath: string, projectRoot: string): PulseflowConfig {
-  const raw = readJson<Partial<PulseflowConfig>>(configPath);
+export function loadConfig(configPath: string, projectRoot: string): DogwatchConfig {
+  const raw = readJson<Partial<DogwatchConfig>>(configPath);
   for (const key of REQUIRED) {
     if (raw[key] === undefined) throw new Error(`${configPath}: missing required field "${key}"`);
   }

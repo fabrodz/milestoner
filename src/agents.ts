@@ -1,4 +1,4 @@
-import type { AgentConfig, PulseflowConfig } from "./types.js";
+import type { AgentConfig, DogwatchConfig } from "./types.js";
 
 export interface AgentSlot {
   agent: AgentConfig;
@@ -16,7 +16,7 @@ export interface AgentPool {
  * The primary agent plus its fallbacks, as one rotation. A run with no fallbacks is a pool of one,
  * which behaves exactly as the engine did before rotation existed: bench the only agent, wait for it.
  */
-export function createPool(config: PulseflowConfig): AgentPool {
+export function createPool(config: DogwatchConfig): AgentPool {
   const slots = [config.agent, ...config.fallbackAgents].map((agent, i) => ({
     agent,
     name: agent.name ?? (i === 0 ? agent.command : `${agent.command}#${i}`),

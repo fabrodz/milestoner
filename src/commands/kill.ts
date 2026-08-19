@@ -24,7 +24,7 @@ export function kill(options: KillOptions): number {
     return 1;
   }
   if (!isProcessAlive(pulse.pid)) {
-    fail(`the runner (pid ${pulse.pid}) is not running - nothing to kill; relaunch with \`pulseflow run\``);
+    fail(`the runner (pid ${pulse.pid}) is not running - nothing to kill; relaunch with \`dogwatch run\``);
     return 1;
   }
   if (pulse.agentPid === null) {

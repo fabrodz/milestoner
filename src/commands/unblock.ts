@@ -24,6 +24,6 @@ export function unblock(options: UnblockOptions): number {
   m.diagnosis = null;
   if (!options.keepAttempts) m.attempts = 0;
   saveState(options.layout.state, state);
-  ok(`${m.id} set to pending${options.keepAttempts ? "" : ", attempts reset to 0"} - run \`pulseflow run\` to resume`);
+  ok(`${m.id} set to pending${options.keepAttempts ? "" : ", attempts reset to 0"} - run \`dogwatch run\` to resume`);
   return 0;
 }

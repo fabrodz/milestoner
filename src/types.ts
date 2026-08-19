@@ -47,7 +47,7 @@ export interface AgentConfig {
   /** Executable to spawn. The whole invocation is a config string from day one so a
    *  second agent (Cursor, Codex) only needs a config change, not an engine change. */
   command: string;
-  /** Argument template. Placeholders: {{kickoff}} {{promptFile}} {{milestoneId}} {{projectRoot}} {{pulseflowDir}} {{model}} */
+  /** Argument template. Placeholders: {{kickoff}} {{promptFile}} {{milestoneId}} {{projectRoot}} {{dogwatchDir}} {{model}} */
   args: string[];
   /** Extra args appended only when `model` is set. */
   modelArgs: string[];
@@ -72,7 +72,7 @@ export interface InfraConfig {
   infraFailurePatterns: string[];
 }
 
-export interface PulseflowConfig {
+export interface DogwatchConfig {
   run: string;
   projectRoot: string;
   maxAttempts: number;
@@ -93,7 +93,7 @@ export interface PulseflowConfig {
 export interface EnvironmentConfig {
   /**
    * The environment adapter: a command that unsticks a host-bound environment (refocus a window,
-   * dismiss a native modal, restart a tool server). Run by `pulseflow attend`, which is the only
+   * dismiss a native modal, restart a tool server). Run by `dogwatch attend`, which is the only
    * environment intervention the supervisor is allowed to make. `{{seconds}}` is substituted.
    */
   attendCommand: string | null;
@@ -124,7 +124,7 @@ export interface Pulse {
   lastEventAt: string;
 }
 
-/** Written by `pulseflow kill` so the runner grades a deliberate kill as work, not infrastructure. */
+/** Written by `dogwatch kill` so the runner grades a deliberate kill as work, not infrastructure. */
 export interface KillMarker {
   milestoneId: string;
   agentPid: number;

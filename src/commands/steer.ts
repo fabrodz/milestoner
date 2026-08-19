@@ -14,7 +14,7 @@ export interface SteerOptions {
 
 // A comment, so the note to the human editing this file never reaches the agent's kickoff.
 const HEADER =
-  "<!--\nSteering: read by every session launched from now on, as an override on the milestone prompt.\nEverything outside these comments is sent to the agent verbatim. Keep it short and imperative.\nClear it with `pulseflow steer --clear` once it has served its purpose.\n-->\n\n";
+  "<!--\nSteering: read by every session launched from now on, as an override on the milestone prompt.\nEverything outside these comments is sent to the agent verbatim. Keep it short and imperative.\nClear it with `dogwatch steer --clear` once it has served its purpose.\n-->\n\n";
 
 /**
  * The user's mid-flight channel into a running run: a correction that reaches the next session
@@ -39,7 +39,7 @@ export function steer(options: SteerOptions): number {
     const current = readSteering(layout.steering);
     if (!current) {
       info(`no steering in force (${rel} is absent or empty)`);
-      info(`  set some with: ${color.bold('pulseflow steer "prefer the simpler fix over the general one"')}`);
+      info(`  set some with: ${color.bold('dogwatch steer "prefer the simpler fix over the general one"')}`);
       return 0;
     }
     console.log(`\n${color.bold("steering in force")}  ${color.dim(rel)}\n`);

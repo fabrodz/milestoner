@@ -11,8 +11,8 @@ test("the skill has the frontmatter Claude Code needs to discover it", () => {
 });
 
 test("the playbook only reaches for commands the engine actually exposes", () => {
-  // Only the ones written as code: prose says "pulseflow autonomous run" too.
-  const invocations = [...SKILL_TEMPLATE.matchAll(/(?:`|^)pulseflow ([a-z]+)/gm)];
+  // Only the ones written as code: prose says "dogwatch autonomous run" too.
+  const invocations = [...SKILL_TEMPLATE.matchAll(/(?:`|^)dogwatch ([a-z]+)/gm)];
   const commands = new Set(invocations.map((m) => m[1]).filter((c): c is string => Boolean(c)));
   assert.deepEqual([...commands].sort(), ["attend", "kill", "run", "status", "steer", "unblock"]);
 });

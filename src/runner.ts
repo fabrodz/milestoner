@@ -8,13 +8,13 @@ import { archiveResult, gradeResult, readResult, type Verdict } from "./result.j
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { readSteering, type Steering } from "./steering.js";
 import { findMilestone, loadState, nextMilestone, saveState } from "./state.js";
-import type { AttemptRecord, KillMarker, Milestone, PulseflowConfig, RunState } from "./types.js";
+import type { AttemptRecord, KillMarker, Milestone, DogwatchConfig, RunState } from "./types.js";
 import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
 import { color, fail, humanDuration, info, ok, step, warn } from "./util/log.js";
 import { iso, sleep } from "./util/time.js";
 
 export interface RunOptions {
-  config: PulseflowConfig;
+  config: DogwatchConfig;
   layout: Layout;
   maxAttempts?: number;
   model?: string;
@@ -41,7 +41,7 @@ function logEvent(layout: Layout, milestoneId: string, event: string, detail: st
 }
 
 export function buildKickoff(
-  config: PulseflowConfig,
+  config: DogwatchConfig,
   layout: Layout,
   milestone: Milestone,
   steering: Steering | null,
@@ -177,7 +177,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         } else {
           console.log(`  no diagnosis was written; read the last transcript in ${relative(config.projectRoot, layout.logs)}`);
         }
-        console.log(`  resume with: pulseflow unblock ${next.id}`);
+        console.log(`  resume with: dogwatch unblock ${next.id}`);
         pulse(next, next.attempts, null, "blocked");
         return "blocked";
       }
@@ -210,7 +210,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         promptFile,
         milestoneId: next.id,
         projectRoot: config.projectRoot,
-        pulseflowDir: layout.dir,
+        dogwatchDir: layout.dir,
         model: active.agent.model ?? "",
       });
 
@@ -369,7 +369,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
       if (options.once) return findMilestone(after, next.id)?.status === "blocked" ? "blocked" : "stopped";
       if (stopping()) {
-        warn("stopping as requested - the run resumes with `pulseflow run`");
+        warn("stopping as requested - the run resumes with `dogwatch run`");
         return "stopped";
       }
       if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);

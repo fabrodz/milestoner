@@ -4,13 +4,13 @@ import { relative, resolve } from "node:path";
 import type { Layout } from "../paths.js";
 import { buildReport } from "../report.js";
 import { loadState } from "../state.js";
-import type { PulseflowConfig } from "../types.js";
+import type { DogwatchConfig } from "../types.js";
 import { ensureDir } from "../util/fs.js";
 import { dirname } from "node:path";
 import { color, info, ok } from "../util/log.js";
 
 export interface ReportOptions {
-  config: PulseflowConfig;
+  config: DogwatchConfig;
   layout: Layout;
   out?: string;
   open: boolean;
@@ -51,7 +51,7 @@ export function report(options: ReportOptions): number {
           : ["xdg-open", [out]];
     spawn(cmd, args, { detached: true, stdio: "ignore" }).unref();
   } else {
-    info(`  open it with ${color.bold("pulseflow report --open")}`);
+    info(`  open it with ${color.bold("dogwatch report --open")}`);
   }
   return 0;
 }
