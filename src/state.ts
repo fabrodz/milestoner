@@ -33,7 +33,7 @@ export function normalizeState(raw: Record<string, unknown>): RunState {
   return {
     run: String(raw.run ?? "unnamed-run"),
     createdAt: String(raw.createdAt ?? iso()),
-    // `mvpComplete` is the flag the original the reference project run used.
+    // `mvpComplete` is the flag the reference run used before the field was renamed.
     runComplete: Boolean(raw.runComplete ?? raw.mvpComplete ?? false),
     milestones: milestones.map((m, i) => normalizeMilestone(m as Record<string, unknown>, i)),
   };

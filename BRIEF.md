@@ -1,6 +1,6 @@
 # pulseflow — product brief (genesis)
 
-Seeded 2026-08-18 from the the reference project autonomous runs. This document is the handoff context: read it fully before designing anything.
+Seeded 2026-08-18 from two autonomous runs on a private Unity 6 project. This document is the handoff context: read it fully before designing anything.
 
 ## What it is
 
@@ -10,7 +10,7 @@ The name is the thesis: the product's differentiator is the *pulse* — knowing 
 
 ## Where it comes from (proven in production)
 
-Extracted from two real runs on a Unity 6 game (`<project-root>`, see `docs/execution/` there):
+Extracted from two real runs on a Unity 6 game (a private project; the run lived under its `docs/execution/`):
 
 - **MVP run**: 12 milestones, ~10.5h overnight, 257 EditMode tests green, one retry consumed by a real bug, one block caused by infrastructure (usage limit) — not by the work.
 - **v1.1 run**: 5 milestones prepared with the hardened engine (in progress at handoff time).
@@ -47,7 +47,7 @@ Honest note: for plain sandboxable CLI projects, ralph-loop is good; pulseflow m
 
 ## Reference implementation (in `./reference/`)
 
-Copied verbatim from the the reference project run (Windows/PowerShell, Claude Code CLI):
+Copied from the reference run (Windows/PowerShell, Claude Code CLI), with the project's own names and paths replaced by placeholders:
 
 - `orchestrator.ps1` — the session runner: state machine loop, attempts, blocked, infra-failure wait-without-consuming, `-StatePath`/`-Model` params.
 - `_protocol.md` — the project protocol used by every executor session (Unity-flavored; separate the generic ritual from the Unity bits).
