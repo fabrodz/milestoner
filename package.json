@@ -10,7 +10,7 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "bin": { "pulseflow": "./dist/cli.js" },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
