@@ -1,56 +1,127 @@
 {
   "run": "v04-plugin",
   "createdAt": "2026-08-19T22:37:24.509Z",
-  "runComplete": false,
-  "rev": 0,
+  "runComplete": true,
+  "rev": 9,
   "milestones": [
     {
       "id": "M01",
       "title": "Plugin manifest and the supervisor skill as a plugin component",
       "prompt": "M01.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-19T22:41:47.070Z",
+      "finishedAt": "2026-08-19T22:45:36.616Z",
+      "evidence": [
+        "AC1: claude plugin validate . --strict exits 0 with 'Validation passed', captured in .dogwatch/evidence/M01-validate.txt (run after the skill component existed)",
+        "AC2: diff <(dogwatch skill install --print) skills/dogwatch-supervisor/SKILL.md produced no output, exit 0; .dogwatch/evidence/M01-skill-diff.txt is 0 bytes",
+        "AC3: new test 'the plugin ships the same skill text the CLI writes' in src/templates/skill.test.ts; deliberate break (appended a comment to shipped SKILL.md) gave 'not ok 4 ... # fail 1', restore via npm run gen:skill gave 'ok 4'; 76 pass in .dogwatch/evidence/M01-test.txt",
+        "AC4: plugin.json version '0.3.0' equals package.json version '0.3.0' (node compare printed MATCH; both quoted in execution log)",
+        "AC5: npm run typecheck exit 0, npm test exit 0 (76 pass 0 fail per .dogwatch/evidence/M01-test.txt), npm run build exit 0"
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-19T22:41:47.072Z",
+          "endedAt": "2026-08-19T22:45:36.616Z",
+          "seconds": 230,
+          "exitCode": 0,
+          "transcript": ".dogwatch/logs/M01-20260819-224147-071.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M02",
       "title": "Slash commands as plugin components",
       "prompt": "M02.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-19T22:48:37.178Z",
+      "finishedAt": "2026-08-19T22:55:16.062Z",
+      "evidence": [
+        "AC1: `claude plugin validate . --strict` exits 0 ('Validation passed') with the four commands present; captured in .dogwatch/evidence/M02-validate.txt (first run failed on unquoted argument-hint YAML in two files, fixed by quoting).",
+        "AC2: `claude --plugin-dir . plugin details dogwatch` exits 0 and lists all four commands (dogwatch-init, dogwatch-report, dogwatch-status, dogwatch-supervise) by name in its component inventory; captured in .dogwatch/evidence/M02-details.txt. Bare `plugin details` needs an installed plugin, so loading the repo from disk via the top-level --plugin-dir is the closest inventory command that works here.",
+        "AC3: src/plugin-commands.test.ts has one passing subtest per command asserting presence + description frontmatter (ok 22-25) plus 'no command hands the model a path the supervisor is denied' (ok 26); deliberate break (removed dogwatch-report.md) produced 'not ok 25 ... commands/dogwatch-report.md is missing' and '# fail 2', restore returned '# pass 81 # fail 0'. Counts in .dogwatch/evidence/M02-test.txt.",
+        "AC4: docs/DECISIONS.md carries D-018 'Four slash commands ship; run, serve, and the human-only commands do not (2026-08-19)', naming the four shipped commands and each rejected command (run, serve, unblock, steer, kill, attend, skill install) with its reason.",
+        "AC5: npm run typecheck exit 0, npm test exit 0 (81 pass, 0 fail, up from 76), npm run build exit 0; counts in .dogwatch/evidence/M02-test.txt. Committed cf55cc8 and tagged v04-plugin/M02."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-19T22:48:37.180Z",
+          "endedAt": "2026-08-19T22:55:16.062Z",
+          "seconds": 399,
+          "exitCode": 0,
+          "transcript": ".dogwatch/logs/M02-20260819-224837-179.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M03",
       "title": "Marketplace manifest and install docs",
       "prompt": "M03.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-19T22:55:16.063Z",
+      "finishedAt": "2026-08-19T23:00:09.540Z",
+      "evidence": [
+        "AC1: `claude plugin validate . --strict` and `claude plugin validate .claude-plugin/marketplace.json --strict` both print 'Validation passed', exit 0; captured in .dogwatch/evidence/M03-validate.txt.",
+        "AC2: every shared field matches across plugin.json and the marketplace entry - name 'dogwatch'='dogwatch', version '0.3.0'='0.3.0', description byte-identical, author.name 'Fabian R.'='Fabian R.', license 'MIT'='MIT', homepage and keywords identical; quoted in the execution log. `claude plugin tag --dry-run --force` confirms the agreement (output in .dogwatch/evidence/M03-validate.txt).",
+        "AC3: README `## Install` documents both paths; the CLI-on-PATH requirement is explicit in the line 'The plugin does not put the `dogwatch` binary on your PATH.' (README.md:37).",
+        "AC4: docs/GUIDE.md 'Install and requirements', setup step 7, and the `dogwatch skill install` reference use the same commands as the README (`claude plugin marketplace add fabrodz/dogwatch`, `claude plugin install dogwatch@dogwatch`, `npm link`); both files re-read side by side, no contradiction.",
+        "AC5: docs/DECISIONS.md carries D-019 'The marketplace is a single-plugin manifest in this repository (2026-08-19)'.",
+        "AC6: npm run typecheck exit 0, npm test exit 0 (81 pass, 0 fail), npm run build exit 0; counts in .dogwatch/evidence/M03-test.txt. Committed 30ba061, tagged v04-plugin/M03."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-19T22:55:16.063Z",
+          "endedAt": "2026-08-19T23:00:09.540Z",
+          "seconds": 293,
+          "exitCode": 0,
+          "transcript": ".dogwatch/logs/M03-20260819-225516-063.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M04",
       "title": "Release plumbing, CI gate, and closing v0.4",
       "prompt": "M04.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-19T23:00:09.541Z",
+      "finishedAt": "2026-08-19T23:05:31.597Z",
+      "evidence": [
+        "AC1: src/version.test.ts 'the version is single-sourced across package.json, plugin.json and the marketplace entry' passes (ok 1); deliberate mismatch (plugin.json -> 9.9.9) gave 'not ok 1 ... # fail 1' and check-manifests exited 1 with 'version drift: plugin.json 9.9.9 != package.json 0.4.0', restore returned 'ok 1'; recorded in execution log.",
+        "AC2: .github/workflows/ci.yml job 'plugin manifests' runs 'npm run check:manifests' as the runner-independent gate, then 'if command -v claude >/dev/null 2>&1; then claude plugin validate . --strict; claude plugin validate .claude-plugin/plugin.json --strict; else echo \"claude CLI not present on this runner; the schema check above is the gate. Skipping strict validation.\"; fi' - the absent-CLI case is deliberate and stated in the workflow.",
+        "AC3: CHANGELOG.md heading '## [0.4.0] - 2026-08-19' with four Added entries covering M01-M04; package.json reads '\"version\": \"0.4.0\"'.",
+        "AC4: README roadmap reads '**v0.4** plugin packaging: ... Done.'; the validation statement was rewritten to 'Validated end to end by this release: v0.4 was itself built as a four-milestone dogwatch run (M01-M04), each milestone a fresh Claude Code session graded against its written evidence ...' and states what remains untested (usage-limit/fallback mid-run, a non-Claude agent across a whole run, the supervisor loop against a live multi-milestone run).",
+        "AC5: docs/GUIDE.md limitations bullet now reads '**Plugin packaging shipped in v0.4.** Besides the CLI-written skill, the supervisor and four slash commands install as a Claude Code plugin from an in-repo marketplace ... The CLI is still the engine and the required install.' - no longer lists plugin packaging as missing.",
+        "AC6: read the execution log end to end; grep 'Engine findings' returns nothing - no findings section was opened across M01-M04, count is 0, so none to fix or carry into the CHANGELOG.",
+        "AC7: npm run typecheck exit 0, npm test exit 0 (82 pass, 0 fail per .dogwatch/evidence/M04-test.txt), npm run build exit 0, and 'claude plugin validate . --strict' exit 0 with 'Validation passed' per .dogwatch/evidence/M04-validate.txt."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-19T23:00:09.541Z",
+          "endedAt": "2026-08-19T23:05:31.597Z",
+          "seconds": 322,
+          "exitCode": 0,
+          "transcript": ".dogwatch/logs/M04-20260819-230009-541.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     }
   ]
 }
