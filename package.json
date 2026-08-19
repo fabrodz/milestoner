@@ -1,0 +1,24 @@
+{
+  "name": "runpulse",
+  "version": "0.1.0",
+  "description": "Supervised autonomous-run engine for coding agents: milestone state machine, evidence gates, infra-failure discrimination.",
+  "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "runpulse": "./dist/cli.js" },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
