@@ -1,0 +1,6 @@
+logs/
+results/
+result.json
+pulse.json
+kill.json
+report.html

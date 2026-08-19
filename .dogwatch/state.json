@@ -1,0 +1,56 @@
+{
+  "run": "v04-plugin",
+  "createdAt": "2026-08-19T22:37:24.509Z",
+  "runComplete": false,
+  "rev": 0,
+  "milestones": [
+    {
+      "id": "M01",
+      "title": "Plugin manifest and the supervisor skill as a plugin component",
+      "prompt": "M01.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
+    },
+    {
+      "id": "M02",
+      "title": "Slash commands as plugin components",
+      "prompt": "M02.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
+    },
+    {
+      "id": "M03",
+      "title": "Marketplace manifest and install docs",
+      "prompt": "M03.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
+    },
+    {
+      "id": "M04",
+      "title": "Release plumbing, CI gate, and closing v0.4",
+      "prompt": "M04.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
+    }
+  ]
+}
