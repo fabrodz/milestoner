@@ -1,0 +1,3 @@
+# Tests compare bytes read from disk, so the working tree has to be LF on every platform,
+# whatever core.autocrlf is set to locally.
+* text=auto eol=lf

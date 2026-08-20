@@ -7,8 +7,10 @@ import { SKILL_NAME, SKILL_TEMPLATE } from "./skill.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+const lf = (text: string): string => text.replace(/\r\n/g, "\n");
+
 test("the skill has the frontmatter Claude Code needs to discover it", () => {
-  const [, frontmatter] = SKILL_TEMPLATE.split("---\n", 3);
+  const [, frontmatter] = lf(SKILL_TEMPLATE).split("---\n", 3);
   assert.ok(frontmatter, "no frontmatter block");
   assert.match(frontmatter, new RegExp(`^name: ${SKILL_NAME}$`, "m"));
   const description = /^description: (.+)$/m.exec(frontmatter)?.[1] ?? "";
@@ -31,7 +33,8 @@ test("the playbook keeps its bounded shape", () => {
 
 test("the plugin ships the same skill text the CLI writes", () => {
   // Drift guard: skills/<name>/SKILL.md is generated from SKILL_TEMPLATE by
-  // `npm run gen:skill`. If someone edits one and not the other, this fails.
+  // `npm run gen:skill`. If someone edits one and not the other, this fails. It compares text,
+  // not bytes: a checkout's line endings are not drift.
   const shipped = readFileSync(join(repoRoot, "skills", SKILL_NAME, "SKILL.md"), "utf8");
-  assert.equal(shipped, SKILL_TEMPLATE, "run `npm run gen:skill` to regenerate the shipped skill");
+  assert.equal(lf(shipped), lf(SKILL_TEMPLATE), "run `npm run gen:skill` to regenerate the shipped skill");
 });

@@ -8,4 +8,6 @@ import { SKILL_NAME, SKILL_TEMPLATE } from "../src/templates/skill.ts";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dir = join(root, "skills", SKILL_NAME);
 mkdirSync(dir, { recursive: true });
-writeFileSync(join(dir, "SKILL.md"), SKILL_TEMPLATE, "utf8");
+// LF unconditionally: this file is generated on whatever platform runs `npm run build`, and it is
+// committed, so anything else makes the build produce a diff on Windows and none on Linux.
+writeFileSync(join(dir, "SKILL.md"), SKILL_TEMPLATE.replace(/\r\n/g, "\n"), "utf8");

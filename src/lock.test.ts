@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { LOCK_FILE, withStateLock } from "./lock.js";
 import { loadState, updateState } from "./state.js";
 import type { RunState } from "./types.js";
@@ -78,9 +79,11 @@ test("concurrent writers from separate processes do not lose an update", async (
   // Each child appends one line. Without the lock, load-mutate-write from six processes loses most
   // of them: whoever renames last wins with a copy that never saw the others.
   const child = join(dir, "writer.mjs");
+  // A file URL, not a path: on Windows a bare `D:\...` specifier is read as a URL scheme and rejected.
+  const stateModule = pathToFileURL(join(process.cwd(), "src", "state.ts")).href;
   writeFileSync(
     child,
-    `import { updateState } from ${JSON.stringify(join(process.cwd(), "src", "state.ts"))};
+    `import { updateState } from ${JSON.stringify(stateModule)};
      const [dir, state, id] = process.argv.slice(2);
      updateState(dir, state, (s) => { s.milestones[0].evidence.push("writer " + id); });`,
   );
