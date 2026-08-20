@@ -612,3 +612,61 @@ milestone because all three described the misgrading as current behaviour.
 
 M07, scaffolding a new run over an existing `.milestoner/` must not keep the previous run's
 protocol. Nothing from M06 blocks it.
+
+## M05 - The state lock cannot be broken by the process that just took it - attempt 2 (2026-08-20)
+
+Attempt 1 finished the fix, the tests and the docs, and reported blocked on the one thing it could
+not buy: a CI run, refused by GitHub billing on a then-private repository. This attempt closed the
+gap without writing a line of code.
+
+### What changed between attempts
+
+The user made the repository public, merged wip/M05 into main (7ed7765; the fix on main as
+6ef233b) and pushed. The push of 287e182 triggered CI run 32428734950: all eight jobs success.
+wip/M05 and PR #3 are gone from origin.
+
+### What this session did
+
+- Verified the environment and the whole gate on main at 287e182: `node --version` v22.20.0,
+  `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0 at 114/114
+  (`.milestoner/evidence/M05-test.txt`, refreshed), `claude plugin validate .` exit 0.
+- Confirmed the AC1 evidence still stands: `.milestoner/evidence/M05-lock.txt`, pre-fix run
+  exit 1 with pass 8 / fail 3 (`not ok 5`, `not ok 7`, `not ok 8`), post-fix run exit 0 with
+  pass 11 / fail 0.
+- Reconfirmed AC2 against current main: 10 fresh rounds of `src/lock.test.ts` +
+  `src/registry.test.ts`, every round exit 0, pass 20 / fail 0, zero `not ok` lines, appended to
+  `.milestoner/evidence/M05-repeats.txt`.
+- Closed AC3: run 32428734950 at 287e182 (this session's HEAD), event push, conclusion success,
+  ubuntu 20/22/24 all success, with the seven lock and registry test lines and the closing
+  114/114 quoted from the ubuntu node 20 job log (96615920454) in
+  `.milestoner/evidence/M05-ci.txt`. Zero of the four allowed push-and-wait cycles spent.
+- AC4 and AC5 verified on main: `docs/DECISIONS.md` line 516 `## D-028 - The lock carries its
+  holder from the first instant, because D-022 broke empty locks on sight (2026-08-20)`;
+  `CHANGELOG.md` under `## [Unreleased]` / `### Fixed`, first line "Two milestoner processes
+  writing state at the same moment could silently lose one of the writes".
+
+### Problems hit
+
+None. The only judgement call was not resurrecting wip/M05; recorded in
+`.milestoner/decisions.md`.
+
+### Decisions
+
+One: AC3 evidenced by the existing green run on main rather than a recreated branch and PR.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+None.
+
+### Backlog
+
+- Unchanged from attempt 1: a test forcing the `linkUnsupported` fallback in `tryAcquire`, and
+  `workflow_dispatch` on the CI workflow.
+
+### Next step
+
+M07. M06 is already done; the run has one milestone left.

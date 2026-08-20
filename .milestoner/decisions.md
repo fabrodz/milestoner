@@ -256,3 +256,20 @@ that do not name it, verified in `config.test.ts`.
 Rejected: deriving it as a fraction of `tinyTranscriptBytes`, which silently moves the crash line
 whenever a user tunes the instant-death one for a chattier agent; and a constant, which would be
 the only infra number a config cannot reach.
+
+## 2026-08-20 - M05 attempt 2 - AC3 is evidenced by the green run on main, not a resurrected wip/M05
+
+Context: attempt 1 left everything complete except AC3, blocked on GitHub billing. Between the
+attempts the user made the repository public, merged the lock fix into main (7ed7765, the fix on
+main as 6ef233b) and pushed; the push of 287e182 ran the full matrix as run 32428734950, all
+eight jobs success. Branch wip/M05 and PR #3 no longer exist on origin.
+
+Decision: cite run 32428734950 as the AC3 evidence. Its head sha is this session's HEAD, so the
+run tested the exact tree with the fix, the regression tests and the hardened concurrent tests,
+and the ubuntu node 20 job (where the race manifested) closed at 114/114. Zero of the four
+allowed push-and-wait cycles spent.
+
+Rejected: recreating wip/M05 and pushing to trigger a fresh pull_request run, which spends CI
+minutes and a cycle to reproduce evidence that already exists for the same bytes; the branch
+mechanism existed to avoid pushing main, and main was already pushed by the user, not by this
+session.

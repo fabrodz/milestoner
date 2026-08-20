@@ -14,3 +14,17 @@ round 7: exit 0, # pass 20, # fail 0, not-ok lines: 0
 round 8: exit 0, # pass 20, # fail 0, not-ok lines: 0
 round 9: exit 0, # pass 20, # fail 0, not-ok lines: 0
 round 10: exit 0, # pass 20, # fail 0, not-ok lines: 0
+
+Attempt 2 reconfirmation (2026-08-20), against main at 287e182 (114-test suite):
+`node --import tsx --test src/lock.test.ts src/registry.test.ts`, 10 rounds:
+
+  round 1 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 2 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 3 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 4 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 5 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 6 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 7 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 8 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 9 : exit 0, pass 20, fail 0, not-ok lines 0
+  round 10 : exit 0, pass 20, fail 0, not-ok lines 0

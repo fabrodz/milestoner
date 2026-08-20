@@ -36,3 +36,43 @@ What Linux verification would take once the account can run Actions again (or th
 actually made public): the branch and PR are already up - `gh run rerun 32423986143` or an empty
 push to wip/M05, then `gh run watch`. The code, tests and all other evidence are complete and
 committed on wip/M05 at 9621f63.
+
+M05 - AC3, attempt 2 (2026-08-20): ACHIEVED, on main
+====================================================
+
+Between the two attempts the repository was made public and main was pushed with the M05 lock fix
+merged in (7ed7765 "chore: merge M05's lock fix into main ahead of its own gate, and say so",
+lock fix on main as 6ef233b). The push of 287e182 triggered a fresh CI run, so the matrix
+evidence exists without resurrecting wip/M05 (the branch and PR #3 are gone from origin).
+
+Run id: 32428734950 (https://github.com/fabrodz/milestoner/actions/runs/32428734950)
+Branch: main at 287e18286b64f47cbac621a97cf6a663a2a6970d, event push, conclusion success.
+That sha is the local HEAD of this session: the run tested exactly this tree, lock fix,
+regression tests and hardened concurrent tests included.
+
+Job conclusions from `gh run view 32428734950 --json jobs`:
+
+  plugin manifests          success
+  ubuntu-latest / node 20   success   <- the job where the race manifested (run 32420272395)
+  ubuntu-latest / node 22   success
+  ubuntu-latest / node 24   success
+  macos-latest / node 20    success
+  macos-latest / node 24    success
+  windows-latest / node 20  success
+  windows-latest / node 24  success
+
+From the ubuntu-latest / node 20 job log (job 96615920454, fetched with
+`gh api repos/fabrodz/milestoner/actions/jobs/96615920454/logs`):
+
+  ok 20 - concurrent writers from separate processes do not lose an update
+  ok 21 - an empty lock is a lock acquired this instant, and a contender must not break it
+  ok 22 - an empty lock whose holder died before writing is broken after the grace, not honoured forever
+  ok 23 - a contender that meets an empty lock waits out the grace instead of stealing it
+  ok 24 - release removes only its own lock, never one that was broken and retaken
+  ok 25 - the lock names its holder for as long as it exists
+  ok 41 - concurrent registration from several processes loses no entry
+  # tests 114
+  # pass 114
+  # fail 0
+
+Push-and-wait cycles spent this attempt: zero of the allowed four. The run already existed.
