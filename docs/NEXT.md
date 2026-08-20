@@ -71,7 +71,9 @@ its milestone, progress and liveness verdict, and exits `2` when one is blocked 
 gone. A killed runner's entry is kept and reported `gone` for a day rather than vanishing. Recorded
 as D-025.
 
-What is left is the panel. `serve` still shows only the directory it was started in, so a multi-run
+What is left is the panel across runs. One run's panel now comes up with its run - `milestoner run
+--serve`, done on 2026-08-20 as milestone M04, recorded as D-027 - but that is still one directory.
+`serve` shows only the directory it was started in, so a multi-run
 view is a `serve` change now that the primitive it needs exists: a run picker across the registry,
 and a decision about whether one process may act on a project it was not started in. That is a
 security question (D-020's write surface is scoped to one project) and should be answered before the

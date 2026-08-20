@@ -138,3 +138,47 @@ feels immediate.
 
 Rejected: no wait at all (SIGKILL immediately), which loses whatever the session was about to write,
 and a configurable value, which is a knob nobody has asked for on a number nobody will tune.
+
+## 2026-08-20 - M04 - The attached panel keeps `--write` and loses the start-run control
+
+Context: the milestone left the choice open between refusing `run --serve --write` and allowing it
+with the start-run control suppressed. `startRun` already refuses when a live pulse names a running
+runner, so the dangerous combination was mostly closed by accident rather than by intent.
+
+Decision: allow `--write`, and refuse `/api/run/start` explicitly when the panel came up with a run.
+The page stops drawing the button off a new `canStart` field in the state view, and the route answers
+409 whether or not the page behaves. Promoted to `docs/DECISIONS.md` as D-027 with the other two
+decisions this milestone had to make.
+
+Rejected: refusing the combination outright. It removes steer, unblock, attend and kill from the one
+situation the panel exists for, and `kill` against a live runner is the supervisor's rule 4 path,
+specified and tested exactly there. Also rejected: leaving the existing pulse check as the only
+guard. It is a race by construction - the pulse is written after the panel starts - and it reports
+"a runner is already running" rather than saying why this panel will never start one.
+
+## 2026-08-20 - M04 - A busy port moves the attached panel; `serve` still fails
+
+Context: `EADDRINUSE` on 4400 is likeliest when a second run starts on a machine where the first
+already holds the port, which is precisely when a panel is wanted.
+
+Decision: `run --serve` falls back to an ephemeral port and prints `port 4400 is already in use - the
+panel is on port <n> instead`. `milestoner serve` keeps exiting 1 with `pick another with --port`,
+because there the panel is the command rather than an accessory to one. A panel that cannot come up
+for any other reason is a warning and the run continues.
+
+Rejected: continuing with no panel on a busy port. The URL has to be copied from the output whatever
+the port, so the address was never something the user held; the only real loss is a pre-arranged SSH
+forward, and that is why the move is announced rather than silent.
+
+## 2026-08-20 - M04 - `.milestoner/run-log.md` and `state.json` stay out of the session's commits
+
+Context: carried in the backlog since M02. Both are engine-owned and are being appended to while the
+session is alive, so any commit of them captures a half-written snapshot of the run the session is
+part of.
+
+Decision: stage files explicitly, never `git commit -a`, and leave both dirty at session end. The
+protocol already forbids writing to them; not committing them is the same rule applied to git.
+
+Rejected: `.gitignore` plus `git rm --cached`. It is the cleaner end state but it rewrites how the
+engine's own files are tracked, which is a change to the run's scaffolding made by one milestone that
+has nothing to do with it. Worth doing deliberately, in its own change.

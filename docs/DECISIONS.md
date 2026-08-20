@@ -470,3 +470,45 @@ already tracks. A process group is the portable POSIX answer to exactly this que
 **SIGTERM, then SIGKILL after five seconds.** A session that traps or ignores the polite signal used
 to leave the caller believing it had killed something, and the runner waiting on a child that was
 never going to close. The escalation is skipped on Windows because `/F` is unconditional.
+
+## D-027 - The panel comes up with the run, and what that costs (2026-08-20)
+
+Watching a run in a browser needed two terminals and two commands: `milestoner run` in one,
+`milestoner serve` in the other. `milestoner run --serve` collapses that. The server lifecycle -
+build, listen, hand back a URL and a close function - is now one function both callers use, so
+`serve` and the attached panel cannot drift apart. Three questions had to be answered before this
+was safe to ship.
+
+**`--write` is allowed, and the start-run control is what goes.** The panel's controls can start a
+runner. With a runner already draining the same directory that is two processes writing one
+`state.json`, which is the lost-update shape
+[D-022](#d-022---statejson-writes-are-serialised-across-processes-2026-08-19) exists to prevent, and
+serialising the writes does not make two runners on one run state sensible. Refusing `--write`
+outright was the other option and it costs too much: steer, unblock, attend and above all kill are
+the reason to have the panel open at 3am in the first place, and `kill` in particular is the
+supervisor's rule 4 path, which is specified against a live runner and works exactly as intended
+there. So the attached panel keeps every control and loses one: `/api/run/start` answers `409` with
+"a second one would be two runners on one state.json", and the page does not draw the button. The
+refusal is server-side, not a hidden button: the page is one client of an HTTP API, and an API that
+relies on its own page to stay honest is not one.
+
+**A busy port moves the panel; it never fails the run.** The run is the point and the panel is the
+accessory, so `EADDRINUSE` on the requested port falls back to an ephemeral one and says so:
+`port 4400 is already in use - the panel is on port 51823 instead`. The alternative was to carry on
+with no panel at all, which is worse for the case that makes this happen: a second run on a machine
+where the first one already holds 4400. Nothing about the panel's address was ever memorable - the
+URL carries a generated key and has to be copied from the output whatever the port - so moving it
+costs the user nothing they had. It does break a pre-arranged SSH forward, which is the one real
+cost and the reason the fallback is announced rather than silent. `milestoner serve` keeps the
+opposite behaviour and still exits `1` with "pick another with --port": there the panel *is* the
+command, and quietly landing somewhere else is not a service to anyone. If the panel cannot come up
+at all, the run continues and the failure is a warning, never an exit code.
+
+**`--open` is not offered.** The URL is the credential: it carries the key that authorises steering,
+unblocking, killing and running the environment adapter. Handing it to a browser writes a live
+credential into that browser's history, and into whatever that browser syncs to other devices and to
+a vendor. `report --open` is not the same case and is unaffected - it opens a local file whose path
+contains no secret. `milestoner run --serve --open` therefore exits `1` and says why, rather than
+ignoring the flag: a user who typed it wants the browser open and needs to know it will not happen
+and what to do instead. Copying one URL out of the terminal is the whole difference, and it keeps
+the key in one place the user chose.

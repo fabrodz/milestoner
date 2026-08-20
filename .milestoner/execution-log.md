@@ -307,3 +307,115 @@ exactly as the POSIX case did. Found while making the two paths agree, fixed in 
 ### Next step
 
 M04, the panel coming up with the run (`--serve` on `milestoner run`). Nothing from M03 blocks it.
+
+## M04 - The panel comes up with the run (2026-08-20)
+
+`milestoner run --serve` brings the web panel up with the run. One session, no gate failures, no
+descoping.
+
+### What was built
+
+- `src/server/panel.ts`, new. `startPanel()` builds the panel, listens on `127.0.0.1`, and hands back
+  a URL, the bound port, the `http.Server` and a `close()` that also calls `closeAllConnections()` -
+  without that an open server-sent-events stream holds the port after `close()` resolves.
+  `announcePanel()` is the banner both callers print, differing only in its last line.
+  `startRunPanel()` is the run's wrapper: `allowStart: false`, ephemeral-port fallback, and every
+  failure a warning rather than an exit code.
+- `src/commands/serve.ts` is now that lifecycle plus its own SIGINT/SIGTERM handling. Its output,
+  flags and read-only default are unchanged, including the `pick another with --port` failure.
+- `src/server/http.ts` takes `allowStart`. The state view gained `canStart`, sent on `/api/state` and
+  over the event stream through one `view()` so the two cannot drift, and `/api/run/start` answers
+  409 when the panel came up with a run. `src/server/page.ts` draws the start button off `canStart`.
+- `src/runner.ts` takes `serve?: { port, write, token }`, starts the panel after registering and
+  before the first session, and closes it in the same `finally` that clears the pulse and
+  deregisters the run.
+- `src/cli.ts` adds `--serve` to `run`, reusing `--port` and `--write`, with the port validation
+  shared with `serve`. `--open` alongside `--serve` exits 1 with the reason.
+
+6 new tests, 5 in `src/runner.serve.test.ts` and 1 in `src/server/http.test.ts`. Suite 100 -> 106.
+
+### Evidence per acceptance criterion
+
+- **AC1** - `ok 58 - the panel comes up with the run and answers with this run's live state`. The
+  captured request and response are in `.milestoner/evidence/M04-serve.txt` section 1: a real
+  `milestoner run --serve --port 1640` against `dist/cli.js`, its banner, then
+  `GET /api/state?token=...` answering `200` with `"run": "panel-demo"`, `M01` `in_progress`, and a
+  pulse whose `pid` is that runner, `runnerAlive: true`, `agentAlive: true`. The run then drained to
+  `RUN COMPLETE` with M01 `done`.
+- **AC2** - `ok 59 - the panel is closed once the run ends, and its port is free again`, which
+  asserts `fetch` rejects after `run()` resolves and that a fresh server can bind the same port.
+  Section 2 of `M04-serve.txt` is the same thing end to end: `connection refused: ECONNREFUSED` and
+  `port 1640 bindable again: yes` after `runner exit code: 0`.
+- **AC3** - `ok 63 - one interrupt lets the running session finish and be graded, then stops` and
+  `ok 64 - a second interrupt kills the session and leaves the milestone in_progress` still pass
+  untouched. The attached-panel cases are `ok 61 - one interrupt with a panel attached still finishes
+  and grades the running session` (M01 `done` with its evidence, M02 still `pending`) and `ok 62 - a
+  second interrupt with a panel attached still leaves the milestone in_progress` (`attempts` 0, no
+  history entry); both also assert the panel closed with the run. No SIGINT handler is installed from
+  the panel path.
+- **AC4** - `ok 60 - a port already in use moves the panel and does not take the run down`, which
+  asserts the printed line `port <n> is already in use - the panel is on port ` and that the panel
+  which did come up answers for this run. Section 3 of `M04-serve.txt` has it against the real CLI:
+  `port 4400 is already in use - the panel is on port 1557 instead`, then the run completing with M01
+  `done`.
+- **AC5** - `milestoner serve` is covered by `ok 67..77` in `src/server/http.test.ts`, unchanged and
+  passing, including `ok 73 - a read-only panel refuses every write and says so in its state`.
+  Section 5 of `M04-serve.txt` shows the real command's read-only banner, its read-write banner with
+  both warning lines, and `port 4400 is already in use - pick another with --port` with exit code 1.
+- **AC6** - `docs/DECISIONS.md`, `## D-027 - The panel comes up with the run, and what that costs
+  (2026-08-20)`, one paragraph per decision. `README.md`: the `run` row of the command table now
+  carries `[--serve]`, and `## The web panel` opens on both commands and has a paragraph on the three
+  differences and the absent `--open`. `docs/GUIDE.md`: a new `#### Watching it in a browser:
+  --serve` under `### milestoner run` with the difference table, a pointer to it from `### milestoner
+  serve` and from quickstart step 6, and the `## Limits of v0.4` entry on one panel per directory
+  updated. `CHANGELOG.md` under `## [Unreleased] / ### Added`.
+
+Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0,
+`claude plugin validate .` exit 0, `node --version` v22.20.0. `.milestoner/evidence/M04-test.txt`
+reports `# tests 106`, `# pass 106`, `# fail 0`, `# cancelled 0`, `# skipped 0`, zero `not ok` lines,
+against the 100/100 baseline M03 left.
+
+### Problems hit
+
+Two, both small. `server.close()` alone leaves the port held while an event-stream socket is open, so
+the panel would have outlived the run by however long a browser kept its connection;
+`closeAllConnections()` in the same close is the fix and AC2's port-rebind assertion is the gate on
+it. And the first `--open` refusal named "the URL below" in a message printed instead of a URL, which
+was reworded before the evidence was captured.
+
+### Decisions
+
+Three in `.milestoner/decisions.md`; the first two promoted to `docs/DECISIONS.md` as D-027 together
+with the `--open` question the milestone posed. The third closes a backlog item carried since M02:
+`state.json` and `run-log.md` stay out of the session's commits, staged explicitly rather than with
+`git commit -a`, because the engine is appending to both while the session is alive.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+None from a gate. One observation: `startRun` in `src/server/api.ts` already refused to launch a
+second runner when a live pulse named one, so the write-surface hazard this milestone was asked about
+was half-closed by accident. It is a race - the pulse is written after the panel starts - and its
+message explains the wrong thing. `allowStart` makes the refusal deliberate and leaves the pulse
+check as the guard for the case it was written for: a panel started with `serve` beside a run.
+
+### Backlog
+
+- A panel across runs, still item 4 of `docs/NEXT.md`, still gated on whether one panel process may
+  act on a project it was not started in. `canStart` is a small precedent for per-panel capability
+  that a multi-run panel will want more of.
+- `.gitignore` for `.milestoner/state.json` and `.milestoner/run-log.md`, with `git rm --cached`.
+  Decided against doing it inside this milestone; it is the right end state and should be its own
+  change.
+- The workflow still runs only on `main` and on pull requests, so a milestone needing CI opens a pull
+  request. `workflow_dispatch` would be cheaper. Carried from M03.
+
+### Next step
+
+The run's four milestones are complete. Outstanding across the run: push and read the CI matrix for
+M01, M02 and M04, none of which have been through CI on Linux or macOS. Nothing in M04 is
+platform-specific beyond what `serve` already did, but the two new port-binding tests are the kind
+that behave differently on a loaded CI runner.

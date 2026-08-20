@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `milestoner run --serve` brings the web panel up with the run and prints its URL, so a run can be
+  watched in a browser without a second terminal and a second command. It takes the same `--port`
+  (default `4400`) and `--write` as `milestoner serve`. The panel starts before the first session
+  launches and closes in the same step that clears `pulse.json` and deregisters the run, so a URL
+  never answers for a run that has ended. A port already in use moves the panel to a free one and
+  says so rather than failing the run, and a panel that cannot come up at all is a warning, never an
+  exit code. The attached panel refuses to start a second runner, because that would be two runners
+  writing one `state.json`; every other control, `kill` included, works as it does under `serve`.
+  There is no `--open`: the URL carries the run's key, and handing it to a browser writes a live
+  credential into the browser's history. Recorded as D-027.
 - `milestoner runs [--json]` lists every run registered on this machine, with its project directory,
   run name, current milestone, done/total and a liveness verdict. It is the only command that does
   not need a project: `status` answers for the directory you are in, `runs` answers for the machine.

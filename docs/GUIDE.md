@@ -307,6 +307,9 @@ pulse
   liveness    alive - src/app/checkout/page.tsx touched 41s ago
 ```
 
+To watch it in a browser instead, start the run with the panel attached:
+[`milestoner run --serve`](#watching-it-in-a-browser---serve).
+
 ### 7. Optionally, put a supervisor on it
 
 If you installed the plugin, the supervisor skill came with it; skip this command. On a CLI-only
@@ -489,6 +492,7 @@ Adding a milestone later is a manual edit: create `prompts/M05.md` and append an
 
 ```sh
 milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
+               [--serve [--port <n>] [--write]]
 ```
 
 | Flag | Meaning |
@@ -497,6 +501,7 @@ milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
 | `--max-attempts <n>` | Override `maxAttempts` for this invocation only. |
 | `--model <name>` | Appends `agent.modelArgs` (default `--model <name>`) to the agent command for this invocation. |
 | `--once` | Launch one session, grade it, then stop whatever the verdict. Exits `2` if that session reported blocked, so a script can tell the two apart. |
+| `--serve` | Bring the [web panel](#milestoner-serve) up with the run and print its URL. Takes `--port` (default `4400`) and `--write`. |
 
 Run it from the project root or any subdirectory: milestoner walks up looking for
 `.milestoner/config.json`, the way git finds `.git`.
@@ -512,6 +517,37 @@ one signals that group and everything the session started. See
 
 Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
 infrastructure failures.
+
+#### Watching it in a browser: `--serve`
+
+```sh
+milestoner run --serve
+milestoner run --serve --port 4500 --write
+```
+
+The panel comes up before the first session launches, prints its URL with the same read-only or
+read-write banner `serve` prints, and closes in the same step that clears `pulse.json` and removes
+the run from the registry. One command and one terminal instead of two, and no panel left answering
+for a run that has ended.
+
+It is the panel described under [`milestoner serve`](#milestoner-serve), with three differences that
+all come from the panel being an accessory to the run rather than the point of the command:
+
+| | `milestoner run --serve` | `milestoner serve` |
+| --- | --- | --- |
+| Lifetime | Closes when the run ends. | Runs until Ctrl-C, whatever the run does. |
+| Port already in use | Moves to a free port and says so: `port 4400 is already in use - the panel is on port 51823 instead`. A panel that cannot come up at all is a warning; neither ever fails the run. | Exits `1`: `port 4400 is already in use - pick another with --port`. |
+| Starting a runner | Refused. This panel already has one, and two runners on one `state.json` is the lost-update shape [D-022](DECISIONS.md#d-022---statejson-writes-are-serialised-across-processes-2026-08-19) exists to prevent. Everything else, including `kill`, works normally under `--write`. | Offered: there may be no runner to conflict with. |
+
+There is no `--open`. The panel URL carries the run's key, so opening it from the command line writes
+a live credential into the browser's history and into whatever that browser syncs; `report --open` is
+unaffected, because a report file's path holds no secret. Passing `--open` with `--serve` exits `1`
+and says so rather than ignoring it. The reasoning for all four points is
+[D-027](DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20).
+
+If you forward the port over SSH, use an explicit `--port` and know that a fallback to another port
+leaves the forward pointing at nothing. That is the one real cost of moving off a busy port, and it
+is why the move is announced.
 
 ### milestoner status
 
@@ -741,6 +777,10 @@ milestoner serve [--port <n>] [--write] [--token <value>]
 | `--port <n>` | `4400` | Port on the loopback interface. |
 | `--write` | off | Enable the controls. Without it every mutating route answers 403. |
 | `--token <value>` | generated | Fix the key instead of generating one. For scripts and tests; a generated key is better for daily use. |
+
+This is the panel on its own, against whatever is or is not running in that directory. To bring it
+up with a run instead, and have it close with the run, see
+[`milestoner run --serve`](#watching-it-in-a-browser---serve).
 
 A local web panel over the same run `status` describes, refreshed by server-sent events. It reads
 `state.json`, `pulse.json` and the two logs, and its write surface is exactly the CLI's: steer,
@@ -1593,7 +1633,8 @@ strength of that guarantee is the quality of your criteria. Review the tags.
 - **One run per project directory.** Runs across the machine are listed by
   [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, but there
   is still no *panel* across them: `serve` and `status` only ever show the directory they were started
-  in.
+  in. The panel does come up with the run now - [`milestoner run --serve`](#watching-it-in-a-browser---serve) -
+  which is one run's panel, not a view across them.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
 - **`kill` reaches the whole process tree on all three platforms.** `taskkill /T /F` on Windows, the

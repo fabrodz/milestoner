@@ -81,7 +81,7 @@ milestoner status
 | Command | What it does |
 | --- | --- |
 | `milestoner init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.milestoner/`: config, state machine, protocol template, prompt skeletons. |
-| `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
+| `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once] [--serve]` | Drain the run: one fresh agent session per milestone until complete or blocked. `--serve` brings the web panel up with it. |
 | `milestoner status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
 | `milestoner runs [--json]` | Every run registered on this machine, from anywhere: project, milestone, progress, liveness. |
 | `milestoner unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
@@ -193,15 +193,24 @@ decide.
 ## The web panel
 
 ```sh
-milestoner serve --write
+milestoner run --serve      # the panel comes up with the run and closes when it ends
+milestoner serve --write    # the panel on its own, against whatever is or is not running
 ```
 
-Prints a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
+Both print a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
 server-sent events, and lets you act on it: set or clear steering, unblock a milestone, kill a hung
 session, run the environment adapter, start a runner or stop it after the current session.
 
 It is deliberately the *same* surface as the CLI, calling the same functions. Nothing is possible
 here that `milestoner` cannot do from a terminal, which is what keeps one audit trail rather than two.
+
+`--serve` takes the same `--port` and `--write` as `serve`, and differs in three ways, all of them
+because the run is the point and the panel is the accessory: the panel closes when the run ends, a
+busy port moves it to a free one instead of failing, and it cannot start a second runner against the
+run it is already attached to. There is no `--open`: the URL carries the key, so handing it to a
+browser writes a live credential into the browser's history. Copy it instead.
+[D-027](docs/DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20)
+has the reasoning.
 
 The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
 four, and you want to read the diagnosis and the last transcript and steer it from your phone
