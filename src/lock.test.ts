@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { LOCK_FILE, withStateLock } from "./lock.js";
+import { breakIfStale, LOCK_FILE, withStateLock } from "./lock.js";
 import { loadState, updateState } from "./state.js";
 import type { RunState } from "./types.js";
 
@@ -75,9 +75,12 @@ test("a lock left by a process that no longer exists is broken, not waited for",
 test("concurrent writers from separate processes do not lose an update", async () => {
   const { dir, state } = scaffold();
   const WRITERS = 6;
+  const WRITES = 5;
 
-  // Each child appends one line. Without the lock, load-mutate-write from six processes loses most
-  // of them: whoever renames last wins with a copy that never saw the others.
+  // Each child appends five lines, not one: thirty interleaved acquisitions is enough contention
+  // to open the empty-lock window repeatedly, which one write per process was not. Without the
+  // lock, load-mutate-write from six processes loses most of them: whoever renames last wins with
+  // a copy that never saw the others.
   const child = join(dir, "writer.mjs");
   // A file URL, not a path: on Windows a bare `D:\...` specifier is read as a URL scheme and rejected.
   const stateModule = pathToFileURL(join(process.cwd(), "src", "state.ts")).href;
@@ -85,7 +88,9 @@ test("concurrent writers from separate processes do not lose an update", async (
     child,
     `import { updateState } from ${JSON.stringify(stateModule)};
      const [dir, state, id] = process.argv.slice(2);
-     updateState(dir, state, (s) => { s.milestones[0].evidence.push("writer " + id); });`,
+     for (let n = 0; n < ${WRITES}; n += 1) {
+       updateState(dir, state, (s) => { s.milestones[0].evidence.push("writer " + id + "." + n); });
+     }`,
   );
 
   // Spawned together and awaited together: execFileSync would run them in a queue and prove nothing.
@@ -103,8 +108,75 @@ test("concurrent writers from separate processes do not lose an update", async (
 
   assert.deepEqual([...new Set(codes)], [0], "every writer must exit cleanly");
   const final = loadState(state);
-  assert.equal(final.milestones[0]!.evidence.length, WRITERS, "every writer must survive");
-  assert.equal(final.rev, WRITERS, "one bump per write, none lost");
+  assert.equal(final.milestones[0]!.evidence.length, WRITERS * WRITES, "every write must survive");
+  assert.equal(final.rev, WRITERS * WRITES, "one bump per write, none lost");
+});
+
+test("an empty lock is a lock acquired this instant, and a contender must not break it", () => {
+  const { dir } = scaffold();
+  const file = join(dir, LOCK_FILE);
+  // The window frozen mid-acquisition: `wx` has created the file, the holder has not yet written
+  // its payload. This is the exact state a contender used to delete on sight.
+  const fd = openSync(file, "wx");
+
+  breakIfStale(file); // the contender's move
+  assert.ok(existsSync(file), "an empty lock is the signature of a holder mid-acquisition and must survive a contender");
+  assert.throws(() => openSync(file, "wx"), "a third process must still find the lock taken");
+
+  writeFileSync(fd, JSON.stringify({ pid: process.pid, at: Date.now(), seq: 1 }));
+  closeSync(fd);
+  breakIfStale(file);
+  assert.ok(existsSync(file), "a live, fresh holder must not be broken either");
+  rmSync(file);
+});
+
+test("an empty lock whose holder died before writing is broken after the grace, not honoured forever", () => {
+  const { dir } = scaffold();
+  const file = join(dir, LOCK_FILE);
+  closeSync(openSync(file, "wx"));
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(file, past, past);
+
+  breakIfStale(file);
+  assert.ok(!existsSync(file), "a crashed holder's empty lock must not wedge every contender");
+});
+
+test("a contender that meets an empty lock waits out the grace instead of stealing it", () => {
+  const { dir, state } = scaffold();
+  const file = join(dir, LOCK_FILE);
+  const fd = openSync(file, "wx"); // a holder mid-acquisition that never completes
+
+  const started = Date.now();
+  updateState(dir, state, (s) => {
+    s.runComplete = true;
+  });
+  const waited = Date.now() - started;
+  closeSync(fd);
+
+  assert.ok(waited >= 2000, `the empty lock must be respected for its grace, not stolen at once (waited ${waited}ms)`);
+  assert.equal(loadState(state).runComplete, true, "after the grace the contender must get through");
+});
+
+test("release removes only its own lock, never one that was broken and retaken", () => {
+  const { dir } = scaffold();
+  const file = join(dir, LOCK_FILE);
+  const foreign = JSON.stringify({ pid: 0x7ffffff0, at: Date.now(), seq: 9 });
+
+  withStateLock(dir, () => {
+    // Simulate being broken as stale and the lock re-taken while wedged inside the section.
+    writeFileSync(file, foreign);
+  });
+
+  assert.equal(readFileSync(file, "utf8"), foreign, "a lock that changed hands while we were wedged is not ours to remove");
+  rmSync(file);
+});
+
+test("the lock names its holder for as long as it exists", () => {
+  const { dir } = scaffold();
+  withStateLock(dir, () => {
+    const holder = JSON.parse(readFileSync(join(dir, LOCK_FILE), "utf8")) as { pid: number };
+    assert.equal(holder.pid, process.pid, "the holder must be readable from the moment the lock is visible");
+  });
 });
 
 test("withStateLock returns whatever the critical section returns", () => {

@@ -144,11 +144,15 @@ test("concurrent registration from several processes loses no entry", async () =
   const child = join(mkdtempSync(join(tmpdir(), "milestoner-registry-child-")), "register.mjs");
   // A file URL, not a path: on Windows a bare `D:\...` specifier is read as a URL scheme.
   const registryModule = pathToFileURL(join(process.cwd(), "src", "registry.ts")).href;
+  // Four registrations per child, not one: a runner re-registers on every pulse, and twenty-four
+  // interleaved lock cycles is the contention level that actually opens the acquisition window.
   writeFileSync(
     child,
     `import { registerRun } from ${JSON.stringify(registryModule)};
      const [file, root, i] = process.argv.slice(2);
-     registerRun(file, { pid: process.pid, run: "run-" + i, projectRoot: root, startedAt: new Date().toISOString() });`,
+     for (let n = 0; n < 4; n += 1) {
+       registerRun(file, { pid: process.pid, run: "run-" + i, projectRoot: root, startedAt: new Date().toISOString() });
+     }`,
   );
 
   const codes = await Promise.all(
