@@ -8,6 +8,9 @@ import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import type { RunState } from "./types.js";
 
+// The runner registers itself in the machine registry; keep these runs out of the real one.
+process.env.MILESTONER_HOME = mkdtempSync(join(tmpdir(), "milestoner-home-"));
+
 // A stand-in for the agent: it writes whatever verdict the test put in verdict.json. The transcript
 // is deliberately large enough that the run is never graded as an infrastructure death.
 const AGENT = `

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
 import type { Layout } from "../paths.js";
-import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
+import { isProcessAlive, newestSignal, readPulse, verdictFor } from "../pulse.js";
 import { loadState, summarize } from "../state.js";
 import type { Milestone, MilestonerConfig } from "../types.js";
 import { color, humanDuration } from "../util/log.js";
@@ -12,14 +12,6 @@ const GLYPH: Record<Milestone["status"], string> = {
   blocked: color.red("blocked"),
   pending: color.dim("pending"),
 };
-
-const STALE_MS = 15 * 60 * 1000;
-const HUNG_MS = 25 * 60 * 1000;
-
-function verdictFor(ageMs: number | null): "alive" | "slow" | "hung" | "unknown" {
-  if (ageMs === null) return "unknown";
-  return ageMs < STALE_MS ? "alive" : ageMs < HUNG_MS ? "slow" : "hung";
-}
 
 function tailLines(file: string, count: number): string[] {
   try {
@@ -127,9 +119,8 @@ export function status(options: StatusOptions): number {
   } else if (!live || signalAgeMs === null) {
     console.log(`  ${color.yellow("liveness: no watched path exists yet")}`);
   } else {
-    const verdict =
-      signalAgeMs < STALE_MS ? color.green("alive") : signalAgeMs < HUNG_MS ? color.yellow("slow but alive") : color.red("possibly hung");
-    console.log(`  liveness    ${verdict} - ${live.path} touched ${humanDuration(signalAgeMs)} ago`);
+    const spelt = { alive: color.green("alive"), slow: color.yellow("slow but alive"), hung: color.red("possibly hung"), unknown: "unknown" };
+    console.log(`  liveness    ${spelt[verdictFor(signalAgeMs)]} - ${live.path} touched ${humanDuration(signalAgeMs)} ago`);
   }
   console.log("");
 

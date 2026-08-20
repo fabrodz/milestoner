@@ -2,8 +2,9 @@ import { appendFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
 import { buildAgentArgs } from "./config.js";
-import type { Layout } from "./paths.js";
+import { registryPath, type Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
+import { deregisterRun, registerRun } from "./registry.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { readSteering, type Steering } from "./steering.js";
@@ -120,11 +121,16 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
   let infraRetries = 0;
   const startedAt = iso();
+  const registry = registryPath();
+  const identity = { pid: process.pid, run: config.run, projectRoot: config.projectRoot, startedAt };
 
   let agentPid: number | null = null;
   let transcriptPath: string | null = null;
 
   const pulse = (milestone: Milestone | null, attempt: number | null, sessionStartedAt: string | null, event: string) => {
+    // Refreshed here rather than on its own schedule, so `runs` and `status` can never disagree
+    // about whether this runner is still moving.
+    registerRun(registry, identity);
     writePulse(layout.pulse, {
       pid: process.pid,
       run: config.run,
@@ -141,6 +147,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
   };
 
   try {
+    registerRun(registry, identity);
     for (;;) {
       if (stopping()) return "stopped";
       const state = loadState(layout.state);
@@ -378,6 +385,8 @@ export async function run(options: RunOptions): Promise<RunExit> {
       if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);
     }
   } finally {
+    // One `finally` for both, so the registry entry and the pulse cannot survive each other.
     clearPulse(layout.pulse);
+    deregisterRun(registry, config.projectRoot, process.pid);
   }
 }
