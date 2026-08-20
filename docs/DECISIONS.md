@@ -552,3 +552,44 @@ seconds and reaching it means something the rules cannot name; only then does th
 unlocked, and it leaves the lock file in place, because deleting it is what would let a third
 process in. Release is ownership-checked for the same reason: a holder that was broken as stale must
 not, on finishing, delete the lock its breaker has since taken.
+
+## D-029 - A transcript with nothing in it is a crash at any duration (2026-08-20)
+
+`classifyInfraFailure` refused to look at the transcript size once a session had outlived
+`infra.deathSeconds`, so an agent that worked for fifteen minutes and then died leaving fifteen
+bytes was graded `incomplete` and charged. That happened to M03 of the v0.5 run: the session pushed
+its branch, got a green eight-job matrix, then exited 0 with a transcript reading `Execution error`
+and no `result.json`, and the engine charged one of three attempts for a milestone that had already
+succeeded. The duration bound was guarding the instant-death rule, which is its job, and also
+deciding whether a tiny transcript counts as evidence, which was never its job. Three decisions
+separate the two.
+
+**A second, lower threshold, not a dropped bound.** `infra.crashTranscriptBytes` (default 100 B)
+marks the line below which a session that wrote no `result.json` is a `crash` whatever the clock
+says; `tinyTranscriptBytes` (500 B) keeps its existing job inside `deathSeconds`. The bound is not
+dropped from the 500-byte rule because 500 bytes is calibrated for a session that barely started: a
+real failing session can end on a short closing message well under 500 bytes, and refunding those
+would switch the attempt budget off for every quiet failure. Below 100 bytes there is no verdict,
+no diagnosis and not one sentence of narration, so there is nothing a grader could charge. An agent
+failure that legitimately says almost nothing is therefore refunded as a `crash` and retried, and
+the one shape that small ever observed (`Execution error`, 15 bytes) is precisely the crash the
+rule exists to refund.
+
+**Above the line, no refund.** A session that ran an hour and left 4 KB with no `result.json` is an
+agent that demonstrably ran and did not close, which is what the attempt budget measures: it stays
+`incomplete`, "no result.json written", and is charged. The boundary is the byte count alone,
+decided rather than accidental: below `crashTranscriptBytes` the transcript decides, above it the
+existing rules decide (patterns and limits inside `deathSeconds`, the grader otherwise). Rejected:
+a duration-and-size heuristic ("ran long and wrote little"), which needs two numbers whose product
+means nothing and lands exactly on the quiet legitimate failures the budget exists for.
+
+**The ceiling is the existing one, `infra.maxRetries`.** Thirty consecutive infrastructure failures
+end the run with exit 1, and any session that produces a gradable verdict resets the counter. That
+is enough because the refund requires all of: no supervisor kill (checked before classification
+runs), no `result.json`, and under 100 bytes of output. A genuinely failing milestone exceeds 100
+bytes with its first tool call, so reaching the ceiling means an agent that died thirty times in a
+row without printing a line, which is an infrastructure condition, the thing the refund is for. The
+worst case the rule adds is thirty refunded sessions and thirty short waits before
+`infra-exhausted`, the same ceiling every other infra rule already had. Rejected: a separate,
+smaller cap for crashes, a knob that distinguishes two flavours of the same "not the milestone's
+fault".

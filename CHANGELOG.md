@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A session that crashed mid-run no longer costs the milestone an attempt. The infra classifier
+  read a tiny transcript as a crash only inside `infra.deathSeconds` (90 s), so an agent that
+  worked for fifteen minutes and then died leaving fifteen bytes was graded `incomplete` and
+  charged - it happened to the v0.5 run itself, on a milestone whose work was already done. A
+  transcript below `infra.crashTranscriptBytes` (new, default 100 B) with no `result.json` is now
+  refunded as a `crash` at any duration; a session that left a real transcript and no result is
+  still charged, and the refund shares the existing ceiling of `infra.maxRetries` consecutive
+  infrastructure failures. Recorded as D-029.
 - Two milestoner processes writing state at the same moment could silently lose one of the writes:
   an `unblock` issued while the runner was grading could vanish as if never typed, and a run could
   be missing from `milestoner runs` even though its runner was alive (seen once in CI, where one of

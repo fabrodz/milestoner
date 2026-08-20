@@ -118,8 +118,9 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
    incomplete and retried. The verdict never comes from the exit code.
 4. **`blocked` needs a diagnosis**: exact symptom, everything tried, the single clearest user
    action. Blocked is a handoff with an address, not a failure.
-5. **Infrastructure is not failure.** A session that dies in seconds with a tiny transcript, or hits
-   a usage limit, does not consume an attempt. An announced reset time is parsed and waited out.
+5. **Infrastructure is not failure.** A session that dies in seconds with a tiny transcript, hits a
+   usage limit, or crashes at any point leaving a next-to-empty transcript, does not consume an
+   attempt. An announced reset time is parsed and waited out.
 6. **Liveness comes from side signals.** Watched source dirs, test-result files and tool logs, never
    the transcript: a headless `claude -p` flushes it only at exit.
 
@@ -294,6 +295,7 @@ never charged against the attempt budget are visible after the fact.
   "infra": {
     "deathSeconds": 90,
     "tinyTranscriptBytes": 500,
+    "crashTranscriptBytes": 100,
     "maxRetries": 30,
     "usageLimitWaitSeconds": 600,
     "genericWaitSeconds": 60,
@@ -403,8 +405,10 @@ Validated end to end: v0.4 and v0.5 were each built as a four-milestone mileston
 milestone a fresh Claude Code session graded against its written evidence, so a full multi-milestone
 run driven by a real agent is no longer unvalidated. The v0.5 run also produced the first evidence
 of the engine misgrading itself: an agent session crashed after fifteen minutes of completed work
-with a fifteen-byte transcript, and because the infra classifier only looks for a tiny transcript
-inside `infra.deathSeconds`, the crash was charged as a failed attempt rather than refunded.
+with a fifteen-byte transcript, and because the infra classifier at the time only looked for a tiny
+transcript inside `infra.deathSeconds`, the crash was charged as a failed attempt rather than
+refunded. Closing that hole became a milestone of the same run: a transcript below
+`infra.crashTranscriptBytes` with no `result.json` is now refunded at any duration (D-029).
 
 What neither run exercised: a run long enough to hit a real usage limit or agent fallback mid-flight,
 a non-Claude agent across a whole run rather than a single milestone, and the supervisor loop against

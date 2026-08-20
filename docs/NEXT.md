@@ -40,23 +40,15 @@ GitHub Support. The repository is private in the meantime, which is what makes t
 It is also why Actions is unavailable, so this item and the one above are the same item wearing two
 hats.
 
-## 1. A crashed session is charged an attempt it did not deserve
+## 1. A crashed session is charged an attempt it did not deserve - done
 
-New, and the most valuable thing the v0.5 run produced, because the engine found it by failing at it.
-
-`classifyInfraFailure` in `src/session.ts` returns `null` for anything that ran longer than
-`infra.deathSeconds` (90 by default) before testing whether the transcript is tiny. The reasoning was
-sound when it was written: a session that ran for a quarter of an hour has not died instantly, so an
-instant-death rule should not claim it. But a fifteen-byte transcript after fifteen minutes is not a
-milestone that failed. It is an agent that crashed, and the milestone should not pay for it.
-
-The shape of the fix is a pattern the classifier does not have: a transcript far below
-`tinyTranscriptBytes` is evidence of a crash *at any duration*, where the duration bound only ever
-made sense as a guard against misreading a fast legitimate failure. Whether that means dropping the
-bound for the tiny-transcript branch alone, or a second lower threshold that ignores duration, is the
-decision. Both leave the usage-limit and pattern branches untouched.
-
-Not academic: it cost a real attempt out of three on a milestone that had already succeeded.
+Closed 2026-08-20 by M06 of the continued `v05-debt` run. A transcript below
+`infra.crashTranscriptBytes` (new, 100 B by default) with no `result.json` is now refunded as a
+`crash` at any duration, while `tinyTranscriptBytes` keeps its existing job inside `deathSeconds`;
+the usage-limit and pattern branches are untouched, and the refund shares the existing
+`infra.maxRetries` ceiling. The three decisions the fix required are D-029. It was the most valuable
+thing the v0.5 run produced, because the engine found it by failing at it: a real attempt out of
+three, charged to a milestone that had already succeeded.
 
 ## 2. Tags and branches share a namespace, and git cannot tell them apart
 
@@ -124,7 +116,7 @@ first and work only if the decision goes a particular way.
 happens to the repository. Nothing below it is blocked by it, which is the only reason the rest can
 proceed at all.
 
-1 and 2 are small and both came out of using the tool, so they are the cheapest things here and
-should go first. 3 cannot happen before 0 is settled, because publishing from a repository whose
+1 is done. 2 is small and came out of using the tool, so it is the cheapest thing left and should
+go first. 3 cannot happen before 0 is settled, because publishing from a repository whose
 history is still being decided is the wrong order. 4 needs its decision written before any screen.
 5 is still a question, not a task.

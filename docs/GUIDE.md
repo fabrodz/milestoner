@@ -903,6 +903,7 @@ touches project code. Fails with an explanation when no adapter is configured. S
   "infra": {
     "deathSeconds": 90,
     "tinyTranscriptBytes": 500,
+    "crashTranscriptBytes": 100,
     "maxRetries": 30,
     "usageLimitWaitSeconds": 600,
     "genericWaitSeconds": 60,
@@ -925,9 +926,10 @@ touches project code. Fails with an explanation when no adapter is configured. S
 | `agent.env` | `{}` | Extra environment variables for the session process. |
 | `infra.deathSeconds` | `90` | A session shorter than this **and** with no `result.json` is a candidate infrastructure failure. |
 | `infra.tinyTranscriptBytes` | `500` | Below this transcript size, a fast death is classified `instant-death`. |
+| `infra.crashTranscriptBytes` | `100` | Below this transcript size, a session with no `result.json` is classified `crash` at any duration. |
 | `infra.maxRetries` | `30` | Consecutive infrastructure retries before the runner gives up (exit 1). |
 | `infra.usageLimitWaitSeconds` | `600` | Wait when a usage limit was detected but no reset time could be parsed. |
-| `infra.genericWaitSeconds` | `60` | Wait after an `instant-death`. |
+| `infra.genericWaitSeconds` | `60` | Wait after an `instant-death` or a `crash`. |
 | `infra.usageLimitPatterns` | see above | Case-insensitive substrings searched in the last 4 KB of the transcript. Add your provider's wording here. |
 | `liveness` | `[]` | Paths, relative to the project root, whose mtime proves work is happening. Directories are scanned recursively. |
 | `environment.attendCommand` | `null` | Shell command line run by `milestoner attend`, with a `{{seconds}}` placeholder. `null` disables the intervention. |
@@ -1113,10 +1115,12 @@ rather than the long usage-limit wait, because there is no announced reset to si
 }
 ```
 
-Two guards keep this from swallowing real failures, and they apply to every infra rule: a session
-that wrote a `result.json` is never reclassified, and neither is one that ran longer than
+Two guards keep this from swallowing real failures: a session that wrote a `result.json` is never
+reclassified, whatever its transcript says, and the text patterns are only read inside
 `deathSeconds`. A phrase from the list appearing in your own test output an hour into a session
-changes nothing.
+changes nothing. The one rule that ignores the duration is the crash rule in
+[Infrastructure failures](#infrastructure-failures), and it fires only on a transcript too small to
+contain test output at all.
 
 ## How the engine grades a session
 
@@ -1149,6 +1153,7 @@ What the engine does with it:
 | A `milestone` id that does not match | ignored, warning printed | yes | `pending` (retry) |
 | No `result.json`, session ran long enough | incomplete, "no result.json written" | yes | `pending` (retry) |
 | No `result.json`, session died fast | infrastructure failure | **no** | `pending`, after a wait |
+| No `result.json`, next-to-empty transcript, any duration | infrastructure failure (`crash`) | **no** | `pending`, after a wait |
 | Session killed by `milestoner kill` | incomplete | yes, always | `pending` (retry) |
 
 Notes:
@@ -1167,13 +1172,18 @@ Notes:
 The rule that came out of the very first overnight run, which burned three attempts in forty seconds
 against a usage limit.
 
-A session is classified as an infrastructure failure when **all** of these hold:
+A session is classified as an infrastructure failure when it was not killed by `milestoner kill`,
+it wrote no `result.json`, and one of these shapes matches:
 
-1. it was not killed by `milestoner kill`, and
-2. it wrote no `result.json`, and
-3. it lasted less than `infra.deathSeconds` (90s), and
-4. either the last 4 KB of transcript matches one of `infra.usageLimitPatterns`, or the transcript is
-   smaller than `infra.tinyTranscriptBytes` (500 B).
+1. it lasted less than `infra.deathSeconds` (90s) and the last 4 KB of transcript matches one of
+   `infra.usageLimitPatterns` or `infra.infraFailurePatterns`, or
+2. it lasted less than `infra.deathSeconds` and the transcript is smaller than
+   `infra.tinyTranscriptBytes` (500 B) - an `instant-death`, or
+3. the transcript is smaller than `infra.crashTranscriptBytes` (100 B), at **any** duration - a
+   `crash`. An agent that worked for fifteen minutes and then died leaving fifteen bytes did not
+   fail the milestone; a transcript that small carries no verdict and no narration, so there is
+   nothing to grade and nothing to charge. A session that left a real transcript and no
+   `result.json` is still `incomplete` and still costs the attempt, however it ended.
 
 Then the engine pushes an `infra-failure` entry into the milestone history, puts the milestone back to
 `pending` **without incrementing attempts**, waits, and relaunches.
@@ -1185,7 +1195,8 @@ How long it waits:
   time has already passed today it assumes tomorrow. A parsed wait longer than 12 hours is treated as
   unusable and falls back to the fixed wait.
 - **Usage limit with no parseable time**: `infra.usageLimitWaitSeconds`, 10 minutes.
-- **Instant death** (auth prompt, network, missing binary): `infra.genericWaitSeconds`, 60 seconds.
+- **Instant death** (auth prompt, network, missing binary) or **crash**: `infra.genericWaitSeconds`,
+  60 seconds.
 
 In the terminal:
 
@@ -1637,10 +1648,6 @@ strength of that guarantee is the quality of your criteria. Review the tags.
   which is one run's panel, not a view across them.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
-- **A crashed session can still cost an attempt.** The infra classifier only reads a tiny transcript
-  as an instant death inside `infra.deathSeconds`. An agent that works for fifteen minutes and then
-  dies with a two-line transcript is graded `incomplete` and charged, even though nothing about it
-  was the milestone's fault. This happened during the v0.5 run itself.
 
 The roadmap is in [../README.md](../README.md); the reasoning behind each design decision is in
 [DECISIONS.md](DECISIONS.md).

@@ -524,3 +524,91 @@ branch wip/M05 at 9621f63 holds everything, PR #3 is open; `gh run rerun 3242398
 push to wip/M05), `gh run watch`, write the ubuntu conclusions into
 `.milestoner/evidence/M05-ci.txt`, then merge wip/M05 to main locally (no push to main), tag
 `v05/M05`, and report done. The working tree is left checked out on wip/M05.
+
+## M06 - A crashed agent does not cost the milestone an attempt (2026-08-20)
+
+One session, no gate failures, no descoping. The classifier that misgraded M03 of this run now
+refunds that exact shape.
+
+### What was built
+
+- `classifyInfraFailure` in `src/session.ts` restructured: the duration bound now encloses only the
+  rules it was written for (usage-limit patterns, `infraFailurePatterns`, the 500-byte
+  instant-death), and a new final branch classifies any transcript below
+  `infra.crashTranscriptBytes` with no `result.json` as a `crash`, whatever the duration. Within
+  `deathSeconds` every input reaches the old branches first, so nothing under ninety seconds
+  changes reason or wait.
+- `infra.crashTranscriptBytes`, new config key, default 100. Type in `src/types.ts`, default in
+  `src/config.ts`; `loadConfig`'s merge fills it for configs that do not name it, asserted in the
+  existing partial-config test. `init` serialises `defaultConfig`, so new scaffolds carry it.
+- `InfraVerdict.reason` gained `"crash"`, and the panel's event feed labels `infra:crash` as "The
+  session crashed mid-run". The report needed no change: it colours on the `infra-failure` outcome.
+- 3 new tests in `src/session.test.ts`. Suite 111 -> 114.
+
+### Evidence per acceptance criterion
+
+- **AC1** - `ok 95 - an agent that crashed after fifteen minutes of work does not cost the
+  milestone an attempt` in `.milestoner/evidence/M06-test.txt`, fed the M03 shape verbatim:
+  929 seconds, 15 bytes, text `Execution error`, no `result.json`. Asserts reason `crash`, the
+  generic wait, and a detail naming `929s` and `15-byte`. The exit code is absent from
+  `InfraInput` by design - the verdict never comes from it - and the test says so.
+- **AC2** - all pre-existing classification tests pass byte-identical: `ok 90` (instant death),
+  `ok 91`, `ok 92`, `ok 99` (usage limits and reset parsing), `ok 98` (`infraFailurePatterns`),
+  `ok 93` (`wroteResult` wins), and the two charged cases `ok 94` (120 B at 4000 s stays null,
+  which is what pins the crash line below the old tiny threshold) and `ok 100` (90 KB of real work
+  stays null whatever its text says). Suite `# tests 114`, `# pass 114`, `# fail 0` against the
+  111/111 baseline in `M06-test-baseline.txt`.
+- **AC3** - `ok 96 - one byte under the crash line is a crash, however long the session ran`
+  (99 B at 4000 s, `crash`) and `ok 97 - at the crash line the transcript counts as work and the
+  attempt is charged` (100 B at 4000 s, null). Both read the boundary from the config key, not a
+  literal.
+- **AC4** - `docs/DECISIONS.md`, `## D-029 - A transcript with nothing in it is a crash at any
+  duration (2026-08-20)`: one paragraph per decision - the second lower threshold rather than a
+  dropped bound, no refund above the line, and `infra.maxRetries` as the ceiling - each with its
+  rejected alternative.
+- **AC5** - the `## Limits of v0.5` bullet "A crashed session can still cost an attempt" is
+  removed from `docs/GUIDE.md`; the infrastructure-failures section now lists the three shapes
+  with the crash rule and its any-duration wording, the grading table gained the crash row, and
+  the config reference documents `crashTranscriptBytes`. `CHANGELOG.md` under `## [Unreleased]` /
+  `### Fixed`, first line: "A session that crashed mid-run no longer costs the milestone an
+  attempt."
+
+Gate: `npm run typecheck` exit 0, `npm test` exit 0 (114/114), `npm run build` exit 0,
+`claude plugin validate .` exit 0, `node dist/cli.js --version` prints 0.5.0. CI not run: the
+repository is private and Actions minutes are exhausted (M05's blocker), the prompt says not to
+push, and everything here is platform-neutral logic the local Windows suite covers completely.
+`dist/` left built and green.
+
+### Problems hit
+
+None. The one design point needing care was branch order: the crash check must come after the
+in-window branches, or a sub-100-byte transcript announcing a usage limit inside ninety seconds
+would be labelled `crash` and lose its announced-reset wait; `ok 92` guards exactly that.
+
+### Decisions
+
+Three in `.milestoner/decisions.md`: the three prompt-mandated decisions promoted to D-029; the
+refund getting its own `crash` reason rather than a stretched `instant-death`; and the threshold as
+a config key rather than a derived fraction of `tinyTranscriptBytes`.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+None. `README.md`, `docs/NEXT.md` item 1 and the roadmap paragraph were updated in the same
+milestone because all three described the misgrading as current behaviour.
+
+### Backlog
+
+- Past `deathSeconds`, a sub-100-byte transcript that announces a usage limit is refunded as
+  `crash` with the short generic wait, not as `usage-limit` with the announced-reset wait. Both
+  refund, so only the wait length differs; not worth a fourth branch until an agent actually
+  produces that shape.
+- `workflow_dispatch` on the CI workflow, carried from M03, M04 and M05.
+
+### Next step
+
+M07, scaffolding a new run over an existing `.milestoner/` must not keep the previous run's
+protocol. Nothing from M06 blocks it.

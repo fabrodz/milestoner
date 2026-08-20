@@ -219,3 +219,40 @@ Decision: for the evidence run only, restore `src/lock.ts` from cf4fa0c and add 
 `export` in front of `function breakIfStale`, changing nothing else. Stated in
 `.milestoner/evidence/M05-lock.txt` itself. The tests then fail for the real reason: the empty lock
 is deleted, the contender steals it in 22ms, release removes a lock it no longer owns.
+
+## 2026-08-20 - M06 - The three crash-classification decisions, promoted to D-029
+
+Context: M06 named three decisions - what replaces the duration bound for the tiny-transcript case,
+whether a not-tiny transcript with no `result.json` is refunded, and what stops the rule
+over-refunding. All three shape one classification rule, so they are one permanent entry.
+
+Decision: a second, lower threshold, `infra.crashTranscriptBytes` (default 100 B), below which a
+session with no `result.json` is a `crash` at any duration; above it, no refund - a real transcript
+with no result stays `incomplete` and charged; and the ceiling stays `infra.maxRetries`, shared with
+every other infra rule. Written up as D-029 with the rejected alternatives.
+
+## 2026-08-20 - M06 - The refund gets its own reason, `crash`, not a stretched `instant-death`
+
+Context: the new branch needs a reason string for `run-log.md`, the panel's event feed and the
+attempt history. Reusing `instant-death` would avoid touching the `InfraVerdict` union.
+
+Decision: add `crash` to the union and a line to the panel's event labels. A verdict that prints
+`instant-death: crashed after 929s` contradicts itself, and the whole point of this milestone is
+that these two deaths are different animals; the report needs no change because it colours on the
+`infra-failure` outcome, not the reason.
+
+Rejected: reusing `instant-death` with a reworded detail, which keeps the union closed at the price
+of a log line that misnames the one case this milestone exists to classify correctly.
+
+## 2026-08-20 - M06 - The crash threshold is a config key, not a derived fraction
+
+Context: the line below which a transcript counts as no evidence has to live somewhere: a new
+`infra` key, a hardcoded constant, or a fraction of `tinyTranscriptBytes`.
+
+Decision: `infra.crashTranscriptBytes`, defaulting to 100. Every other number the classifier reads
+is already an `infra` key, and the merge in `loadConfig` fills the default for existing configs
+that do not name it, verified in `config.test.ts`.
+
+Rejected: deriving it as a fraction of `tinyTranscriptBytes`, which silently moves the crash line
+whenever a user tunes the instant-death one for a chattier agent; and a constant, which would be
+the only infra number a config cannot reach.
