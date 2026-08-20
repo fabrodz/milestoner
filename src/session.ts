@@ -183,7 +183,7 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
 }
 
 export interface InfraVerdict {
-  reason: "usage-limit" | "agent-failure" | "instant-death";
+  reason: "usage-limit" | "agent-failure" | "instant-death" | "crash";
   waitSeconds: number;
   detail: string;
 }
@@ -203,40 +203,54 @@ export interface InfraInput {
  * The tiny-transcript rule alone is a Claude Code shape. Other agents narrate their own failure at
  * length - a model endpoint that never answered can leave kilobytes of retry chatter - so the text
  * patterns are what carry the rule across agents.
+ *
+ * The duration bound only guards the rules above. A transcript below crashTranscriptBytes carries
+ * no verdict, no diagnosis and no narration, so it is a crash whatever the clock says: an agent
+ * that worked for fifteen minutes and then fell over leaving fifteen bytes did not fail the
+ * milestone. See D-029.
  */
 export function classifyInfraFailure(input: InfraInput, infra: InfraConfig, now: Date = new Date()): InfraVerdict | null {
   if (input.wroteResult) return null;
-  if (input.seconds >= infra.deathSeconds) return null;
 
-  const haystack = input.text.toLowerCase();
-  const matches = (patterns: string[]) => patterns.find((p) => haystack.includes(p.toLowerCase()));
-  const hitLimit = matches(infra.usageLimitPatterns);
+  if (input.seconds < infra.deathSeconds) {
+    const haystack = input.text.toLowerCase();
+    const matches = (patterns: string[]) => patterns.find((p) => haystack.includes(p.toLowerCase()));
+    const hitLimit = matches(infra.usageLimitPatterns);
 
-  if (hitLimit) {
-    const untilReset = secondsUntilReset(input.text, now);
-    return {
-      reason: "usage-limit",
-      waitSeconds: untilReset ?? infra.usageLimitWaitSeconds,
-      detail: untilReset ? `waiting ${Math.round(untilReset / 60)}m for the announced reset` : "no usable reset time in the transcript",
-    };
+    if (hitLimit) {
+      const untilReset = secondsUntilReset(input.text, now);
+      return {
+        reason: "usage-limit",
+        waitSeconds: untilReset ?? infra.usageLimitWaitSeconds,
+        detail: untilReset ? `waiting ${Math.round(untilReset / 60)}m for the announced reset` : "no usable reset time in the transcript",
+      };
+    }
+
+    // Checked after the usage limit: a transcript can carry both, and the announced reset is the
+    // more useful of the two.
+    const hitFailure = matches(infra.infraFailurePatterns ?? []);
+    if (hitFailure) {
+      return {
+        reason: "agent-failure",
+        waitSeconds: infra.genericWaitSeconds,
+        detail: `the agent reported "${hitFailure}" after ${Math.round(input.seconds)}s`,
+      };
+    }
+
+    if (input.bytes < infra.tinyTranscriptBytes) {
+      return {
+        reason: "instant-death",
+        waitSeconds: infra.genericWaitSeconds,
+        detail: `died in ${Math.round(input.seconds)}s with a ${input.bytes}-byte transcript`,
+      };
+    }
   }
 
-  // Checked after the usage limit: a transcript can carry both, and the announced reset is the
-  // more useful of the two.
-  const hitFailure = matches(infra.infraFailurePatterns ?? []);
-  if (hitFailure) {
+  if (input.bytes < infra.crashTranscriptBytes) {
     return {
-      reason: "agent-failure",
+      reason: "crash",
       waitSeconds: infra.genericWaitSeconds,
-      detail: `the agent reported "${hitFailure}" after ${Math.round(input.seconds)}s`,
-    };
-  }
-
-  if (input.bytes < infra.tinyTranscriptBytes) {
-    return {
-      reason: "instant-death",
-      waitSeconds: infra.genericWaitSeconds,
-      detail: `died in ${Math.round(input.seconds)}s with a ${input.bytes}-byte transcript`,
+      detail: `crashed after ${Math.round(input.seconds)}s with a ${input.bytes}-byte transcript`,
     };
   }
 

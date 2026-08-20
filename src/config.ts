@@ -18,6 +18,7 @@ export function defaultConfig(run: string, projectRoot: string): MilestonerConfi
     infra: {
       deathSeconds: 90,
       tinyTranscriptBytes: 500,
+      crashTranscriptBytes: 100,
       maxRetries: 30,
       usageLimitWaitSeconds: 600,
       genericWaitSeconds: 60,

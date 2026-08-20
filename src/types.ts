@@ -61,6 +61,12 @@ export interface InfraConfig {
   /** A session dying faster than this with a tiny transcript is infrastructure, not work. */
   deathSeconds: number;
   tinyTranscriptBytes: number;
+  /**
+   * Below this transcript size a session that wrote no result.json is a crash at any duration:
+   * there is nothing in it to grade, so there is nothing to charge. Keep it well under
+   * tinyTranscriptBytes, which stays bounded by deathSeconds.
+   */
+  crashTranscriptBytes: number;
   maxRetries: number;
   usageLimitWaitSeconds: number;
   genericWaitSeconds: number;

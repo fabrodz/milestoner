@@ -41,6 +41,27 @@ test("a long session with a small transcript is real work, not infrastructure", 
   assert.equal(v, null);
 });
 
+test("an agent that crashed after fifteen minutes of work does not cost the milestone an attempt", () => {
+  // The real shape from M03 of the v0.5 run: the session finished the work, then exited 0 after
+  // 929 seconds leaving a fifteen-byte transcript and no result.json. The exit code is absent from
+  // the input on purpose - the verdict never comes from it.
+  const v = classifyInfraFailure({ seconds: 929, bytes: 15, text: "Execution error", wroteResult: false }, infra);
+  assert.equal(v?.reason, "crash");
+  assert.equal(v?.waitSeconds, infra.genericWaitSeconds);
+  assert.match(v?.detail ?? "", /929s/);
+  assert.match(v?.detail ?? "", /15-byte/);
+});
+
+test("one byte under the crash line is a crash, however long the session ran", () => {
+  const v = classifyInfraFailure({ seconds: 4000, bytes: infra.crashTranscriptBytes - 1, text: "", wroteResult: false }, infra);
+  assert.equal(v?.reason, "crash");
+});
+
+test("at the crash line the transcript counts as work and the attempt is charged", () => {
+  const v = classifyInfraFailure({ seconds: 4000, bytes: infra.crashTranscriptBytes, text: "", wroteResult: false }, infra);
+  assert.equal(v, null, "a transcript with something in it is graded, not refunded");
+});
+
 test("an agent that never reached its model is infrastructure, however loudly it said so", () => {
   // The real shape from a codex session pointed at a model server that was not listening: 40s of
   // reconnect chatter, 2 KB of transcript. Too long-lived and too talkative for the tiny-transcript

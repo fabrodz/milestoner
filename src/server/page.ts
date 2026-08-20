@@ -158,6 +158,7 @@ function readEvent(ev, detail) {
   if (ev === "infra:usage-limit") return ["Hit a usage limit", detail + " — no attempt was charged"];
   if (ev === "infra:agent-failure") return ["The agent could not run", detail + " — no attempt was charged"];
   if (ev === "infra:instant-death") return ["The session died on startup", detail + " — no attempt was charged"];
+  if (ev === "infra:crash") return ["The session crashed mid-run", detail + " — no attempt was charged"];
   return [ev, detail];
 }
 function parseLog(lines) {

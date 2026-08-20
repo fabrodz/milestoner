@@ -35,6 +35,7 @@ test("a partial config keeps the defaults it does not mention", () => {
   assert.deepEqual(config.agent.args, defaultConfig("t", "/p").agent.args);
   assert.equal(config.infra.deathSeconds, 30);
   assert.equal(config.infra.maxRetries, 30);
+  assert.equal(config.infra.crashTranscriptBytes, 100);
   assert.equal(config.environment.attendCommand, null);
   assert.equal(config.environment.attendSeconds, 120);
   assert.equal(config.projectRoot, "/p");
