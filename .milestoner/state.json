@@ -1,7 +1,7 @@
 {
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
-  "runComplete": true,
+  "runComplete": false,
   "rev": 11,
   "milestones": [
     {
@@ -133,6 +133,18 @@
           "agent": "claude"
         }
       ]
+    },
+    {
+      "id": "M05",
+      "title": "The state lock cannot be broken by the process that just took it",
+      "prompt": "M05.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
     }
   ]
 }
