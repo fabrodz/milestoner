@@ -172,6 +172,30 @@
           "agent": "claude"
         }
       ]
+    },
+    {
+      "id": "M06",
+      "title": "A crashed agent does not cost the milestone an attempt",
+      "prompt": "M06.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
+    },
+    {
+      "id": "M07",
+      "title": "Scaffolding a new run cannot leave the previous run's protocol behind",
+      "prompt": "M07.md",
+      "status": "pending",
+      "attempts": 0,
+      "startedAt": null,
+      "finishedAt": null,
+      "evidence": [],
+      "diagnosis": null,
+      "history": []
     }
   ]
 }

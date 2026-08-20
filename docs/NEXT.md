@@ -65,10 +65,23 @@ Also new, and small. The run tags milestones `v05/M01` and works on branches nam
 disambiguated with `refs/heads/`. v0.4 never hit it because no milestone in that run needed a branch.
 
 Any milestone that works on a branch will hit it again. Pick one namespace and change the other:
-tags as `v0.5-M03`, or branches as `wip/M03`. The tag scheme is what `.milestoner/protocol.md`
-section 5 names, and that file still says `v04-plugin/<milestoneId>` from the previous run while the
-plans have been saying `v05/<id>`. Both agents followed the plan and ignored the protocol, which is
-its own small finding about which document an agent actually reads.
+tags carrying no slash, or branches as `wip/M03`, which is what M05 used and which worked.
+
+**Tracing this found the larger bug underneath it.** `.milestoner/protocol.md` section 5 tells the
+session to tag `v04-plugin/<milestoneId>` while the run is `v05-debt`, and the reason is in
+`src/commands/init.ts`: the protocol is written with `writeFileIfMissing`, so scaffolding a new run
+over an existing `.milestoner/` keeps the previous run's protocol, name and all. Every one of v0.5's
+five sessions read a protocol naming a run that had finished, and nothing warned anyone.
+
+`writeFileIfMissing` is the right call on its own terms, because the protocol is meant to be
+hand-edited and overwriting it would discard the project's rules. Silently keeping a stale run name
+is not. A warning when the protocol names a different run than the one being scaffolded is the small
+version; templating the run name out of the protocol body is the larger one.
+
+What makes this worth more than its size: for the whole run the protocol and the plan disagreed
+about a concrete instruction, and five sessions resolved it the same way without mentioning it. The
+agents followed the plan. Nothing in the engine noticed the two documents were in conflict, and
+nothing in the evidence records that a choice was made.
 
 ## 3. Publish to npm - now genuinely next
 
