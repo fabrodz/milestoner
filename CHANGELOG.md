@@ -5,8 +5,34 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `milestoner runs [--json]` lists every run registered on this machine, with its project directory,
+  run name, current milestone, done/total and a liveness verdict. It is the only command that does
+  not need a project: `status` answers for the directory you are in, `runs` answers for the machine.
+  It exits `2` when a listed run is blocked or its runner is gone, so it works on a timer.
+- A machine-level registry at `~/.milestoner/runs.json`, or `$MILESTONER_HOME/runs.json`. A runner
+  registers itself on start, refreshes the entry on every pulse, and removes it in the same step that
+  clears the pulse. A runner that was killed never reaches that step, so its entry is kept and
+  reported `gone` for 24 hours before expiring, because a run that died overnight is the one worth
+  being told about. Writes are serialised with the same lock as `state.json` (D-022) and are
+  best-effort: a read-only home directory means no entry, never a run that will not start. An entry
+  counts as live only when the pid is alive and the project's own `pulse.json` names that pid and
+  that run, so a recycled pid cannot masquerade as a runner. A registered project whose `.milestoner/`
+  is gone is pruned and reported instead of failing the listing. Recorded as D-025.
+
 ### Changed
 
+- `milestoner kill` and the runner's second interrupt now end the whole agent session on macOS and
+  Linux, not just the process the engine spawned. The session is launched in its own process group
+  and the group is signalled, so an agent reached through a wrapper script no longer survives the
+  kill and is left orphaned. The signal escalates from `SIGTERM` to `SIGKILL` after five seconds, so
+  a session that ignores the first one cannot leave the runner waiting. Windows already killed the
+  tree with `taskkill /T /F` and is unchanged, except that the runner's abort path now uses that
+  same tree kill instead of signalling the one process. One consequence worth knowing: a Ctrl-C in
+  the terminal running `milestoner run` no longer reaches the agent directly, which is what makes the
+  first interrupt mean "finish and grade this session" on POSIX as it already did on Windows.
+  Recorded as D-026.
 - Renamed from `dogwatch` to `milestoner`. The npm package and the command are `milestoner`, the
   state directory is `.milestoner/`, the supervisor skill is `milestoner-supervisor`, and the slash
   commands are `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and
@@ -25,6 +51,17 @@ All notable changes to this project are documented here. The format follows
   a finished run, raw command output included; rewriting them would falsify the record this engine
   exists to keep. Released changelog entries below are left alone for the same reason: they describe
   what shipped, under the name it shipped with.
+
+### Fixed
+
+- `npm test` failed on Windows. Two causes, both in the tests: with no `.gitattributes`, git checked
+  the tree out as CRLF and the tests that split `---\n` frontmatter out of `commands/*.md` and the
+  shipped `SKILL.md` concluded there was no frontmatter; and `lock.test.ts` handed Node an absolute
+  Windows path where an ESM specifier was expected, which Node rejects because `D:` reads as a URL
+  scheme, so all six writer children exited 1. The tree is now pinned to LF, the parsers normalise
+  line endings, and the child's specifier is built with `pathToFileURL`. The cross-process locking
+  guarantee from D-022 is verified on Windows for the first time rather than skipped by a load
+  failure.
 
 ### Documentation
 

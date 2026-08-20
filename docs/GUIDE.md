@@ -371,6 +371,10 @@ That is the whole loop. Everything below is detail.
 2026-08-19T02:31:10.442Z | rule 4 | kill agent pid 24512 on M03: no signal for 31m | killed
 ```
 
+There is one file outside the project: `~/.milestoner/runs.json`, the registry every runner on the
+machine adds itself to, which is what [`milestoner runs`](#milestoner-runs) reads. Nothing in a
+project depends on it, and it is not yours to edit.
+
 ## Writing the protocol
 
 `init` writes a template full of `TODO` markers. The sections that matter most:
@@ -501,6 +505,11 @@ Run it from the project root or any subdirectory: milestoner walks up looking fo
 `in_progress`; a later `milestoner run` picks it up and starts a fresh attempt. **Ctrl-C twice**: the
 agent session is killed immediately (exit 130).
 
+The interrupt goes to the runner alone. The agent session runs in its own process group, so the
+terminal cannot end it behind the runner's back and the first Ctrl-C means what it says; the second
+one signals that group and everything the session started. See
+[D-026](DECISIONS.md#d-026---the-agent-session-gets-its-own-process-group-and-the-kill-escalates-2026-08-20).
+
 Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
 infrastructure failures.
 
@@ -578,6 +587,68 @@ milestoner status >/dev/null || notify-send "milestoner needs you"
 This snapshot is deliberately complete: it is the supervisor's whole view of the run, so one call
 replaces any file parsing. `liveness.verdict` is `alive` / `slow` / `hung`, on the same thresholds as
 the printed output.
+
+### milestoner runs
+
+```sh
+milestoner runs [--json]
+```
+
+Every run registered on this machine, printed from anywhere. It is the one command that does not need
+a project: `status` answers for the directory you are standing in, `runs` answers for the machine.
+
+```
+milestoner runs  2 registered
+  C:\Users\you\.milestoner\runs.json
+
+  alive     checkout-v2        M03   2/4     pid 37468 att 1
+         C:\work\shop
+  gone      legacy-tests       M02   1/3     pid 24756
+         C:\work\legacy
+         the runner is not running; relaunch it with `milestoner run` in that directory - last seen 9s ago
+```
+
+A runner registers itself when it starts and removes its entry in the same step that clears its
+pulse, so a clean exit leaves nothing behind. A runner that was **killed** never gets to do that, and
+its entry stays, reported `gone`, for 24 hours before it expires. That is on purpose: a run that died
+overnight is the one you most need to be told about, and an entry that deleted itself the moment its
+process ended could never say so.
+
+| Verdict | Meaning |
+| --- | --- |
+| `alive` | The runner logged an engine event in the last 15 minutes. |
+| `slow` | Nothing for 15 to 25 minutes. Usually a long session, occasionally a wedged one. |
+| `hung` | Nothing for over 25 minutes. Check it, or put a supervisor on it. |
+| `unknown` | Registered, but its pulse does not say when it last moved. |
+| `gone` | The runner process is not there. Relaunch with `milestoner run` in that directory. |
+| `complete` | The run finished. |
+
+The thresholds are the ones `status` prints, from the same function. The verdict here reads the age of
+each project's pulse rather than walking its watched paths, because `runs` opens every project on the
+machine and a recursive scan each would make a cheap question expensive. For the watched-path verdict,
+`status` in that directory is the answer.
+
+Exit code: `2` if any listed run is blocked **or** its runner is gone, `0` otherwise. That makes it a
+usable check on a timer:
+
+```sh
+milestoner runs >/dev/null || notify-send "a run on this machine needs you"
+```
+
+A registered project whose `.milestoner/` has been deleted, renamed or moved to an unmounted drive is
+pruned and reported on the line below the listing, rather than taking the whole listing down with it.
+
+**The registry file** is `~/.milestoner/runs.json`, or `$MILESTONER_HOME/runs.json` if you set that
+variable. One path on every platform; XDG directories are deliberately not honoured, and
+`MILESTONER_HOME` is the way to put the file somewhere else. Registration is best-effort: if your home
+directory is read-only or on a share that is not mounted, the run starts anyway and simply does not
+appear here. It is a convenience across projects, never a precondition for one.
+
+`--json` prints the same listing with `registry`, `runs` and `pruned` arrays, for a script or a
+status bar.
+
+There is still no *panel* across runs. `serve` shows the directory it was started in; use `runs` to
+find the one you want and start a panel there.
 
 ### milestoner unblock
 
@@ -753,6 +824,13 @@ the attempt, so the same intervention could repeat forever. The kill is also app
 It refuses to act when there is no `pulse.json`, when the runner process is not alive, or when no
 agent session is currently running. `--reason` records what you observed; `--rule <n>` tags the log
 line with the playbook rule that fired.
+
+The kill reaches the whole session, not just the process the engine spawned, so an agent launched
+through a wrapper script goes with it. On Windows that is `taskkill /T /F`; on macOS and Linux the
+session is spawned in its own process group and the group is signalled `SIGTERM`, then `SIGKILL`
+five seconds later if anything is still there. The consequence for a terminal is in
+[`milestoner run`](#milestoner-run): a Ctrl-C no longer reaches the agent directly, which is what
+makes the two-interrupt contract mean the same thing on every platform.
 
 ### milestoner attend
 
@@ -1512,16 +1590,18 @@ strength of that guarantee is the quality of your criteria. Review the tags.
 - **Two agents exercised.** Claude Code and Codex; see
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.
-- **One run per project directory**, and no view across runs. There is no registry of the runs on a
-  machine, so `serve` and `status` only ever show the directory they were started in.
+- **One run per project directory.** Runs across the machine are listed by
+  [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, but there
+  is still no *panel* across them: `serve` and `status` only ever show the directory they were started
+  in.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
-- **`kill` reaches the process tree on Windows, one process on macOS and Linux.** Windows uses
-  `taskkill /T`; elsewhere the engine signals the child it spawned. When the agent command is a
-  wrapper script that forks, the real session can outlive the kill.
-- **The test suite fails on Windows**, on checkout line endings and one test that builds a Windows
-  path where an ESM specifier is expected. Linux and macOS are green. The engine itself is unaffected;
-  see [NEXT.md](NEXT.md).
+- **`kill` reaches the whole process tree on all three platforms.** `taskkill /T /F` on Windows, the
+  session's own process group elsewhere, with `SIGKILL` five seconds behind the `SIGTERM`. A wrapper
+  script that forks no longer outlives the kill.
+- **The test suite passes on all three platforms.** The Windows failures were checkout line endings
+  and one test that built a Windows path where an ESM specifier was expected; both are fixed and the
+  tree is pinned to LF by `.gitattributes`.
 
 The roadmap is in [../README.md](../README.md); the reasoning behind each design decision is in
 [DECISIONS.md](DECISIONS.md).

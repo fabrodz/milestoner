@@ -6,13 +6,14 @@ import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
 import { report } from "./commands/report.js";
+import { runs } from "./commands/runs.js";
 import { serve } from "./commands/serve.js";
 import { installSkill } from "./commands/skill.js";
 import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
-import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
+import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor, registryPath } from "./paths.js";
 import { run } from "./runner.js";
 import { color, fail, warn } from "./util/log.js";
 
@@ -27,6 +28,10 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
 
   milestoner status [--json]
       Milestones, attempts, evidence counts, and the pulse (is this run alive?).
+
+  milestoner runs [--json]
+      Every run registered on this machine, from anywhere: project, milestone, progress
+      and liveness. Exits 2 if any of them is blocked or its runner is gone.
 
   milestoner unblock <id> [--keep-attempts]
       Clear a block after fixing it and set the milestone back to pending.
@@ -158,6 +163,12 @@ async function main(): Promise<number> {
     });
   }
 
+  // Deliberately before requireProject: answering "what is running on this machine" from a
+  // directory that is not a project is the whole point of it.
+  if (command === "runs") {
+    return runs({ registry: registryPath(), json: Boolean(values.json) });
+  }
+
   const project = requireProject();
   if (!project) return 1;
   const config = loadConfig(project.layout.config, project.root);
@@ -198,7 +209,7 @@ async function main(): Promise<number> {
   }
 
   if (command === "kill") {
-    return kill({
+    return await kill({
       layout: project.layout,
       reason: values.reason ?? "no reason given",
       rule: values.rule ? `rule ${values.rule}` : "manual",

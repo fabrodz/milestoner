@@ -16,7 +16,8 @@ function read(name: string): string {
 }
 
 function frontmatterOf(text: string): string {
-  const [, frontmatter] = text.split("---\n", 3);
+  // A shipped .md can arrive from anywhere, so the split must not depend on how git checked it out.
+  const [, frontmatter] = text.replace(/\r\n/g, "\n").split("---\n", 3);
   return frontmatter ?? "";
 }
 

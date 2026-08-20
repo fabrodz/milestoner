@@ -1,0 +1,29 @@
+TAP version 13
+# 12:05:06 killed the agent session on M01 (pid 44280) - the runner will consume the attempt and retry
+# Subtest: a wrapper's grandchild is killed with the session, not orphaned
+ok 1 - a wrapper's grandchild is killed with the session, not orphaned
+  ---
+  duration_ms: 697.2202
+  type: 'test'
+  ...
+# Subtest: the runner's abort takes the grandchild with it too
+ok 2 - the runner's abort takes the grandchild with it too
+  ---
+  duration_ms: 387.5892
+  type: 'test'
+  ...
+# Subtest: a session that ignores SIGTERM is killed after the grace period
+ok 3 - a session that ignores SIGTERM is killed after the grace period
+  ---
+  duration_ms: 633.2149
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1895.9632

@@ -11,6 +11,17 @@ export interface LivenessSignal {
   mtime: Date;
 }
 
+const STALE_MS = 15 * 60 * 1000;
+const HUNG_MS = 25 * 60 * 1000;
+
+export type LivenessVerdict = "alive" | "slow" | "hung" | "unknown";
+
+/** One set of thresholds for `status` and `runs` alike, so the two cannot disagree about a run. */
+export function verdictFor(ageMs: number | null): LivenessVerdict {
+  if (ageMs === null || !Number.isFinite(ageMs)) return "unknown";
+  return ageMs < STALE_MS ? "alive" : ageMs < HUNG_MS ? "slow" : "hung";
+}
+
 function newestUnder(root: string, depth: number): LivenessSignal | null {
   let best: LivenessSignal | null = null;
   let entries;

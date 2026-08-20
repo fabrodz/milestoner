@@ -1,6 +1,6 @@
-import { spawnSync } from "node:child_process";
 import type { Layout } from "../paths.js";
 import { isProcessAlive, readPulse } from "../pulse.js";
+import { killSessionTree } from "../session.js";
 import { appendSupervisorLog } from "../supervisorLog.js";
 import type { KillMarker } from "../types.js";
 import { writeJsonAtomic } from "../util/fs.js";
@@ -11,13 +11,14 @@ export interface KillOptions {
   layout: Layout;
   reason: string;
   rule: string;
+  graceMs?: number;
 }
 
 /**
  * Kill the agent session, never the runner. The runner sees the session end, grades it as
  * incomplete, consumes the attempt and relaunches - which is the whole point of the intervention.
  */
-export function kill(options: KillOptions): number {
+export async function kill(options: KillOptions): Promise<number> {
   const pulse = readPulse(options.layout.pulse);
   if (!pulse) {
     fail("no pulse.json - no run is in progress");
@@ -45,10 +46,7 @@ export function kill(options: KillOptions): number {
   // Written before the kill so the runner cannot grade the death as an infrastructure failure.
   writeJsonAtomic(options.layout.kill, marker);
 
-  const killed =
-    process.platform === "win32"
-      ? spawnSync("taskkill", ["/PID", String(pulse.agentPid), "/T", "/F"], { encoding: "utf8" }).status === 0
-      : safeKill(pulse.agentPid);
+  const killed = await killSessionTree(pulse.agentPid, options.graceMs);
 
   const result = killed ? "killed" : "kill failed";
   appendSupervisorLog(options.layout, options.rule, `kill agent pid ${pulse.agentPid} on ${marker.milestoneId}: ${options.reason}`, result);
@@ -59,13 +57,4 @@ export function kill(options: KillOptions): number {
   }
   ok(`killed the agent session on ${marker.milestoneId} (pid ${pulse.agentPid}) - the runner will consume the attempt and retry`);
   return 0;
-}
-
-function safeKill(pid: number): boolean {
-  try {
-    process.kill(pid, "SIGTERM");
-    return true;
-  } catch {
-    return false;
-  }
 }

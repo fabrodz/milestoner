@@ -373,3 +373,100 @@ costs the GitHub account and dates the project to a naming fashion that has pass
 
 Cost accepted: read quickly in English, the name contains "stoner". Kept deliberately, as character
 rather than as a defect to design around.
+
+## D-024 - The repository is LF, and the parsers do not trust it (2026-08-20)
+
+`.gitattributes` pins `* text=auto eol=lf`, so every checkout gets an LF working tree whatever
+`core.autocrlf` is set to locally. Without it, git handed Windows CRLF and three tests that split
+`---\n` frontmatter out of shipped `.md` files concluded there was no frontmatter block. Nothing in
+the repository needs CRLF: the one `.ps1` runs fine with LF, and `.sh` requires it.
+
+The parsers normalise line endings anyway, which is deliberate belt and braces rather than
+redundancy. The pin governs files that arrive through git; `commands/*.md` and
+`skills/*/SKILL.md` are read as shipped artefacts that a user or a packaging step can also produce,
+and a parser that fails on CRLF is a parser with a platform bug, not a checkout with one. The same
+argument the other way round is why `scripts/gen-skill.mjs` writes LF unconditionally: it runs on
+whoever's machine builds, and its output is committed, so anything else makes `npm run build`
+produce a diff on Windows and none on Linux.
+
+Rejected: `.gitattributes` alone, which fixes this repository and leaves the parsers wrong. Also
+rejected: normalising in the tests alone, which leaves a Windows contributor with a working tree
+that differs from CI's byte for byte, and every future byte comparison a coin toss.
+
+## D-025 - A machine-level registry of runs, behind `milestoner runs` (2026-08-20)
+
+`status` and `serve` only ever see the directory they were started in, so "what is running on this
+machine" had no answer short of hunting for `.milestoner` directories. The registry is that missing
+primitive, and `milestoner runs` is the whole of its surface for now: the panel deliberately does not
+span runs yet.
+
+**Live runners are what is registered, with a retention window.** A runner writes its entry on start
+and removes it in the same `finally` that clears the pulse, so a clean exit leaves nothing behind. A
+runner that was killed never reaches that `finally`, and its entry is kept and reported `gone` for
+24 hours before it expires out of the file. The alternative shapes are both worse at the one question
+that matters: registering only live runners means a run that died at 2am has simply vanished by
+morning, which is precisely the state a person needs to be told about; scanning the disk for every
+project that has a `.milestoner/` finds runs nobody has touched in months and turns a cheap question
+into a filesystem walk. Keeping the corpse for a day is the middle path, and it is the reason the
+command has a `gone` verdict at all.
+
+**`~/.milestoner/runs.json`, one path on every platform.** `MILESTONER_HOME` overrides the directory.
+XDG is deliberately not honoured: it would put the registry under `$XDG_STATE_HOME/milestoner` on
+Linux and `~/.milestoner` everywhere else, so the guide, the troubleshooting section and the command's
+own output would all have to be platform-conditional to name one file, and the per-project directory
+users already know is `.milestoner/`. Anyone who wants it under an XDG path, or on a different disk,
+points `MILESTONER_HOME` at one. Every registry write is best-effort: a home directory that is
+read-only, or on a share that is not mounted, makes registration fail silently and the run continues
+without an entry. A convenience across projects must never become a precondition for one.
+
+**A live pid is not enough, so the project's own pulse corroborates it.** Pids are reused. An entry
+counts as live only when the pid is alive *and* the project's `pulse.json` exists *and* names that
+same pid *and* the same run. The pulse is written by the runner and cleared on exit, so an unrelated
+process that inherited the number has nothing vouching for it: the project either has no pulse or has
+one belonging to somebody else. What remains uncovered is a killed runner whose stale pulse survives
+and whose exact pid is then reused, which the retention window eventually resolves and which no
+portable check would catch without process start times.
+
+Writes are serialised with `withStateLock` from
+[D-022](#d-022---statejson-writes-are-serialised-across-processes-2026-08-19). Several runners
+starting, ticking and exiting against one file is the same lost-update shape, and it did not need a
+second locking primitive.
+
+The liveness verdict in `runs` comes from the age of each pulse's last event, on the same thresholds
+`status` prints, rather than from the watched-path scan `status` uses. `runs` reads every project on
+the machine, and a recursive mtime walk per project would make the cheap question expensive. The two
+verdicts share one function so they cannot drift.
+
+`milestoner runs` exits `2` when any listed run is blocked **or** its runner is gone, which is the
+same "this needs you" signal `status` gives, widened by the one state this command exists to surface.
+
+## D-026 - The agent session gets its own process group, and the kill escalates (2026-08-20)
+
+`milestoner kill` and the runner's second-interrupt abort both signalled the one pid the engine
+spawned. On Windows that was already a tree kill (`taskkill /T /F`); on macOS and Linux it was a
+plain `SIGTERM` to the child. An agent is routinely reached through a wrapper - an npm shim, a
+launcher script, a login shell - and killing the wrapper leaves the agent it started running,
+reparented to init. Playbook rule 4 then reported a kill that had not happened, and the runner sat
+waiting for a session that was no longer attached to anything it could see.
+
+**The session is spawned `detached: true` on POSIX**, which makes it the leader of its own process
+group, and both kill paths signal `-pid` - the group - falling back to the bare pid if that fails.
+Windows keeps `taskkill /T /F`, which already walks the tree and has no gentler step to offer.
+
+**What `detached` changes about Ctrl-C, which is the cost of this and is not incidental.** A
+detached child is no longer in the terminal's foreground process group, so a Ctrl-C in the terminal
+running `milestoner run` reaches the runner and nothing else. Before, the agent got that SIGINT
+directly from the tty and usually died on it. That is a real behaviour change, and it is the one we
+want: the two-interrupt contract says the *first* interrupt finishes and grades the running session
+and only the *second* kills it, and a tty that kills the agent on the first Ctrl-C quietly broke
+that contract on POSIX. Signal delivery is now the engine's decision rather than the terminal's, on
+every platform, and `runner.stop.test.ts` is the gate on both halves of it.
+
+The rejected alternative was leaving the spawn attached and walking the process table for children
+of the pid. It needs a different implementation per platform (`ps -o ppid=`, `pgrep -P`, recursion
+over the results), it races a wrapper that is still spawning, and it reimplements what the kernel
+already tracks. A process group is the portable POSIX answer to exactly this question.
+
+**SIGTERM, then SIGKILL after five seconds.** A session that traps or ignores the polite signal used
+to leave the caller believing it had killed something, and the runner waiting on a child that was
+never going to close. The escalation is skipped on Windows because `/F` is unconditional.

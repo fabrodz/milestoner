@@ -41,8 +41,9 @@ install and add the plugin only to drive and supervise the run from inside Claud
 terminal.
 
 Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
-the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
-`xdg-open`), and launching through an npm `.cmd` shim on Windows with the quoting `cmd.exe` needs.
+the engine: killing a session and everything it spawned (`taskkill /T` or the session's own POSIX
+process group), opening the report (`start`, `open` or `xdg-open`), and launching through an npm
+`.cmd` shim on Windows with the quoting `cmd.exe` needs.
 The one thing you supply per platform is the environment adapter, because unsticking a host is
 inherently host-shaped; examples for both families ship in
 [examples/adapters/](examples/adapters/).
@@ -82,6 +83,7 @@ milestoner status
 | `milestoner init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.milestoner/`: config, state machine, protocol template, prompt skeletons. |
 | `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
 | `milestoner status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
+| `milestoner runs [--json]` | Every run registered on this machine, from anywhere: project, milestone, progress, liveness. |
 | `milestoner unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
 | `milestoner steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
@@ -90,7 +92,14 @@ milestoner status
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
-Exit codes: `0` ok, `1` error, `2` blocked.
+Exit codes: `0` ok, `1` error, `2` blocked - and for `runs`, `2` also when a listed run's runner is
+gone, which is the same "this needs you" signal.
+
+`runs` is the only command that does not need a project. `status` answers for the directory you are
+in; `runs` answers for the machine, reading a registry at `~/.milestoner/runs.json` that every runner
+adds itself to on start and removes itself from on exit. A runner that was killed never gets to
+remove its entry, so it stays, reported `gone`, for a day. That is the point: a run that died
+overnight is the one worth being told about.
 
 ## How a run works
 
@@ -254,6 +263,9 @@ never charged against the attempt budget are visible after the fact.
   supervisor-log.md    append-only interventions
   execution-log.md     the agent's own narrative log
   decisions.md         autonomous decisions the agent made
+
+~/.milestoner/
+  runs.json            machine-level registry of runs, read by `milestoner runs`
 ```
 
 ## Configuration
@@ -411,9 +423,8 @@ npm run build
 ```
 
 CI runs all three on Node 20, 22 and 24 on Linux, and on the ends of that range on macOS and
-Windows. **The Windows jobs are currently failing** on checkout line endings and one test that
-builds a Windows path where an ESM specifier is expected; Linux and macOS are green and the engine
-is not implicated. See [docs/NEXT.md](docs/NEXT.md).
+Windows. The working tree is pinned to LF by `.gitattributes`, because several tests compare bytes
+read from disk and a CRLF checkout fails them.
 
 ## License
 

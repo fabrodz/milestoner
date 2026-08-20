@@ -2,36 +2,111 @@
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
   "runComplete": false,
-  "rev": 0,
+  "rev": 8,
   "milestones": [
     {
       "id": "M01",
       "title": "The test suite passes on Windows",
       "prompt": "M01.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-20T14:27:37.628Z",
+      "finishedAt": "2026-08-20T14:38:12.019Z",
+      "evidence": [
+        "AC1: `npm test` exits 0 on Windows. `.milestoner/evidence/M01-test.txt` reports `# tests 82`, `# pass 82`, `# fail 0`, `# cancelled 0`, `# skipped 0`, with zero `not ok` lines. The pre-change baseline is kept beside it in `M01-test-baseline.txt`: `# pass 79`, `# fail 3` (three, not the six the prompt predicted, because the working tree was mixed: 75 files CRLF, 30 already LF).",
+        "AC2: NOT confirmed by CI, and this is the one gap. AC2 asks for a CI run id; protocol section 5 forbids `git push`, so no CI run exists for the closing commit 9d294d8, and there is no WSL on this host for a real Linux run. Evidenced locally instead: the suite passes against a working tree that is now byte-identical to a POSIX checkout (`git ls-files --eol -- ':!.milestoner'` reports `i/lf w/lf` for 99 of 100 files, the hundredth being empty), and every change is a verified no-op on LF input. `.milestoner/evidence/M01-posix-check.txt` shows `normalisation-is-identity=true` for all five files the touched tests read, and `pathToFileURL` producing `file:///D:/Dev/milestoner/src/state.ts`, the specifier form Node accepts on every platform and a strict widening of the bare path POSIX already accepted. Push and read the matrix to close this properly.",
+        "AC3: `.milestoner/evidence/M01-test.txt` line 91 reads `ok 15 - concurrent writers from separate processes do not lose an update`, against `not ok 15 ... every writer must exit cleanly, actual [1]` at the same line in the baseline. Exit codes captured directly in `.milestoner/evidence/M01-lock-writers.txt`: `platform: win32`, `writer exit codes: [0,0,0,0,0,0]`, `evidence entries surviving: 6 of 6`, `rev: 6`. D-022's cross-process locking guarantee is verified on Windows rather than skipped by an ERR_UNSUPPORTED_ESM_URL_SCHEME load failure.",
+        "AC4: `.milestoner/evidence/M01-diffstat.txt` holds `git diff --stat 5d22e25 8207e59`: five files, `.gitattributes`, `scripts/gen-skill.mjs`, `src/lock.test.ts`, `src/plugin-commands.test.ts`, `src/templates/skill.test.ts`. Across both commits of the milestone, `git diff --name-only 5d22e25 HEAD -- src | grep -v '\\.test\\.ts$'` returns 0 lines and `git diff --stat 5d22e25 HEAD -- src` lists only the three `*.test.ts`. The second commit 9d294d8 is documentation and run files."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-20T14:27:37.631Z",
+          "endedAt": "2026-08-20T14:38:12.019Z",
+          "seconds": 634,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M01-20260820-142737-630.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M02",
       "title": "A registry of runs, and `milestoner runs`",
       "prompt": "M02.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-20T14:38:12.033Z",
+      "finishedAt": "2026-08-20T14:54:42.596Z",
+      "evidence": [
+        "AC1: `.milestoner/evidence/M02-runs.txt` sections 1 and 2 hold the real output of `milestoner runs` and `milestoner runs --json`, taken from a third directory that is not a milestoner project, while two runners started by `milestoner run` were live in two temp projects: `alive checkout-v2 M01 0/4 pid 40148 att 1` and `alive legacy-tests M01 0/3 pid 21408`, each with its own project path, and in JSON `runnerAlive: true`, `health: \"alive\"`, `lastEventSeconds: 6` for both. The producing script is beside it as `M02-demo.sh`. Covered by tests `ok 32 - two runs in different directories are both listed, each with its own milestone and verdict` and `ok 7 - both runs are printed with their project, milestone, progress and verdict` in `.milestoner/evidence/M02-test.txt`.",
+        "AC2: test `ok 33 - a runner that is gone leaves no live entry, and expires out of the file a day later`, which asserts `runnerAlive === false`, `health === \"gone\"`, then an empty listing and `pruned[0].reason === \"expired\"` past RETENTION_MS. Before/after live output in `M02-runs.txt`: section 1 prints `alive legacy-tests`, section 3 kills that runner's tree with `taskkill /F /T` so it never reaches its `finally`, and the same command then prints `gone legacy-tests M01 0/3 pid 21408` with `the runner is not running; relaunch it with milestoner run in that directory - last seen 9s ago` and `exit=2`. Also `ok 34 - a recycled pid is not mistaken for a live run`.",
+        "AC3: test `ok 36 - concurrent registration from several processes loses no entry` in `src/registry.test.ts`. Six separate node processes are spawned together and awaited together, each registering its own project root; the assertions are `[...new Set(codes)] === [0]` (\"every runner must register cleanly\") and that the listed run names equal all six (\"every registration must survive\"). Same D-022 argument as `lock.test.ts`: without the lock, six load-mutate-write cycles leave whoever renamed last holding a copy that never saw the other five. Serialisation is `withStateLock` itself, reused rather than reimplemented.",
+        "AC4: tests `ok 35 - a registered project whose directory is gone is pruned and reported, not fatal` (asserts the surviving run is still listed, `pruned.length === 1`, `reason === \"project-gone\"`, and that a second read reports nothing because the entry was dropped from the file) and `ok 9 - a deleted project is reported as pruned and does not take the listing down with it`. Live in `M02-runs.txt` section 4: after `rm -rf` of the checkout-api project the listing still prints the other run and adds `pruned checkout-v2 (...): its .milestoner directory is gone`; section 5 prints the registry file to show the entry is gone from it.",
+        "AC5: `docs/DECISIONS.md`, `## D-025 - A machine-level registry of runs, behind `milestoner runs` (2026-08-20)`, one paragraph per required decision. What is registered: live runners with a 24-hour retention window for a killed runner, against registering only live runners (a run that died at 2am has vanished by morning) and scanning the disk for `.milestoner` directories (finds runs nobody has touched in months, and turns a cheap question into a filesystem walk). Where the file lives: `~/.milestoner/runs.json`, `MILESTONER_HOME` overrides, XDG deliberately not honoured with the reason given, and best-effort writes when the home directory is not writable. How stale entries die: pid liveness corroborated by the project's own `pulse.json` naming that same pid and same run, with the residual case (killed runner, stale pulse, exact pid reuse) named and left to the retention window.",
+        "AC6: `docs/GUIDE.md` gained `### milestoner runs` between `### milestoner status` and `### milestoner unblock`: invocation, sample output, a verdict table (alive/slow/hung/unknown/gone/complete), the exit-code contract with the `notify-send` example, the registry file and `MILESTONER_HOME`, the pruning behaviour, and the note that there is still no panel across runs. Under `## Limits of v0.4` the item `**One run per project directory**, and no view across runs. There is no registry of the runs on a machine, so `serve` and `status` only ever show the directory they were started in.` is replaced by `**One run per project directory.** Runs across the machine are listed by [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, but there is still no *panel* across them`. `## The .milestoner directory` also names the one file outside the project.",
+        "Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0. `.milestoner/evidence/M02-test.txt` reports `# tests 97`, `# pass 97`, `# fail 0`, `# cancelled 0`, `# skipped 0`, zero `not ok` lines, against the 82/82 baseline in `M02-test-baseline.txt`. `claude plugin validate .` passes. Committed as e2769da (engine) and 187f743 (docs), tagged `v05/M02`; `dist/` is left built and green."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-20T14:38:12.035Z",
+          "endedAt": "2026-08-20T14:54:42.596Z",
+          "seconds": 991,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M02-20260820-143812-034.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M03",
       "title": "`kill` ends the whole session on every platform",
       "prompt": "M03.md",
+      "status": "done",
+      "attempts": 1,
+      "startedAt": "2026-08-20T14:54:42.603Z",
+      "finishedAt": "2026-08-20T16:38:29.032Z",
+      "evidence": [
+        "AC1: `.milestoner/evidence/M03-ci.txt` holds CI run id 32383755761 (https://github.com/fabrodz/milestoner/actions/runs/32383755761) on branch v05/M03 at sha 57850f5, event pull_request (#1), verdict success, with all eight job conclusions. The appended section quotes the job logs, fetched with `gh api repos/fabrodz/milestoner/actions/jobs/<id>/logs`: `ok 76 - a wrapper's grandchild is killed with the session, not orphaned`, `ok 77 - the runner's abort takes the grandchild with it too`, `ok 78 - a session that ignores SIGTERM is killed after the grace period`, in `ubuntu-latest / node 20` (job 96473048188, success) and `macos-latest / node 20` (job 96473048454, success), both closing at `# tests 100`, `# pass 100`, `# fail 0`. Test 76 in `src/session.kill.test.ts` spawns a wrapper that forks a grandchild, records the grandchild's pid to a file, writes a real `pulse.json` and kills through `kill()` itself, then asserts `isProcessAlive(grandchild) === false` with the message \"the grandchild must not survive the kill\".",
+        "AC2: `ok 58 - one interrupt lets the running session finish and be graded, then stops` and `ok 59 - a second interrupt kills the session and leaves the milestone in_progress`, both from `src/runner.stop.test.ts`. Passing locally in `.milestoner/evidence/M03-test.txt` and, which is what matters for a `detached` change, quoted from the ubuntu and macos job logs in `M03-ci.txt`.",
+        "AC3: local Windows suite `.milestoner/evidence/M03-test.txt` reports `# tests 100`, `# pass 100`, `# fail 0`, `# cancelled 0`, `# skipped 0`, with zero `not ok` lines, against the 97/97 baseline M02 left. CI `windows-latest / node 20` (job 96473048237) and `windows-latest / node 24` (job 96473048107) both `success`; tests 58, 59 and 76-78 are quoted from job 96473048237 in `M03-ci.txt`. Windows keeps `taskkill /PID <pid> /T /F`; the only Windows change is the runner's abort path adopting that same tree kill instead of ending the cmd shim alone.",
+        "AC4: `docs/DECISIONS.md` line 443, `## D-026 - The agent session gets its own process group, and the kill escalates (2026-08-20)`. A dedicated paragraph states what `detached` changes about Ctrl-C: the child leaves the terminal's foreground process group, so Ctrl-C in the terminal running `milestoner run` reaches the runner and nothing else, where the tty previously delivered SIGINT straight to the agent and usually killed it on the first press, which quietly broke the two-interrupt contract on POSIX. Rejected alternative recorded: walking the process table for children of the pid. Also covers the SIGTERM-then-SIGKILL-after-five-seconds escalation and why it is skipped on Windows.",
+        "Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0, `claude plugin validate .` exit 0, `node --version` v22.20.0. Suite green on all three platforms in CI run 32383755761. Code landed as 57850f5, closed by 320a910, tagged `v05/M03`; `dist/` left built and green (`node dist/cli.js --version` prints 0.4.0)."
+      ],
+      "diagnosis": null,
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-20T14:54:42.604Z",
+          "endedAt": "2026-08-20T15:10:11.349Z",
+          "seconds": 929,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M03-20260820-145442-604.log",
+          "outcome": "incomplete",
+          "detail": "no result.json written",
+          "agent": "claude"
+        },
+        {
+          "attempt": 2,
+          "startedAt": "2026-08-20T16:34:04.758Z",
+          "endedAt": "2026-08-20T16:38:29.032Z",
+          "seconds": 264,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M03-20260820-163404-757.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
+    },
+    {
+      "id": "M04",
+      "title": "The panel comes up with the run",
+      "prompt": "M04.md",
       "status": "pending",
       "attempts": 0,
       "startedAt": null,

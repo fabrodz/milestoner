@@ -108,8 +108,9 @@ export function doUnblock(ctx: ApiContext, id: string, keepAttempts: boolean): A
   return outcome(unblock({ layout: ctx.layout, milestoneId: id, keepAttempts }), `${id} set to pending`, `could not unblock ${id}`);
 }
 
-export function doKill(ctx: ApiContext, reason: string): ActionResult {
-  return outcome(kill({ layout: ctx.layout, reason, rule: "web" }), "agent session killed; the runner will retry", "nothing to kill");
+export async function doKill(ctx: ApiContext, reason: string): Promise<ActionResult> {
+  const code = await kill({ layout: ctx.layout, reason, rule: "web" });
+  return outcome(code, "agent session killed; the runner will retry", "nothing to kill");
 }
 
 export function doAttend(ctx: ApiContext, seconds: number | undefined): ActionResult {

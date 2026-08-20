@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
 export const MILESTONER_DIR = ".milestoner";
+
+export const REGISTRY_FILE = "runs.json";
 
 /**
  * Directory names this project has used before, newest first. Found only so the CLI can explain the
@@ -86,4 +89,25 @@ export function findLegacyRoot(start: string = process.cwd()): LegacyRun | null 
 
 export function resolveFrom(root: string, p: string): string {
   return isAbsolute(p) ? p : resolve(root, p);
+}
+
+/**
+ * The machine-level directory, beside the per-project layout: `~/.milestoner`, or whatever
+ * `MILESTONER_HOME` points at. One path on every platform, XDG included, per D-025 - resolved on
+ * every call so a test or a user can move it without reloading the module.
+ */
+export function machineDir(): string {
+  const override = process.env.MILESTONER_HOME;
+  return override && override.trim() !== "" ? resolve(override) : join(homedir(), MILESTONER_DIR);
+}
+
+/** The registry of runs on this machine. */
+export function registryPath(): string {
+  return join(machineDir(), REGISTRY_FILE);
+}
+
+/** Compare two project roots as the filesystem would: Windows and macOS do not mind the case. */
+export function samePath(a: string, b: string): boolean {
+  const norm = (p: string) => (process.platform === "linux" ? resolve(p) : resolve(p).toLowerCase());
+  return norm(a) === norm(b);
 }

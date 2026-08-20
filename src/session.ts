@@ -1,11 +1,15 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createWriteStream, existsSync, readFileSync, statSync } from "node:fs";
 import { delimiter, extname, join, sep } from "node:path";
+import { isProcessAlive } from "./pulse.js";
 import { ensureDir, fileSize } from "./util/fs.js";
 import type { InfraConfig } from "./types.js";
 import { secondsUntilReset } from "./util/time.js";
 
 const isWindows = process.platform === "win32";
+
+/** How long a session gets to honour SIGTERM before the group is killed outright. */
+export const KILL_GRACE_MS = 5000;
 
 /** Resolve a bare command name against PATH/PATHEXT so we know whether we are launching a shim. */
 export function resolveExecutable(command: string): string {
@@ -48,6 +52,51 @@ export interface SessionOptions {
   onTick?: (elapsedMs: number) => void;
   tickSeconds?: number;
   signal?: AbortSignal;
+  /** Grace between the abort's SIGTERM and the SIGKILL that follows it. Tests shorten it. */
+  killGraceMs?: number;
+}
+
+/**
+ * Signal the session's whole process tree, not just the process the engine spawned. An agent is
+ * routinely reached through a wrapper - an npm shim, a login shell, a `claude` launcher - so
+ * signalling the pid alone leaves the agent itself running and the intervention does nothing.
+ *
+ * POSIX: the negative pid is the process group, which the session leads because `runSession`
+ * spawns it `detached`. The bare pid is the fallback for a process that never got its own group.
+ * Windows: `taskkill /T /F` already walks the tree, and has no gentler step to offer.
+ */
+export function terminateSessionTree(pid: number, signal: NodeJS.Signals = "SIGTERM"): boolean {
+  if (isWindows) return spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { encoding: "utf8" }).status === 0;
+  try {
+    process.kill(-pid, signal);
+    return true;
+  } catch {
+    try {
+      process.kill(pid, signal);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * SIGTERM the tree, then SIGKILL whatever is still there. Without the escalation a session that
+ * traps or ignores SIGTERM leaves the caller believing it killed something.
+ */
+export async function killSessionTree(pid: number, graceMs = KILL_GRACE_MS): Promise<boolean> {
+  const signalled = terminateSessionTree(pid, "SIGTERM");
+  if (isWindows || !signalled) return signalled;
+  await waitForExit(pid, graceMs);
+  if (isProcessAlive(pid)) terminateSessionTree(pid, "SIGKILL");
+  return true;
+}
+
+async function waitForExit(pid: number, graceMs: number, stepMs = 100): Promise<void> {
+  const deadline = Date.now() + graceMs;
+  while (Date.now() < deadline && isProcessAlive(pid)) {
+    await new Promise((r) => setTimeout(r, Math.min(stepMs, Math.max(0, deadline - Date.now()))));
+  }
 }
 
 export interface SessionOutcome {
@@ -83,6 +132,10 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
     : spawn(exe, options.args, {
         cwd: options.cwd,
         env: { ...process.env, ...options.env },
+        // Its own process group on POSIX, so an abort or a `milestoner kill` can reach everything
+        // the session started. See D-026 for what this costs: the terminal's Ctrl-C no longer
+        // reaches the agent, and the engine's explicit kill is the only thing that ends it.
+        detached: !isWindows,
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -92,7 +145,15 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
 
   const tickMs = (options.tickSeconds ?? 60) * 1000;
   const ticker = options.onTick ? setInterval(() => options.onTick!(Date.now() - started), tickMs) : null;
-  const onAbort = () => child.kill("SIGTERM");
+  let escalation: NodeJS.Timeout | null = null;
+  const onAbort = () => {
+    const pid = child.pid;
+    if (pid === undefined) return;
+    terminateSessionTree(pid, "SIGTERM");
+    if (isWindows) return;
+    escalation = setTimeout(() => terminateSessionTree(pid, "SIGKILL"), options.killGraceMs ?? KILL_GRACE_MS);
+    escalation.unref();
+  };
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
   return new Promise((resolve, reject) => {
@@ -113,6 +174,8 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
 
     function finish() {
       if (ticker) clearInterval(ticker);
+      // Cleared before the pid can be recycled: the escalation holds a pid, not a handle.
+      if (escalation) clearTimeout(escalation);
       options.signal?.removeEventListener("abort", onAbort);
       out.end();
     }

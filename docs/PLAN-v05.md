@@ -1,7 +1,8 @@
 # Plan: v0.5 - pay down the debt the dogfood run exposed
 
-Three pieces of work, written as milestones in this project's own format so they can become
-`.milestoner/prompts/` directly. Covers items 1, 3 and 4 of [NEXT.md](NEXT.md).
+Four pieces of work, written as milestones in this project's own format so they can become
+`.milestoner/prompts/` directly. M01 to M03 cover items 1, 3 and 4 of [NEXT.md](NEXT.md). M04 was
+added on 2026-08-20, once M01 and M02 were closed, and is not on that list at all.
 
 **Publishing to npm is explicitly deferred to after v0.5.** It is wanted eventually, not now, and it
 is the only item here that has an external audience.
@@ -10,7 +11,8 @@ Ordering: M01 first, because everything after it is verified by a suite that cur
 trusted on this machine. Then the registry, which is the largest piece and the only new capability
 rather than debt. The POSIX kill goes last, because it is the only milestone whose evidence has to
 come from CI rather than from the machine the session runs on, and a slow feedback loop is the one
-you want to hit with work already banked.
+you want to hit with work already banked. M04 was appended after the fact and goes last for the
+plainest reason: it was asked for after the other three were already written.
 
 **Where this runs.** The development machine is Windows, with no WSL. That is ideal for M01 and
 neutral for M02, and it is the constraint that shapes M03: a fix to process-group signalling on
@@ -202,6 +204,59 @@ launched through a wrapper script survives the kill and playbook rule 4 silently
 
 - All acceptance criteria evidenced, suite green on three platforms.
 - Committed and tagged `v05/M03`.
+- `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
+
+---
+
+## M04 - The panel comes up with the run
+
+Added on 2026-08-20, after M01 and M02 closed. Not debt: a small piece of new capability asked for
+while watching the run from a second terminal and typing `milestoner serve` every time.
+
+### Objective
+
+`milestoner run --serve` starts the local web panel alongside the run and prints its URL. The panel
+is an accessory to the run: it never changes what the run does, and it never outlives it.
+
+### Context
+
+- `serve()` owns the process today, resolving only on a signal it handles itself. `run` already owns
+  SIGINT for the two-interrupt semantics that M03 has just touched, so the lifecycle has to be
+  extracted rather than called.
+- The pieces exist: `createPanel()`, `newToken()`, `BIND_HOST`, and the platform open shape in
+  `report.ts`.
+- Out of scope: a panel across runs, which is gated on the D-020 write-surface question in
+  [NEXT.md](NEXT.md) item 4.
+
+### Decisions to make inside this milestone, and record
+
+- **`--write` with a runner already draining the directory.** The panel can start runs; two runners
+  on one `state.json` is the lost-update shape D-022 exists to prevent. Refuse the combination, or
+  suppress the start control. `kill` is the supervisor's rule 4 path and should probably stay.
+- **A port already in use.** The run is the point and the panel is the accessory, so `EADDRINUSE`
+  must not fail the run. Ephemeral port, or carry on with no panel.
+- **Whether `--open` belongs here.** The URL carries the token, so opening it puts a live credential
+  in browser history. `report --open` opens a file with no secret in its path, which is why that
+  precedent does not settle this one.
+
+### Acceptance criteria
+
+- **AC1** - `run --serve` prints a URL that answers with this run's live state while it drains.
+  (evidence: the test name, plus a captured request and response in
+  `.milestoner/evidence/M04-serve.txt`)
+- **AC2** - The panel is closed once the run ends; the port is free. (evidence: the test name)
+- **AC3** - The two-interrupt semantics are unchanged with a panel attached. (evidence:
+  `runner.stop.test.ts` passing plus the new attached case, test names quoted)
+- **AC4** - A busy port does not take the run down, and says so. (evidence: the test name and the
+  exact message)
+- **AC5** - `milestoner serve` is observably unchanged. (evidence: the passing tests, named)
+- **AC6** - The three decisions in `docs/DECISIONS.md`, the flag in `README.md` and `docs/GUIDE.md`.
+  (evidence: the decision number and heading, plus the section names)
+
+### Exit
+
+- All acceptance criteria evidenced, suite green.
+- Committed and tagged `v05/M04`.
 - `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 
 ---

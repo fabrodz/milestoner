@@ -8,6 +8,9 @@ import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import type { RunState } from "./types.js";
 
+// The runner registers itself in the machine registry; keep these runs out of the real one.
+process.env.MILESTONER_HOME = mkdtempSync(join(tmpdir(), "milestoner-home-"));
+
 const AGENT = `
 import { writeFileSync } from "node:fs";
 const [id, dir] = process.argv.slice(2);
