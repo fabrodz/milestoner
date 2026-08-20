@@ -218,3 +218,92 @@ Expected under protocol section 7, and it resolves itself on the next `milestone
 M03, `kill` ending the whole session on every platform. Its own prompt warns that a POSIX
 process-group fix cannot be verified from this Windows host; read that before starting. The CI push
 that M01 and M02 both need is still outstanding.
+
+## M03 - `kill` ends the whole session on every platform (2026-08-20)
+
+Attempt 1 did the work and drove CI green on all eight jobs, then died with a 15-byte "Execution
+error" transcript before writing `result.json`, so the engine graded it incomplete. Its code landed
+as 57850f5 and its evidence files were banked by cb3fe25. This session re-ran every gate against
+that commit, closed the one gap in the CI evidence, and closed the milestone. No second CI cycle was
+needed, so one of the four the prompt allows was spent.
+
+### What was built
+
+The session's process tree, rather than the one process the engine spawned, is what both kill paths
+now signal.
+
+- `src/session.ts`: `terminateSessionTree(pid, signal)` signals `-pid` on POSIX - the process group
+  the session leads, because `runSession` now spawns it `detached: true` - and falls back to the bare
+  pid if the group signal throws. Windows keeps `taskkill /PID <pid> /T /F`. `killSessionTree(pid,
+  graceMs)` wraps it with the escalation: SIGTERM, poll for exit, SIGKILL after `KILL_GRACE_MS` of
+  five seconds. The escalation timer is `unref`'d and cleared in `finish()`, so a pid that has
+  already exited cannot be signalled again after the number is recycled.
+- `src/commands/kill.ts` calls `killSessionTree` instead of `process.kill`, and takes a `graceMs`
+  the tests shorten.
+- The runner's abort path, `onAbort` in `runSession`, calls the same function. It previously ended
+  the `cmd` shim alone on Windows too, so the two paths disagreed on both platforms, not just POSIX.
+- `src/server/api.ts`, `src/server/http.ts` and `src/cli.ts` follow the now-async `kill`.
+
+3 new tests in `src/session.kill.test.ts`. Suite 97 -> 100.
+
+### Evidence per acceptance criterion
+
+- **AC1** - `.milestoner/evidence/M03-ci.txt`. Run id `32383755761` on branch `v05/M03` at sha
+  57850f5, event `pull_request` (#1), verdict `success`, with all eight job conclusions listed. The
+  appended section quotes the job logs themselves: `ok 76 - a wrapper's grandchild is killed with the
+  session, not orphaned`, `ok 77 - the runner's abort takes the grandchild with it too` and `ok 78 -
+  a session that ignores SIGTERM is killed after the grace period`, in `ubuntu-latest / node 20` (job
+  96473048188) and `macos-latest / node 20` (job 96473048454), both at `# pass 100`, `# fail 0`. Test
+  76 spawns a wrapper that forks a grandchild, records the grandchild's pid to a file, writes a real
+  `pulse.json` and goes through `kill()` itself, then asserts `isProcessAlive(grandchild) === false`.
+- **AC2** - `ok 58 - one interrupt lets the running session finish and be graded, then stops` and
+  `ok 59 - a second interrupt kills the session and leaves the milestone in_progress`, from
+  `src/runner.stop.test.ts`. Passing locally in `.milestoner/evidence/M03-test.txt` and, more to the
+  point for a `detached` change, on both POSIX runners in `M03-ci.txt`.
+- **AC3** - Local Windows suite `.milestoner/evidence/M03-test.txt`: `# tests 100`, `# pass 100`,
+  `# fail 0`, `# cancelled 0`, `# skipped 0`, zero `not ok` lines. CI `windows-latest / node 20`
+  (job 96473048237) and `node 24` (job 96473048107) both `success`, with tests 58, 59 and 76-78
+  quoted in `M03-ci.txt`. `.milestoner/evidence/M03-negative-windows.txt` is the kill file run on
+  its own from attempt 1. Windows code is untouched apart from the abort path now reaching the tree.
+- **AC4** - `docs/DECISIONS.md`, `## D-026 - The agent session gets its own process group, and the
+  kill escalates (2026-08-20)`. It states the cost in its own paragraph: a detached child leaves the
+  terminal's foreground process group, so Ctrl-C in the terminal running `milestoner run` reaches
+  the runner and nothing else, where before the tty delivered SIGINT straight to the agent and
+  usually killed it on the first press - which quietly broke the two-interrupt contract on POSIX.
+  Rejected alternative recorded: walking the process table for children of the pid.
+
+Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0, `claude plugin validate
+.` exit 0. Suite 100/100 on Windows locally and on all three platforms in CI.
+
+### Problems hit
+
+Only one, and it was attempt 1's: `on: push` in the workflow is scoped to `main`, so pushing the
+branch produced no run at all. Opening a pull request was the fix, recorded as a decision rather
+than widening the trigger to every branch.
+
+### Decisions
+
+Three in `.milestoner/decisions.md`, one promoted to `docs/DECISIONS.md` as D-026. The other two:
+CI is reached through a pull request rather than by widening the push trigger, and the runner's
+Windows abort path now uses the same tree kill as `kill` rather than staying on `child.kill`.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+The runner's abort path was broken on Windows as well, not only on POSIX as the prompt assumed: it
+called `child.kill("SIGTERM")` on the `cmd` shim, which ends the shim and leaves the agent behind
+exactly as the POSIX case did. Found while making the two paths agree, fixed in the same commit.
+
+### Backlog
+
+- `.milestoner/run-log.md` is now tracked but the engine appends to it while a session is alive, so
+  every session commits a half-written snapshot of its own run. Still worth deciding once.
+- The workflow only runs on `main` and on pull requests. A run whose milestones each need CI will
+  open a pull request per milestone; a `workflow_dispatch` trigger would be cheaper.
+
+### Next step
+
+M04, the panel coming up with the run (`--serve` on `milestoner run`). Nothing from M03 blocks it.

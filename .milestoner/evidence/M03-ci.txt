@@ -14,3 +14,45 @@ success	ubuntu-latest / node 24	(job 96473048291)
 success	ubuntu-latest / node 22	(job 96473048385)
 success	macos-latest / node 20	(job 96473048454)
 success	macos-latest / node 24	(job 96473048501)
+
+## The new tests in the POSIX job output (AC1)
+
+Retrieved 2026-08-20 with `gh api repos/fabrodz/milestoner/actions/jobs/<id>/logs`.
+
+### ubuntu-latest / node 20 (job 96473048188)
+ok 58 - one interrupt lets the running session finish and be graded, then stops
+ok 59 - a second interrupt kills the session and leaves the milestone in_progress
+ok 76 - a wrapper's grandchild is killed with the session, not orphaned
+ok 77 - the runner's abort takes the grandchild with it too
+ok 78 - a session that ignores SIGTERM is killed after the grace period
+# tests 100
+# pass 100
+# fail 0
+# cancelled 0
+# skipped 0
+
+### macos-latest / node 20 (job 96473048454)
+ok 58 - one interrupt lets the running session finish and be graded, then stops
+ok 59 - a second interrupt kills the session and leaves the milestone in_progress
+ok 76 - a wrapper's grandchild is killed with the session, not orphaned
+ok 77 - the runner's abort takes the grandchild with it too
+ok 78 - a session that ignores SIGTERM is killed after the grace period
+# tests 100
+# pass 100
+# fail 0
+# cancelled 0
+# skipped 0
+
+## Windows, unchanged (AC3)
+
+### windows-latest / node 20 (job 96473048237)
+ok 58 - one interrupt lets the running session finish and be graded, then stops
+ok 59 - a second interrupt kills the session and leaves the milestone in_progress
+ok 76 - a wrapper's grandchild is killed with the session, not orphaned
+ok 77 - the runner's abort takes the grandchild with it too
+ok 78 - a session that ignores SIGTERM is killed after the grace period
+# tests 100
+# pass 100
+# fail 0
+# cancelled 0
+# skipped 0
