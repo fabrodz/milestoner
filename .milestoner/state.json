@@ -2,7 +2,7 @@
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
   "runComplete": false,
-  "rev": 6,
+  "rev": 8,
   "milestones": [
     {
       "id": "M01",
@@ -67,11 +67,17 @@
       "id": "M03",
       "title": "`kill` ends the whole session on every platform",
       "prompt": "M03.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 1,
       "startedAt": "2026-08-20T14:54:42.603Z",
-      "finishedAt": null,
-      "evidence": [],
+      "finishedAt": "2026-08-20T16:38:29.032Z",
+      "evidence": [
+        "AC1: `.milestoner/evidence/M03-ci.txt` holds CI run id 32383755761 (https://github.com/fabrodz/milestoner/actions/runs/32383755761) on branch v05/M03 at sha 57850f5, event pull_request (#1), verdict success, with all eight job conclusions. The appended section quotes the job logs, fetched with `gh api repos/fabrodz/milestoner/actions/jobs/<id>/logs`: `ok 76 - a wrapper's grandchild is killed with the session, not orphaned`, `ok 77 - the runner's abort takes the grandchild with it too`, `ok 78 - a session that ignores SIGTERM is killed after the grace period`, in `ubuntu-latest / node 20` (job 96473048188, success) and `macos-latest / node 20` (job 96473048454, success), both closing at `# tests 100`, `# pass 100`, `# fail 0`. Test 76 in `src/session.kill.test.ts` spawns a wrapper that forks a grandchild, records the grandchild's pid to a file, writes a real `pulse.json` and kills through `kill()` itself, then asserts `isProcessAlive(grandchild) === false` with the message \"the grandchild must not survive the kill\".",
+        "AC2: `ok 58 - one interrupt lets the running session finish and be graded, then stops` and `ok 59 - a second interrupt kills the session and leaves the milestone in_progress`, both from `src/runner.stop.test.ts`. Passing locally in `.milestoner/evidence/M03-test.txt` and, which is what matters for a `detached` change, quoted from the ubuntu and macos job logs in `M03-ci.txt`.",
+        "AC3: local Windows suite `.milestoner/evidence/M03-test.txt` reports `# tests 100`, `# pass 100`, `# fail 0`, `# cancelled 0`, `# skipped 0`, with zero `not ok` lines, against the 97/97 baseline M02 left. CI `windows-latest / node 20` (job 96473048237) and `windows-latest / node 24` (job 96473048107) both `success`; tests 58, 59 and 76-78 are quoted from job 96473048237 in `M03-ci.txt`. Windows keeps `taskkill /PID <pid> /T /F`; the only Windows change is the runner's abort path adopting that same tree kill instead of ending the cmd shim alone.",
+        "AC4: `docs/DECISIONS.md` line 443, `## D-026 - The agent session gets its own process group, and the kill escalates (2026-08-20)`. A dedicated paragraph states what `detached` changes about Ctrl-C: the child leaves the terminal's foreground process group, so Ctrl-C in the terminal running `milestoner run` reaches the runner and nothing else, where the tty previously delivered SIGINT straight to the agent and usually killed it on the first press, which quietly broke the two-interrupt contract on POSIX. Rejected alternative recorded: walking the process table for children of the pid. Also covers the SIGTERM-then-SIGKILL-after-five-seconds escalation and why it is skipped on Windows.",
+        "Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0, `claude plugin validate .` exit 0, `node --version` v22.20.0. Suite green on all three platforms in CI run 32383755761. Code landed as 57850f5, closed by 320a910, tagged `v05/M03`; `dist/` left built and green (`node dist/cli.js --version` prints 0.4.0)."
+      ],
       "diagnosis": null,
       "history": [
         {
@@ -83,6 +89,16 @@
           "transcript": ".milestoner\\logs\\M03-20260820-145442-604.log",
           "outcome": "incomplete",
           "detail": "no result.json written",
+          "agent": "claude"
+        },
+        {
+          "attempt": 2,
+          "startedAt": "2026-08-20T16:34:04.758Z",
+          "endedAt": "2026-08-20T16:38:29.032Z",
+          "seconds": 264,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M03-20260820-163404-757.log",
+          "outcome": "done",
           "agent": "claude"
         }
       ]
