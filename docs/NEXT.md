@@ -46,12 +46,13 @@ checkout. Two root causes, neither in the engine:
 Do this first. It is small, and the alternative is a project whose own gate is ignored - the exact
 failure the evidence gate exists to prevent, one level up.
 
-## 2. Publish to npm
+## 2. Publish to npm - deliberately last
 
-The README and the guide document `npm install -g dogwatch`; nothing is published. Everything that
-should gate a publish is already in place - LICENSE, CI, changelog, a `files` list verified by
-`npm pack`, a `prepublishOnly` that typechecks, tests and builds. Blocked only on item 1, since
-publishing over a red suite is publishing over a red suite.
+Wanted eventually, not now, and deprioritised on 2026-08-20 behind everything else here. The README
+and the guide document `npm install -g dogwatch`; nothing is published. Everything that should gate
+a publish is already in place - LICENSE, CI, changelog, a `files` list verified by `npm pack`, a
+`prepublishOnly` that typechecks, tests and builds. It is the only item with an external audience,
+which is the argument for doing it once the rest has settled rather than before.
 
 ## 3. `kill` on macOS and Linux only reaches one process
 
@@ -82,8 +83,9 @@ There is a defensible version - a UI that shows an existing run's shape and edit
 titles, with the prompt files staying hand-written text. If the goal is really authoring in a GUI,
 that supersedes a decision in BRIEF.md and should be written down as one before any screen is built.
 
-## Suggested order
+## Plans
 
-1 before 2, because a publish should not go out over a red suite. 3 is independent and small enough
-to fold in with 1. 4 is the largest piece of new work and the first that is not paying down a debt.
-5 is a decision, not a task, and costs nothing to make now.
+Items 1, 3 and 4 are planned as v0.5 in [PLAN-v05.md](PLAN-v05.md), as three milestones in this
+project's own format: the Windows suite, `kill` on POSIX, and the run registry. Item 5 is planned
+separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision first and
+work only if the decision goes a particular way. Item 2 comes after both.
