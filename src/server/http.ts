@@ -40,10 +40,16 @@ export interface ServerOptions {
   token: string;
   /** When false every mutating route answers 403 and the page hides its controls. */
   allowWrites: boolean;
+  /** When false the start-run control is gone: a runner already owns this directory. See D-027. */
+  allowStart?: boolean;
 }
+
+const NO_SECOND_RUNNER =
+  "this panel came up with the run, and that runner owns it - a second one would be two runners on one state.json";
 
 export function createPanel(options: ServerOptions) {
   const { ctx, token, port } = options;
+  const view = () => ({ ...snapshot(ctx), writable: options.allowWrites, canStart: options.allowStart !== false });
 
   return createServer((req, res) => {
     void handle(req, res).catch((err: unknown) => {
@@ -60,7 +66,7 @@ export function createPanel(options: ServerOptions) {
     const path = url.pathname;
 
     if (req.method === "GET" && path === "/") return send(res, 200, "text/html; charset=utf-8", PAGE);
-    if (req.method === "GET" && path === "/api/state") return json(res, 200, { ...snapshot(ctx), writable: options.allowWrites });
+    if (req.method === "GET" && path === "/api/state") return json(res, 200, view());
     if (req.method === "GET" && path === "/api/report") return send(res, 200, "text/html; charset=utf-8", reportHtml(ctx));
     if (req.method === "GET" && path === "/api/transcript") {
       const body = transcript(ctx, url.searchParams.get("name") ?? "");
@@ -98,7 +104,7 @@ export function createPanel(options: ServerOptions) {
           break;
         }
         case "/api/run/start":
-          result = startRun(ctx);
+          result = options.allowStart === false ? { ok: false, message: NO_SECOND_RUNNER } : startRun(ctx);
           break;
         case "/api/run/stop":
           result = stopRun(ctx);
@@ -126,11 +132,11 @@ export function createPanel(options: ServerOptions) {
     let lastRev = -1;
     const tick = () => {
       try {
-        const state = snapshot(ctx);
+        const state = view();
         // Also re-send while a session is live: the pulse moves without state.json changing.
         if (state.rev !== lastRev || state.pulse?.runnerAlive) {
           lastRev = state.rev;
-          res.write(`data: ${JSON.stringify({ ...state, writable: options.allowWrites })}\n\n`);
+          res.write(`data: ${JSON.stringify(state)}\n\n`);
         } else {
           // A comment keeps the connection provably alive. An idle run can go a long time without
           // a change, and a silent stream is indistinguishable from a dead one.

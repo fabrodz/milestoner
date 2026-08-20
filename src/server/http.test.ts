@@ -41,18 +41,24 @@ const config = defaultConfig("http-test", layout.projectRoot);
 let base = "";
 let readOnlyBase = "";
 
+let attachedBase = "";
+
 const panel = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: true });
 const readOnly = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: false });
+const attached = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: true, allowStart: false });
 
 before(async () => {
   await new Promise<void>((r) => panel.listen(0, "127.0.0.1", r));
   await new Promise<void>((r) => readOnly.listen(0, "127.0.0.1", r));
+  await new Promise<void>((r) => attached.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(panel.address() as AddressInfo).port}`;
   readOnlyBase = `http://127.0.0.1:${(readOnly.address() as AddressInfo).port}`;
+  attachedBase = `http://127.0.0.1:${(attached.address() as AddressInfo).port}`;
 });
 after(() => {
   panel.close();
   readOnly.close();
+  attached.close();
 });
 
 const get = (path: string, init?: RequestInit) => fetch(base + path, init);
@@ -126,6 +132,23 @@ test("a read-only panel refuses every write and says so in its state", async () 
   assert.equal(res.status, 403);
   const d = (await (await fetch(`${readOnlyBase}/api/state?token=${TOKEN}`)).json()) as { writable: boolean };
   assert.equal(d.writable, false, "the page hides its controls off this flag");
+});
+
+test("a panel attached to a run keeps every control except starting a second runner", async () => {
+  const post = (b: string, path: string) =>
+    fetch(`${b}${path}?token=${TOKEN}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+
+  const start = await post(attachedBase, "/api/run/start");
+  assert.equal(start.status, 409);
+  assert.match((await start.json() as { message: string }).message, /a second one would be two runners on one state.json/);
+
+  // Not a read-only panel: kill still reaches its command, which is the supervisor's rule 4 path.
+  const killed = await post(attachedBase, "/api/kill");
+  assert.notEqual(killed.status, 403, "kill must not be refused the way a read-only panel refuses it");
+  assert.equal((await killed.json() as { message: string }).message, "nothing to kill", "no session is running in this fixture");
+  const d = (await (await fetch(`${attachedBase}/api/state?token=${TOKEN}`)).json()) as Record<string, unknown>;
+  assert.equal(d.writable, true);
+  assert.equal(d.canStart, false, "the page hides the start button off this flag");
 });
 
 test("an unknown endpoint is a 404, not a stack trace", async () => {

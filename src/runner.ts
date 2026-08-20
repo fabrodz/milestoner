@@ -7,6 +7,7 @@ import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { deregisterRun, registerRun } from "./registry.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
+import { startRunPanel, type PanelHandle } from "./server/panel.js";
 import { readSteering, type Steering } from "./steering.js";
 import { findMilestone, loadState, nextMilestone, updateState } from "./state.js";
 import type { AttemptRecord, KillMarker, Milestone, MilestonerConfig, RunState } from "./types.js";
@@ -26,6 +27,8 @@ export interface RunOptions {
   signal: AbortSignal;
   /** Graceful stop: let the current session finish and be graded, then launch nothing more. */
   stopSignal?: AbortSignal;
+  /** Bring the web panel up alongside the run. It closes with the run and never fails it. */
+  serve?: { port: number; write: boolean; token?: string };
 }
 
 export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted";
@@ -146,8 +149,13 @@ export async function run(options: RunOptions): Promise<RunExit> {
     });
   };
 
+  let panel: PanelHandle | null = null;
+
   try {
     registerRun(registry, identity);
+    if (options.serve) {
+      panel = await startRunPanel({ config, layout, ...options.serve });
+    }
     for (;;) {
       if (stopping()) return "stopped";
       const state = loadState(layout.state);
@@ -385,8 +393,10 @@ export async function run(options: RunOptions): Promise<RunExit> {
       if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);
     }
   } finally {
-    // One `finally` for both, so the registry entry and the pulse cannot survive each other.
+    // One `finally` for all three, so the registry entry, the pulse and the panel cannot survive
+    // each other: a URL still answering after the run ended describes a run that is not there.
     clearPulse(layout.pulse);
     deregisterRun(registry, config.projectRoot, process.pid);
+    if (panel) await panel.close();
   }
 }

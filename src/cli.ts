@@ -24,7 +24,9 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
       Scaffold .milestoner/ (config, state machine, protocol, prompt skeletons).
 
   milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
+                 [--serve [--port <n>] [--write]]
       Drain the run: one fresh agent session per milestone until complete or blocked.
+      --serve brings the web panel up with the run and closes it when the run ends.
 
   milestoner status [--json]
       Milestones, attempts, evidence counts, and the pulse (is this run alive?).
@@ -93,6 +95,15 @@ function requireProject(): { root: string; layout: ReturnType<typeof layoutFor> 
   return null;
 }
 
+function panelPort(raw: string | undefined): number | null {
+  const port = raw ? Number(raw) : 4400;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    fail("--port must be an integer between 1 and 65535");
+    return null;
+  }
+  return port;
+}
+
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
@@ -121,6 +132,7 @@ async function main(): Promise<number> {
       port: { type: "string" },
       write: { type: "boolean" },
       token: { type: "string" },
+      serve: { type: "boolean" },
     },
   });
 
@@ -200,11 +212,8 @@ async function main(): Promise<number> {
   }
 
   if (command === "serve") {
-    const port = values.port ? Number(values.port) : 4400;
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      fail("--port must be an integer between 1 and 65535");
-      return 1;
-    }
+    const port = panelPort(values.port);
+    if (port === null) return 1;
     return serve({ config, layout: project.layout, port, write: Boolean(values.write), token: values.token });
   }
 
@@ -231,6 +240,19 @@ async function main(): Promise<number> {
   }
 
   if (command === "run") {
+    let serveOptions: { port: number; write: boolean; token?: string } | undefined;
+    if (values.serve) {
+      // The panel URL carries the run's key, and a browser writes what it opens into its history and
+      // into whatever it syncs. Copying the URL is one keystroke more and leaks nothing. See D-027.
+      if (values.open) {
+        fail("--open is not offered with --serve: the panel URL carries this run's key, and handing it to the browser writes a live credential into its history - copy the URL the run prints instead");
+        return 1;
+      }
+      const port = panelPort(values.port);
+      if (port === null) return 1;
+      serveOptions = { port, write: Boolean(values.write), token: values.token };
+    }
+
     const stopController = new AbortController();
     const killController = new AbortController();
     let interrupts = 0;
@@ -262,6 +284,7 @@ async function main(): Promise<number> {
       milestoneId: values.milestone,
       signal: killController.signal,
       stopSignal: stopController.signal,
+      serve: serveOptions,
     });
     return outcome === "complete" || outcome === "stopped" ? 0 : outcome === "blocked" ? 2 : 1;
   }

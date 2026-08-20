@@ -251,7 +251,7 @@ function render(d) {
     (running
       ? '<button data-w onclick="post(\'/api/run/stop\')">Stop after this session</button>' +
         '<button data-w class="danger" onclick="killAgent()">Kill this session and retry</button>'
-      : '<button data-w class="primary" onclick="post(\'/api/run/start\')">Start the run</button>') +
+      : d.canStart ? '<button data-w class="primary" onclick="post(\'/api/run/start\')">Start the run</button>' : "") +
     (d.attendConfigured ? '<button data-w onclick="post(\'/api/attend\',{})">Unstick the environment</button>' : "") +
     (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + JSON.stringify(d.pulse.transcript) + ')">watch the live transcript</button>' : "") +
     "</div>";
