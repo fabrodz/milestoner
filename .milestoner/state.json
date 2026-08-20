@@ -2,7 +2,7 @@
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
   "runComplete": false,
-  "rev": 15,
+  "rev": 18,
   "milestones": [
     {
       "id": "M01",
@@ -138,28 +138,19 @@
       "id": "M05",
       "title": "The state lock cannot be broken by the process that just took it",
       "prompt": "M05.md",
-      "status": "blocked",
+      "status": "done",
       "attempts": 1,
       "startedAt": "2026-08-20T22:12:22.145Z",
-      "finishedAt": null,
+      "finishedAt": "2026-08-20T23:34:09.316Z",
       "evidence": [
-        "AC1 done: regression tests drive the empty-lock window deterministically. Pre-fix (src/lock.ts from cf4fa0c, one word `export` added, stated in the file): exit 1, pass 8 / fail 3, with `not ok 5 - an empty lock is a lock acquired this instant, and a contender must not break it`, `not ok 7 - a contender that meets an empty lock waits out the grace instead of stealing it` (waited 22ms), `not ok 8 - release removes only its own lock, never one that was broken and retaken`. Post-fix: exit 0, pass 11 / fail 0. Both runs captured in .milestoner/evidence/M05-lock.txt.",
-        "AC2 done: `concurrent registration from several processes loses no entry` and `concurrent writers from separate processes do not lose an update`, hardened to 24 and 30 interleaved acquisitions, ran 10 repeated rounds, every round exit 0 with pass 20 / fail 0 and zero `not ok` lines (.milestoner/evidence/M05-repeats.txt). Full suite 111/111 in .milestoner/evidence/M05-test.txt against the 106/106 baseline.",
-        "AC3 NOT achieved, and it is the blocker: CI run 32423986143 (wip/M05 at 9621f63, PR #3) - all eight jobs, the three ubuntu jobs included, `failure` with zero steps executed, annotation 'The job was not started because recent account payments have failed or your spending limit needs to be increased', identically on the initial trigger and on `gh run rerun`. Captured in .milestoner/evidence/M05-ci.txt.",
-        "AC4 done: docs/DECISIONS.md, `D-028 - The lock carries its holder from the first instant, because D-022 broke empty locks on sight (2026-08-20)`. Opens on what D-022 got wrong, then one paragraph per required decision (linkSync publication and the no-hard-links fallback, the mtime-keyed 3s grace for unreadable locks, the steal-and-run-unlocked fallback removed with an ownership-checked release), each with the rejected alternative.",
-        "AC5 done: CHANGELOG.md under [Unreleased] / Fixed, first line: 'Two milestoner processes writing state at the same moment could silently lose one of the writes'.",
-        "Gate: npm run typecheck exit 0, npm run build exit 0, npm test exit 0 (111/111), claude plugin validate . exit 0. Work committed on wip/M05 as 910edea (fix), 9621f63 (docs), 1e92512 (execution record), all pushed. Not merged to main, not tagged: the milestone's exit requires the matrix green first."
+        "AC1: regression tests drive the empty-lock window deterministically. .milestoner/evidence/M05-lock.txt: pre-fix run (src/lock.ts from cf4fa0c plus one `export` keyword, stated in the file) exit 1, pass 8 / fail 3, with `not ok 5 - an empty lock is a lock acquired this instant, and a contender must not break it`, `not ok 7 - a contender that meets an empty lock waits out the grace instead of stealing it`, `not ok 8 - release removes only its own lock, never one that was broken and retaken`; post-fix run exit 0, pass 11 / fail 0. On current main the same tests pass as ok 21, 23, 24 in .milestoner/evidence/M05-test.txt.",
+        "AC2: `concurrent registration from several processes loses no entry` (ok 41) and `concurrent writers from separate processes do not lose an update` (ok 20) pass in the full 114/114 suite (.milestoner/evidence/M05-test.txt), and 10 fresh repeated rounds of src/lock.test.ts + src/registry.test.ts against main at 287e182 each exited 0 with pass 20 / fail 0 and zero `not ok` lines, on top of attempt 1's 10 rounds (.milestoner/evidence/M05-repeats.txt).",
+        "AC3: verified on Linux by CI run 32428734950 (main at 287e182, event push, conclusion success), which exists because the user made the repo public and pushed main with the lock fix merged (7ed7765, fix on main as 6ef233b); 287e182 is this session's HEAD, so the run tested exactly this tree. ubuntu-latest node 20, 22 and 24 all `success`; the seven lock/registry test lines and the closing `# tests 114 / # pass 114 / # fail 0` are quoted from ubuntu node 20 job log 96615920454 in .milestoner/evidence/M05-ci.txt. Zero of the four allowed push-and-wait cycles spent; wip/M05 and PR #3 no longer exist on origin, decision recorded in .milestoner/decisions.md.",
+        "AC4: docs/DECISIONS.md line 516, `## D-028 - The lock carries its holder from the first instant, because D-022 broke empty locks on sight (2026-08-20)`, opening on what D-022 got wrong, one paragraph per required decision (linkSync publication with the no-hard-links fallback, the mtime-keyed 3s grace for unreadable locks, the steal-and-run-unlocked WAIT_MS fallback removed with ownership-checked release), each with its rejected alternative.",
+        "AC5: CHANGELOG.md under `## [Unreleased]` / `### Fixed`, first line: `Two milestoner processes writing state at the same moment could silently lose one of the writes`.",
+        "Gate: node v22.20.0, npm run typecheck exit 0, npm run build exit 0, npm test exit 0 (114/114), claude plugin validate . exit 0, node dist/cli.js --version prints 0.5.0. Closing commit ac80345 on main, tagged v05/M05; dist/ left built and green; only the engine-owned state.json and run-log.md left uncommitted, as the protocol requires."
       ],
-      "diagnosis": {
-        "symptom": "Every job in CI run 32423986143 concludes `failure` with zero steps executed and the annotation 'The job was not started because recent account payments have failed or your spending limit needs to be increased' - GitHub Actions is disabled account-wide. The milestone prompt's premise 'the repository is public now, so Actions minutes are free' is false: gh repo view reports visibility PRIVATE, so minutes bill against the broken account.",
-        "tried": [
-          "Pushed wip/M05 and opened draft PR #3 to trigger the pull_request matrix (the M03 route): run 32423986143 created, all eight jobs refused with the billing annotation",
-          "gh run rerun 32423986143 --failed: accepted, then identical - all eight jobs failure, zero steps, same annotation; further reruns not spent because no push-and-wait cycle changes account billing",
-          "Checked for a local Linux substitute: WSL is not installed on this host and docker is not on PATH",
-          "Verified the substance locally as far as Windows allows: deterministic regression tests pass/fail exactly as AC1 requires, and 10 repeat rounds of the concurrent tests lost nothing"
-        ],
-        "userAction": "Fix the GitHub account's billing (or make fabrodz/milestoner public, as M05's prompt assumed it already was), then `milestoner unblock M05` - the retry finds everything done on wip/M05 (PR #3 open) and only needs `gh run rerun 32423986143`, a green matrix written into .milestoner/evidence/M05-ci.txt, the local merge to main, and the v05/M05 tag."
-      },
+      "diagnosis": null,
       "history": [
         {
           "attempt": 1,
@@ -169,6 +160,16 @@
           "exitCode": 0,
           "transcript": ".milestoner\\logs\\M05-20260820-221222-146.log",
           "outcome": "blocked",
+          "agent": "claude"
+        },
+        {
+          "attempt": 2,
+          "startedAt": "2026-08-20T23:29:55.578Z",
+          "endedAt": "2026-08-20T23:34:09.316Z",
+          "seconds": 254,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M05-20260820-232955-577.log",
+          "outcome": "done",
           "agent": "claude"
         }
       ]

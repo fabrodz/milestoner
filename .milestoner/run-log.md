@@ -13,3 +13,5 @@
 2026-08-20T22:26:24.751Z | M05 | blocked | attempt 1, 843s
 2026-08-20T23:16:24.459Z | M06 | launch | attempt 1/3, agent claude
 2026-08-20T23:25:32.986Z | M06 | done | attempt 1, 549s
+2026-08-20T23:29:55.584Z | M05 | launch | attempt 2/3, agent claude
+2026-08-20T23:34:09.322Z | M05 | done | attempt 2, 254s
