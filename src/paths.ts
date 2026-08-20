@@ -1,10 +1,14 @@
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
-export const PULSEFLOW_DIR = ".pulseflow";
+export const DOGWATCH_DIR = ".dogwatch";
 
-/** The directory name this project used before the rename; still found, never written. */
-export const LEGACY_DIR = ".runpulse";
+/**
+ * Directory names this project has used before, newest first. Found only so the CLI can explain the
+ * migration; never written. Every rename appends one rather than replacing it: a run parked on an
+ * old name for two renames still deserves the message.
+ */
+export const LEGACY_DIRS = [".pulseflow", ".runpulse"] as const;
 
 export interface Layout {
   projectRoot: string;
@@ -20,7 +24,7 @@ export interface Layout {
   pulse: string;
   runLog: string;
   supervisorLog: string;
-  /** Written by `pulseflow kill`, consumed by the runner on the next session end. */
+  /** Written by `dogwatch kill`, consumed by the runner on the next session end. */
   kill: string;
   /** The user's mid-flight channel into a running run. */
   steering: string;
@@ -28,7 +32,7 @@ export interface Layout {
 }
 
 export function layoutFor(projectRoot: string): Layout {
-  const dir = join(projectRoot, PULSEFLOW_DIR);
+  const dir = join(projectRoot, DOGWATCH_DIR);
   return {
     projectRoot,
     dir,
@@ -58,17 +62,26 @@ function findUpwards(start: string, dir: string): string | null {
   }
 }
 
-/** Walk up from `start` looking for a .pulseflow/config.json, like git finds .git. */
+/** Walk up from `start` looking for a .dogwatch/config.json, like git finds .git. */
 export function findProjectRoot(start: string = process.cwd()): string | null {
-  return findUpwards(start, PULSEFLOW_DIR);
+  return findUpwards(start, DOGWATCH_DIR);
+}
+
+export interface LegacyRun {
+  root: string;
+  dir: string;
 }
 
 /**
- * A run set up before the rename. Found only to tell the user how to migrate: the layout is
+ * A run set up under an older name. Found only to tell the user how to migrate: the layout is
  * derived from the directory name, so renaming the directory is the whole migration.
  */
-export function findLegacyRoot(start: string = process.cwd()): string | null {
-  return findUpwards(start, LEGACY_DIR);
+export function findLegacyRoot(start: string = process.cwd()): LegacyRun | null {
+  for (const dir of LEGACY_DIRS) {
+    const root = findUpwards(start, dir);
+    if (root) return { root, dir };
+  }
+  return null;
 }
 
 export function resolveFrom(root: string, p: string): string {

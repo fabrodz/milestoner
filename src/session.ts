@@ -120,7 +120,7 @@ export function runSession(options: SessionOptions): Promise<SessionOutcome> {
 }
 
 export interface InfraVerdict {
-  reason: "usage-limit" | "instant-death";
+  reason: "usage-limit" | "agent-failure" | "instant-death";
   waitSeconds: number;
   detail: string;
 }
@@ -136,13 +136,18 @@ export interface InfraInput {
  * A session that dies almost instantly with a tiny transcript is infrastructure (usage limit,
  * auth, network), not a milestone failure, and must not consume an attempt. The MVP run burned
  * three attempts in forty seconds against a usage limit before this rule existed.
+ *
+ * The tiny-transcript rule alone is a Claude Code shape. Other agents narrate their own failure at
+ * length - a model endpoint that never answered can leave kilobytes of retry chatter - so the text
+ * patterns are what carry the rule across agents.
  */
 export function classifyInfraFailure(input: InfraInput, infra: InfraConfig, now: Date = new Date()): InfraVerdict | null {
   if (input.wroteResult) return null;
   if (input.seconds >= infra.deathSeconds) return null;
 
   const haystack = input.text.toLowerCase();
-  const hitLimit = infra.usageLimitPatterns.some((p) => haystack.includes(p.toLowerCase()));
+  const matches = (patterns: string[]) => patterns.find((p) => haystack.includes(p.toLowerCase()));
+  const hitLimit = matches(infra.usageLimitPatterns);
 
   if (hitLimit) {
     const untilReset = secondsUntilReset(input.text, now);
@@ -150,6 +155,17 @@ export function classifyInfraFailure(input: InfraInput, infra: InfraConfig, now:
       reason: "usage-limit",
       waitSeconds: untilReset ?? infra.usageLimitWaitSeconds,
       detail: untilReset ? `waiting ${Math.round(untilReset / 60)}m for the announced reset` : "no usable reset time in the transcript",
+    };
+  }
+
+  // Checked after the usage limit: a transcript can carry both, and the announced reset is the
+  // more useful of the two.
+  const hitFailure = matches(infra.infraFailurePatterns ?? []);
+  if (hitFailure) {
+    return {
+      reason: "agent-failure",
+      waitSeconds: infra.genericWaitSeconds,
+      detail: `the agent reported "${hitFailure}" after ${Math.round(input.seconds)}s`,
     };
   }
 

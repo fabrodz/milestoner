@@ -3,7 +3,7 @@ import { relative } from "node:path";
 import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { loadState, summarize } from "../state.js";
-import type { Milestone, PulseflowConfig } from "../types.js";
+import type { Milestone, DogwatchConfig } from "../types.js";
 import { color, humanDuration } from "../util/log.js";
 
 const GLYPH: Record<Milestone["status"], string> = {
@@ -30,7 +30,7 @@ function tailLines(file: string, count: number): string[] {
 }
 
 export interface StatusOptions {
-  config: PulseflowConfig;
+  config: DogwatchConfig;
   layout: Layout;
   json: boolean;
 }
@@ -109,14 +109,15 @@ export function status(options: StatusOptions): number {
   if (state.runComplete) {
     console.log(`  ${color.green("run complete")}`);
   } else if (!pulse) {
-    console.log(`  ${color.dim("no runner")} - start one with ${color.bold("pulseflow run")}`);
+    console.log(`  ${color.dim("no runner")} - start one with ${color.bold("dogwatch run")}`);
   } else if (!runnerAlive) {
     console.log(`  ${color.red("runner gone")} (pid ${pulse.pid} not running, last event "${pulse.lastEvent}" at ${pulse.lastEventAt})`);
-    console.log(`  the run stopped without finishing; relaunch with ${color.bold("pulseflow run")}`);
+    console.log(`  the run stopped without finishing; relaunch with ${color.bold("dogwatch run")}`);
   } else {
     const sessionMs = pulse.sessionStartedAt ? Date.now() - Date.parse(pulse.sessionStartedAt) : null;
     const agent = pulse.agentPid != null ? `, agent pid ${pulse.agentPid}${isProcessAlive(pulse.agentPid) ? "" : color.yellow(" (gone)")}` : "";
     console.log(`  runner pid ${pulse.pid} on ${color.bold(pulse.milestoneId ?? "-")} attempt ${pulse.attempt ?? "-"}${agent}`);
+    if (pulse.agent) console.log(`  agent       ${color.bold(pulse.agent)}`);
     console.log(`  last event  ${pulse.lastEvent} (${humanDuration(Date.now() - Date.parse(pulse.lastEventAt))} ago)`);
     if (sessionMs !== null) console.log(`  session     ${humanDuration(sessionMs)}`);
   }

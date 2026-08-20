@@ -1,44 +1,94 @@
-# pulseflow
+# DogWatch
 
 Supervised autonomous-run engine for coding agents. A milestone state machine that launches one
 fresh headless agent session per milestone, grades what each session claims against written
 evidence, and refuses to spend a retry on a usage limit.
 
-The name is the thesis: the differentiator is the *pulse*, knowing a long run is alive and acting
-when it isn't.
+The name is the thesis. The dog watch is the night shift at sea: the one nobody wants and every
+crew needs. That is the differentiator, knowing a long run is still alive at four in the morning and
+acting when it isn't.
 
-Status: **v0.3**. Engine, the active supervisor as an installable Claude Code skill, mid-flight steering, and an HTML run report.
+Status: **v0.4**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, and an HTML run report.
 
 ## Install
 
+Two install paths, and they are not alternatives: the CLI is the engine, the plugin is a Claude Code
+layer on top of it.
+
+**The CLI - required.** The `dogwatch` binary is the engine: it runs a run, grades each session and
+owns the state machine. Not on npm yet, so install from source:
+
 ```sh
-npm install -g pulseflow   # or: npx pulseflow <command>
+git clone https://github.com/fabrodz/dogwatch.git
+cd dogwatch && npm install && npm run build && npm link
 ```
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
 
+**The plugin - optional.** A Claude Code plugin that adds the supervisor skill and four slash commands
+(`/dogwatch-init`, `/dogwatch-status`, `/dogwatch-supervise`, `/dogwatch-report`) inside a Claude
+session:
+
+```sh
+claude plugin marketplace add fabrodz/dogwatch
+claude plugin install dogwatch@dogwatch
+```
+
+**The plugin does not put the `dogwatch` binary on your PATH.** Its slash commands and its supervisor
+skill all shell out to that binary, so the plugin needs the CLI install above to do anything; it is a
+convenience surface over the engine, not a second copy of it. A first-time user should do the CLI
+install and add the plugin only to drive and supervise the run from inside Claude Code rather than a
+terminal.
+
+Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
+the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
+`xdg-open`), and launching through an npm `.cmd` shim on Windows with the quoting `cmd.exe` needs.
+The one thing you supply per platform is the environment adapter, because unsticking a host is
+inherently host-shaped; examples for both families ship in
+[examples/adapters/](examples/adapters/).
+
+## What you are agreeing to
+
+dogwatch exists to run a coding agent for hours while you are not watching, so the default
+`agent.args` include `--dangerously-skip-permissions`. A headless session cannot answer a permission
+prompt; without that flag it hangs until the timeout instead of working.
+
+The consequence is real and worth stating plainly: **for as long as the run lasts, the agent can
+read, write and delete anything your user account can, and run any command, unattended.** The engine
+does not sandbox it and cannot review what it does.
+
+Before leaving a run overnight:
+
+- Run it in a project directory you would be willing to restore from git.
+- Commit or push first. The protocol template tags every green milestone, which is what makes
+  `git reset --hard <tag>` a real rollback.
+- Prefer a VM, container or dedicated user account when the project is not yours.
+- Consider removing `--dangerously-skip-permissions` and supplying a narrower allowlist through your
+  agent's own settings. The engine passes `agent.args` through verbatim, so this is a config change.
+
 ## Use
 
 ```sh
-pulseflow init --run my-run --milestones 5
-# write .pulseflow/protocol.md and the milestone prompts, then:
-pulseflow run
-pulseflow status
+dogwatch init --run my-run --milestones 5
+# write .dogwatch/protocol.md and the milestone prompts, then:
+dogwatch run
+dogwatch status
 ```
 
 ### Commands
 
 | Command | What it does |
 | --- | --- |
-| `pulseflow init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.pulseflow/`: config, state machine, protocol template, prompt skeletons. |
-| `pulseflow run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
-| `pulseflow status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
-| `pulseflow unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
-| `pulseflow steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
-| `pulseflow report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
-| `pulseflow skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
-| `pulseflow kill [--reason <text>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
-| `pulseflow attend [--seconds <n>]` | Supervisor intervention: run the configured environment adapter. |
+| `dogwatch init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.dogwatch/`: config, state machine, protocol template, prompt skeletons. |
+| `dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]` | Drain the run: one fresh agent session per milestone until complete or blocked. |
+| `dogwatch status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
+| `dogwatch unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
+| `dogwatch steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
+| `dogwatch report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
+| `dogwatch serve [--port <n>] [--write]` | Local web panel for the run. Loopback only, key in the URL. |
+| `dogwatch skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
+| `dogwatch kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
+| `dogwatch attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
 Exit codes: `0` ok, `1` error, `2` blocked.
 
@@ -47,14 +97,14 @@ Exit codes: `0` ok, `1` error, `2` blocked.
 ```
 init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete | blocked
                                             |
-                                            +-- writes .pulseflow/result.json, engine grades it
+                                            +-- writes .dogwatch/result.json, engine grades it
 ```
 
 1. **Fresh session per milestone.** Clean context every time. State lives in files, never in the
    conversation.
-2. **The engine owns `state.json`.** The session writes one small drop box, `.pulseflow/result.json`,
+2. **The engine owns `state.json`.** The session writes one small drop box, `.dogwatch/result.json`,
    with its status, its evidence lines and, when blocked, its diagnosis. The engine grades that,
-   merges it, and archives the raw claim under `.pulseflow/results/`.
+   merges it, and archives the raw claim under `.dogwatch/results/`.
 3. **Evidence is a gate.** `done` with no evidence line per acceptance criterion is downgraded to
    incomplete and retried. The verdict never comes from the exit code.
 4. **`blocked` needs a diagnosis**: exact symptom, everything tried, the single clearest user
@@ -69,50 +119,59 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
 The engine keeps a run correct. The supervisor keeps it *alive*: a Claude session that wakes every
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
+If you installed the plugin, the supervisor skill is already there and there is nothing to install;
+skip to the loop. On a CLI-only install, write the skill into the project first:
+
 ```sh
-pulseflow skill install
+dogwatch skill install
 ```
 
-Then, in a Claude Code session at the project root:
+`skill install` and the plugin deliver the same skill from the same source, so running it after a
+plugin install is redundant, not harmful. Either way, in a Claude Code session at the project root:
 
 ```
-/loop 10m Use the pulseflow-supervisor skill to perform one supervision cycle.
+/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
 ```
 
-Each cycle it reads the whole run through `pulseflow status --json` and applies the first matching
+Each cycle it reads the whole run through `dogwatch status --json` and applies the first matching
 rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
-blocked for real, or something it cannot explain. Its entire write surface is `pulseflow kill`,
-`pulseflow attend`, relaunching `pulseflow run`, and appending to `.pulseflow/supervisor-log.md`. It
+blocked for real, or something it cannot explain. Its entire write surface is `dogwatch kill`,
+`dogwatch attend`, relaunching `dogwatch run`, and appending to `.dogwatch/supervisor-log.md`. It
 never edits project code, never touches `state.json`, and never runs the project's own tools while
 a session owns them. Clearing a block stays a human decision.
 
-`pulseflow kill` targets the agent session, not the runner: the runner sees the session end, grades
+`dogwatch kill` targets the agent session, not the runner: the runner sees the session end, grades
 it as incomplete, consumes an attempt and relaunches with a fresh context. The kill is recorded so
 it cannot be mistaken for an infrastructure death and silently refunded.
 
-**Environment adapter.** Playbook rule 3 unsticks a host-bound environment (window focus, a native
-modal, a wedged tool server) by running `environment.attendCommand`. Point it at a script of your
-own; the Unity one from the original run is in `reference/unity-attend.ps1`, ready to copy into a
-project. A headless project leaves the command null and the rule simply cannot fire.
+**Environment adapter.** Some environments get stuck in ways no agent can fix from inside its own
+session: a GUI editor loses focus and stops ticking, a native modal blocks the main thread, a
+language server or dev server wedges, a connected device drops off the bus. Playbook rule 3 runs
+`environment.attendCommand` against exactly that, and nothing else.
+
+The engine knows nothing about any of these; the adapter is one command line you write. Two
+examples ship in [examples/adapters/](examples/adapters/), one per platform family, along with the
+four obligations any adapter has. A headless project leaves the command null and the rule simply
+cannot fire.
 
 ```json
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .pulseflow/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .dogwatch/adapters/unity-attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```
 
 ## Steering a run in flight
 
-You do not have to kill a run to correct it. `pulseflow steer` writes `.pulseflow/STEERING.md`, and
+You do not have to kill a run to correct it. `dogwatch steer` writes `.dogwatch/STEERING.md`, and
 every session launched from that point on gets the text inlined into its kickoff as an override on
 the milestone prompt:
 
 ```sh
-pulseflow steer "prefer the simpler fix over the general one"
-pulseflow steer --append "do not touch the public API"
-pulseflow steer            # show what is in force
-pulseflow steer --clear    # back to the milestone prompts alone
+dogwatch steer "prefer the simpler fix over the general one"
+dogwatch steer --append "do not touch the public API"
+dogwatch steer            # show what is in force
+dogwatch steer --clear    # back to the milestone prompts alone
 ```
 
 It persists until you clear it, and every attempt records the steering that was in force, so it is
@@ -122,10 +181,53 @@ acceptance criterion. A steer that makes a milestone impossible comes back as `b
 The supervisor cannot steer. If it thinks a run needs correcting, it proposes the wording and you
 decide.
 
+## The web panel
+
+```sh
+dogwatch serve --write
+```
+
+Prints a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
+server-sent events, and lets you act on it: set or clear steering, unblock a milestone, kill a hung
+session, run the environment adapter, start a runner or stop it after the current session.
+
+It is deliberately the *same* surface as the CLI, calling the same functions. Nothing is possible
+here that `dogwatch` cannot do from a terminal, which is what keeps one audit trail rather than two.
+
+The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
+four, and you want to read the diagnosis and the last transcript and steer it from your phone
+without finding a laptop. Reaching it from the phone is the next section.
+
+**Read what this is before you run it.** Everything the panel can do, it does with your account's
+permissions on the machine it runs on: starting a run launches an agent with
+`--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. That makes
+a write-enabled panel a remote code execution endpoint by construction, so:
+
+- it binds `127.0.0.1` only, and that is not configurable;
+- every request needs the key from the URL, compared in constant time;
+- a `Host` header that is not loopback is refused, which is what stops a page at an attacker's
+  domain resolving to your machine and talking to it;
+- a write from another origin is refused;
+- without `--write` the panel is read-only and every mutating route answers 403.
+
+Treat the URL like a password: it is one.
+
+**Reaching it from another device.** Do not expose the port. Forward it over SSH, which authenticates
+you before a single byte reaches the panel and encrypts what follows:
+
+```sh
+ssh -N -L 4400:127.0.0.1:4400 you@the-machine
+```
+
+The panel then answers at `http://127.0.0.1:4400` on your laptop or phone, still bound to loopback
+on both ends. That is the supported way to get to it from anywhere. Publishing the port directly, or
+putting it behind a tunnel that does not authenticate, hands an unsandboxed agent to whoever finds
+the URL.
+
 ## The run report
 
 ```sh
-pulseflow report --open
+dogwatch report --open
 ```
 
 One self-contained HTML file: stat tiles, a wall-clock timeline of every session that ran, a card
@@ -139,7 +241,7 @@ never charged against the attempt budget are visible after the fact.
 ## Layout
 
 ```
-.pulseflow/
+.dogwatch/
   config.json          agent command, attempts, infra rules, liveness watch list
   state.json           the state machine (engine-owned)
   protocol.md          shared rules every session reads first
@@ -174,7 +276,9 @@ never charged against the attempt budget are visible after the fact.
     "maxRetries": 30,
     "usageLimitWaitSeconds": 600,
     "genericWaitSeconds": 60,
-    "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"]
+    "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"],
+    "infraFailurePatterns": ["stream disconnected", "connection refused", "econnrefused",
+                             "authentication failed", "not logged in"]
   },
   "liveness": ["src", "tests/results/latest.txt"],
   "environment": { "attendCommand": null, "attendSeconds": 120 }
@@ -182,10 +286,83 @@ never charged against the attempt budget are visible after the fact.
 ```
 
 `args` placeholders: `{{kickoff}}`, `{{promptFile}}`, `{{milestoneId}}`, `{{projectRoot}}`,
-`{{pulseflowDir}}`, `{{model}}`. A different agent is a config change, not an engine change.
+`{{dogwatchDir}}`, `{{model}}`. A different agent is a config change, not an engine change.
 
 `liveness` is the list of paths whose mtime proves work is happening. Set it: without it `status`
 can tell you a process exists, but not that it is doing anything.
+
+## Running a different agent
+
+The agent is a command line, so a second agent is a config change. Claude Code is the default and
+the one exercised most; the recipes below were run against this engine.
+
+**OpenAI Codex** (`codex exec`, verified against codex-cli 0.133.0):
+
+```json
+"agent": {
+  "command": "codex",
+  "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+           "--skip-git-repo-check", "-C", "{{projectRoot}}"],
+  "modelArgs": ["--model", "{{model}}"],
+  "model": null,
+  "env": {}
+}
+```
+
+Codex needs `-C` because it does not inherit the working directory the way `claude -p` does, and
+`--skip-git-repo-check` only if the project is not a git repository. Its usage-limit message is
+caught by the stock `infra.usageLimitPatterns`: a session that hit an OpenAI quota was refunded and
+waited, with no engine change.
+
+**A local model through Ollama.** Ollama is a model server, not an agent: it has no tools and cannot
+read or write a file, so it cannot execute a milestone on its own. Drive it through an agentic CLI.
+With Codex, that is two extra arguments:
+
+```json
+"args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+         "-C", "{{projectRoot}}", "--oss", "--local-provider", "ollama"],
+"model": "qwen2.5-coder:7b"
+```
+
+`ollama serve` has to be running. Expect this to be the weakest link by far: a 7B model given this
+protocol invented a script it never wrote, printed its verdict to stdout instead of writing
+`result.json`, and claimed `done`. The engine graded it `incomplete` and retried, which is the point
+of the evidence gate, but no amount of grading turns a small model into a milestone executor.
+
+### Falling back to a second agent
+
+A run that hits a usage limit at 2am with a reset at 5am sleeps three hours. If another agent is
+authenticated, it does not have to:
+
+```json
+"agent": { "name": "claude", "command": "claude", "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
+"fallbackAgents": [
+  { "name": "codex", "command": "codex",
+    "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox", "-C", "{{projectRoot}}"] }
+]
+```
+
+When a session fails for a reason the infra rules recognise, the failing agent is benched and the
+next free one takes over **immediately, without sleeping**. The attempt is still not consumed. Only
+when every agent is cooling down does the runner wait, and then only for the shortest of them.
+
+The bench is a cooldown, not a demotion: a usage limit benches the agent until its announced reset,
+so the primary comes back the moment its quota does rather than being written off for the rest of
+the run.
+
+It never triggers on a work failure. An `incomplete` verdict means the milestone was not finished,
+which is what the attempt budget is for; swapping the agent there would quietly turn a quality
+problem into a different agent's problem.
+
+**The risk is silent degradation**, so the rotation is recorded everywhere it can be read back: the
+agent that ran each attempt is in `state.json`, in the attempt table of the report, in `run-log.md`,
+and in `status --json` while the run is live. Absent `fallbackAgents`, none of this changes: a pool
+of one benches its only agent and waits, exactly as before.
+
+**Anything else.** The engine only needs a command that (a) accepts a prompt as an argument or in
+`args`, (b) can read and write files in the project, and (c) exits when it is finished. If the
+agent announces its own failures in prose rather than dying instantly, add its wording to
+`infra.infraFailurePatterns` so those failures are refunded instead of charged.
 
 ## Roadmap
 
@@ -193,10 +370,20 @@ can tell you a process exists, but not that it is doing anything.
 - **v0.2** active supervisor as an installable Claude Code skill; intervention log; environment
   adapter as a config string. Done.
 - **v0.3** single-file HTML run report; steering file support. Done.
-- **v0.4** plugin packaging; a second agent behind the config string.
+- **v0.4** plugin packaging: manifest, the supervisor skill and four slash commands as plugin
+  components, and an in-repo single-plugin marketplace. Done. A second agent behind the config
+  string is done too: see [Running a different agent](#running-a-different-agent).
 
-Not yet validated: a full run driven by a real agent end to end. Everything above is exercised by
-unit tests and by scripted agents, plus one real supervision cycle against a blocked run.
+Validated end to end by this release: v0.4 was itself built as a four-milestone dogwatch run
+(M01-M04), each milestone a fresh Claude Code session graded against its written evidence, so a full
+multi-milestone run driven by a real agent is no longer unvalidated. What that run did not exercise:
+a run long enough to hit a real usage limit or agent fallback mid-flight, a non-Claude agent across a
+whole run rather than a single milestone, and the supervisor loop against a live multi-milestone run
+rather than the one blocked run it has been tried on.
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 
@@ -208,14 +395,22 @@ config reference, grading and infra rules, use cases, recipes and troubleshootin
 [BRIEF.md](BRIEF.md) is the genesis document: where this comes from (two real overnight runs on a
 Unity 6 game), what made those runs work, and the competitive landscape.
 [docs/DECISIONS.md](docs/DECISIONS.md) records the product decisions and what was rejected.
-`reference/` holds the original PowerShell implementation verbatim, as the behavioural spec.
+The PowerShell orchestrator these runs grew from is not in the tree: every rule it carried now
+lives in `src/` with tests, and keeping the ancestor beside the engine only invited the question of
+which one to run. It is in the git history if you want to read it.
 
 ## Development
 
 ```sh
 npm install
 npm test         # rule-level tests: infra classification, grading, state migration, quoting,
-                 # config merging, and the supervisor playbook's shape
+                 # config merging, exit codes, the report, and the supervisor playbook's shape
 npm run typecheck
 npm run build
 ```
+
+CI runs all three on Node 20, 22 and 24, on Linux and Windows.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

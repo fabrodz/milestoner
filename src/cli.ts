@@ -6,44 +6,49 @@ import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
 import { report } from "./commands/report.js";
+import { serve } from "./commands/serve.js";
 import { installSkill } from "./commands/skill.js";
 import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
-import { LEGACY_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
+import { DOGWATCH_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import { color, fail, warn } from "./util/log.js";
 
 const USAGE = `
-${color.bold("pulseflow")} - supervised autonomous-run engine for coding agents
+${color.bold("dogwatch")} - supervised autonomous-run engine for coding agents
 
-  pulseflow init [--run <name>] [--milestones <n>] [--force]
-      Scaffold .pulseflow/ (config, state machine, protocol, prompt skeletons).
+  dogwatch init [--run <name>] [--milestones <n>] [--force]
+      Scaffold .dogwatch/ (config, state machine, protocol, prompt skeletons).
 
-  pulseflow run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
+  dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
       Drain the run: one fresh agent session per milestone until complete or blocked.
 
-  pulseflow status [--json]
+  dogwatch status [--json]
       Milestones, attempts, evidence counts, and the pulse (is this run alive?).
 
-  pulseflow unblock <id> [--keep-attempts]
+  dogwatch unblock <id> [--keep-attempts]
       Clear a block after fixing it and set the milestone back to pending.
 
-  pulseflow steer ["<text>"] [--append] [--clear]
+  dogwatch steer ["<text>"] [--append] [--clear]
       Course-correct a run in flight. Applies to the next session launched.
 
-  pulseflow report [--out <path>] [--open]
+  dogwatch report [--out <path>] [--open]
       Write a single self-contained HTML report of the run.
 
-  pulseflow skill install [--global] [--force] [--print]
+  dogwatch serve [--port <n>] [--write]
+      Local web panel for the run. Binds 127.0.0.1 only and prints a URL carrying a
+      one-time key. --write enables the controls; without it the panel only reads.
+
+  dogwatch skill install [--global] [--force] [--print]
       Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
 
-  pulseflow kill [--reason <text>] [--rule <n>]
+  dogwatch kill [--reason <text>] [--rule <n>]
       Supervisor intervention: kill the hung agent session. The runner consumes the
       attempt and relaunches. Never kills the runner.
 
-  pulseflow attend [--seconds <n>] [--rule <n>]
+  dogwatch attend [--seconds <n>] [--rule <n>]
       Supervisor intervention: run the configured environment adapter to unstick the host.
 
 Exit codes: 0 ok, 1 error, 2 blocked.
@@ -64,20 +69,22 @@ function requireProject(): { root: string; layout: ReturnType<typeof layoutFor> 
 
   const legacy = findLegacyRoot();
   if (legacy) {
-    fail(`found ${join(legacy, LEGACY_DIR)} - this run was set up before the tool was renamed to pulseflow`);
+    const from = join(legacy.root, legacy.dir);
+    const to = join(legacy.root, DOGWATCH_DIR);
+    fail(`found ${from} - this run was set up before the tool was renamed to dogwatch`);
     console.log(`
   The layout is derived from the directory name, so renaming the directory is the whole migration.
   Nothing inside it needs to change; a run in progress keeps its state, evidence and history.
 
-    ${color.bold(process.platform === "win32" ? `ren "${join(legacy, LEGACY_DIR)}" .pulseflow` : `mv "${join(legacy, LEGACY_DIR)}" "${join(legacy, ".pulseflow")}"`)}
+    ${color.bold(process.platform === "win32" ? `ren "${from}" ${DOGWATCH_DIR}` : `mv "${from}" "${to}"`)}
 
   If a supervisor skill from before the rename is installed, replace it too:
-    ${color.bold("pulseflow skill install")}   (then delete .claude/skills/runpulse-supervisor/)
+    ${color.bold("dogwatch skill install")}   (then delete the old .claude/skills/ directory it names)
 `);
     return null;
   }
 
-  fail("no .pulseflow/config.json found here or in any parent directory - run `pulseflow init` first");
+  fail("no .dogwatch/config.json found here or in any parent directory - run `dogwatch init` first");
   return null;
 }
 
@@ -106,6 +113,9 @@ async function main(): Promise<number> {
       clear: { type: "boolean" },
       out: { type: "string" },
       open: { type: "boolean" },
+      port: { type: "string" },
+      write: { type: "boolean" },
+      token: { type: "string" },
     },
   });
 
@@ -159,7 +169,7 @@ async function main(): Promise<number> {
   if (command === "unblock") {
     const id = positionals[1];
     if (!id) {
-      fail("usage: pulseflow unblock <milestoneId> [--keep-attempts]");
+      fail("usage: dogwatch unblock <milestoneId> [--keep-attempts]");
       return 1;
     }
     return unblock({ layout: project.layout, milestoneId: id, keepAttempts: Boolean(values["keep-attempts"]) });
@@ -175,7 +185,16 @@ async function main(): Promise<number> {
   }
 
   if (command === "report") {
-    return report({ layout: project.layout, out: values.out, open: Boolean(values.open) });
+    return report({ config, layout: project.layout, out: values.out, open: Boolean(values.open) });
+  }
+
+  if (command === "serve") {
+    const port = values.port ? Number(values.port) : 4400;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      fail("--port must be an integer between 1 and 65535");
+      return 1;
+    }
+    return serve({ config, layout: project.layout, port, write: Boolean(values.write), token: values.token });
   }
 
   if (command === "kill") {

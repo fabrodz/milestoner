@@ -63,7 +63,7 @@ test("agent-authored text cannot inject markup into the report", () => {
       },
     ],
   });
-  const html = buildReport({ state: hostile, runLog: ["<img onerror=x>"], supervisorLog: [], generatedAt: new Date(0) });
+  const html = buildReport({ state: hostile, maxAttempts: 3, runLog: ["<img onerror=x>"], supervisorLog: [], generatedAt: new Date(0) });
 
   assert.ok(!html.includes("<script>alert(1)</script>"));
   assert.ok(!html.includes("<img onerror=x>"));
@@ -78,6 +78,7 @@ test("escapeHtml covers every character that can break out of markup or an attri
 test("the report carries the facts that make a run auditable", () => {
   const html = buildReport({
     state,
+    maxAttempts: 3,
     runLog: ["2026-08-18T20:00:00Z | M01 | launch | attempt 1/3"],
     supervisorLog: ["2026-08-18T20:30:00Z | rule 4 | kill agent | killed"],
     generatedAt: new Date("2026-08-18T21:30:00.000Z"),
@@ -93,14 +94,23 @@ test("the report carries the facts that make a run auditable", () => {
 });
 
 test("the report is self-contained", () => {
-  const html = buildReport({ state, runLog: [], supervisorLog: [], generatedAt: new Date(0) });
+  const html = buildReport({ state, maxAttempts: 3, runLog: [], supervisorLog: [], generatedAt: new Date(0) });
   assert.ok(!/<(script|iframe)\b/i.test(html), "no scripts");
   assert.ok(!/\b(src|href)\s*=\s*["']https?:/i.test(html), "no external assets");
 });
 
 test("timeline segments stay inside the track", () => {
-  const html = buildReport({ state, runLog: [], supervisorLog: [], generatedAt: new Date("2026-08-18T21:30:00.000Z") });
+  const html = buildReport({ state, maxAttempts: 3, runLog: [], supervisorLog: [], generatedAt: new Date("2026-08-18T21:30:00.000Z") });
   for (const [, left, width] of html.matchAll(/left:([\d.]+)%;width:([\d.]+)%/g)) {
     assert.ok(Number(left) + Number(width) <= 100.01, `segment overflows: ${left} + ${width}`);
   }
+});
+
+test("the attempt budget comes from the config, not from what happened to be spent", () => {
+  const html = buildReport({ state, maxAttempts: 3, runLog: [], supervisorLog: [], generatedAt: new Date(0) });
+
+  assert.ok(html.includes("1/3 attempts charged"), "M01 spent one of the three the config allows");
+  assert.ok(html.includes("2/3 attempts charged"), "M02 spent two of three");
+  assert.ok(!html.includes("/2 attempts"), "the highest attempt count observed in the run is not the budget");
+  assert.ok(html.includes("2 sessions"), "the session count is what says how many times the agent actually ran");
 });

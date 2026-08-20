@@ -35,10 +35,11 @@ export function installSkill(options: SkillOptions): number {
     return 1;
   }
 
-  const stale = join(base, ".claude", "skills", "runpulse-supervisor");
-  if (existsSync(stale)) {
+  for (const old of ["pulseflow-supervisor", "runpulse-supervisor"]) {
+    const stale = join(base, ".claude", "skills", old);
+    if (!existsSync(stale)) continue;
     warn(`a supervisor skill from before the rename is still installed at ${stale}`);
-    warn("  it tells the agent to run `runpulse ...`, which no longer exists - delete that directory");
+    warn(`  it tells the agent to run \`${old.replace("-supervisor", "")} ...\`, which no longer exists - delete that directory`);
   }
 
   ok(`installed ${SKILL_NAME} to ${file}`);
@@ -47,8 +48,8 @@ Start supervising a run with:
 
   ${color.bold(`/loop 10m Use the ${SKILL_NAME} skill to perform one supervision cycle.`)}
 
-The skill reads the run through ${color.bold("pulseflow status --json")} and may only intervene with
-${color.bold("pulseflow kill")}, ${color.bold("pulseflow attend")}, and relaunching ${color.bold("pulseflow run")}.
+The skill reads the run through ${color.bold("dogwatch status --json")} and may only intervene with
+${color.bold("dogwatch kill")}, ${color.bold("dogwatch attend")}, and relaunching ${color.bold("dogwatch run")}.
 `);
   return 0;
 }

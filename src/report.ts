@@ -2,6 +2,8 @@ import type { AttemptRecord, Milestone, RunState } from "./types.js";
 
 export interface ReportInput {
   state: RunState;
+  /** The configured attempt budget: the report must not infer it from what happened to be spent. */
+  maxAttempts: number;
   runLog: string[];
   supervisorLog: string[];
   generatedAt: Date;
@@ -68,13 +70,14 @@ function attemptTable(milestone: Milestone): string {
   const rows = milestone.history
     .map((a) => {
       const steering = a.steering ? `<div class="steer">steering: ${escapeHtml(a.steering)}</div>` : "";
+      const agent = a.agent ? `<div class="steer">agent: ${escapeHtml(a.agent)}</div>` : "";
       const detail = a.detail ? `<div class="detail">${escapeHtml(a.detail)}</div>` : "";
       return `<tr>
         <td>${a.attempt}</td>
         <td><span class="pill ${a.outcome}">${OUTCOME_LABEL[a.outcome]}</span></td>
         <td>${a.seconds}s</td>
         <td>${a.exitCode === null ? "-" : a.exitCode}</td>
-        <td class="mono">${escapeHtml(a.transcript)}${detail}${steering}</td>
+        <td class="mono">${escapeHtml(a.transcript)}${detail}${agent}${steering}</td>
       </tr>`;
     })
     .join("");
@@ -97,8 +100,10 @@ function milestoneCard(milestone: Milestone, maxAttempts: number): string {
     : "";
 
   const wasted = milestone.history.filter((a) => a.outcome === "infra-failure").length;
+  const sessions = milestone.history.length;
   const meta = [
-    `${milestone.attempts}/${maxAttempts} attempts`,
+    `${sessions} ${sessions === 1 ? "session" : "sessions"}`,
+    `${milestone.attempts}/${maxAttempts} attempts charged`,
     milestone.finishedAt ? `finished ${escapeHtml(milestone.finishedAt.slice(0, 16).replace("T", " "))}` : null,
     wasted ? `${wasted} infrastructure ${wasted === 1 ? "retry" : "retries"} (not charged)` : null,
   ]
@@ -149,14 +154,12 @@ export function buildReport(input: ReportInput): string {
     { k: "evidence lines", v: String(state.milestones.reduce((n, m) => n + m.evidence.length, 0)) },
   ];
 
-  const maxAttempts = Math.max(1, ...state.milestones.map((m) => m.attempts));
-
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>pulseflow - ${escapeHtml(state.run)}</title>
+<title>dogwatch - ${escapeHtml(state.run)}</title>
 <style>
 :root {
   --bg: #fbfbfa; --fg: #1c1c1a; --muted: #6b6b66; --line: #e2e2dd; --panel: #ffffff;
@@ -234,12 +237,12 @@ footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; text-align: ce
     <div class="legend"><span class="l-done">done</span><span class="l-incomplete">incomplete</span><span class="l-blocked">blocked</span><span class="l-infra">infrastructure, attempt not charged</span></div>
   </section>
 
-  ${state.milestones.map((m) => milestoneCard(m, maxAttempts)).join("")}
+  ${state.milestones.map((m) => milestoneCard(m, input.maxAttempts)).join("")}
 
   ${logBlock("Interventions", input.supervisorLog, "no supervisor intervened in this run")}
   ${logBlock("Engine events", input.runLog, "no engine events recorded")}
 
-  <footer>pulseflow report &middot; ${escapeHtml(String(state.milestones.length))} milestones &middot; generated locally, no external assets</footer>
+  <footer>dogwatch report &middot; ${escapeHtml(String(state.milestones.length))} milestones &middot; generated locally, no external assets</footer>
 </main>
 </body>
 </html>

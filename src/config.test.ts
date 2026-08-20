@@ -12,22 +12,22 @@ test("placeholders are substituted, unknown ones stay visible", () => {
 
 test("model args are appended only when a model is configured", () => {
   const config = defaultConfig("t", "/p");
-  const vars = { kickoff: "do M01", promptFile: "/p/.pulseflow/prompts/M01.md", milestoneId: "M01", projectRoot: "/p", model: "" };
-  assert.deepEqual(buildAgentArgs(config, vars), ["-p", "do M01", "--dangerously-skip-permissions"]);
+  const vars = { kickoff: "do M01", promptFile: "/p/.dogwatch/prompts/M01.md", milestoneId: "M01", projectRoot: "/p", model: "" };
+  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--dangerously-skip-permissions"]);
 
   config.agent.model = "claude-opus-5";
-  assert.deepEqual(buildAgentArgs(config, vars), ["-p", "do M01", "--dangerously-skip-permissions", "--model", "claude-opus-5"]);
+  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--dangerously-skip-permissions", "--model", "claude-opus-5"]);
 });
 
 test("a different agent is only a config change", () => {
   const config = defaultConfig("t", "/p");
   config.agent = { command: "codex", args: ["exec", "--file", "{{promptFile}}"], modelArgs: [], model: null, env: {} };
-  const args = buildAgentArgs(config, { promptFile: "/p/M01.md", kickoff: "x", milestoneId: "M01", projectRoot: "/p", model: "" });
+  const args = buildAgentArgs(config.agent, { promptFile: "/p/M01.md", kickoff: "x", milestoneId: "M01", projectRoot: "/p", model: "" });
   assert.deepEqual(args, ["exec", "--file", "/p/M01.md"]);
 });
 
 test("a partial config keeps the defaults it does not mention", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "pulseflow-")), "config.json");
+  const file = join(mkdtempSync(join(tmpdir(), "dogwatch-")), "config.json");
   writeFileSync(file, JSON.stringify({ run: "partial", agent: { command: "codex" }, infra: { deathSeconds: 30 } }));
   const config = loadConfig(file, "/p");
 
@@ -41,7 +41,7 @@ test("a partial config keeps the defaults it does not mention", () => {
 });
 
 test("a config without the required fields is rejected", () => {
-  const file = join(mkdtempSync(join(tmpdir(), "pulseflow-")), "config.json");
+  const file = join(mkdtempSync(join(tmpdir(), "dogwatch-")), "config.json");
   writeFileSync(file, JSON.stringify({ run: "no-agent" }));
   assert.throws(() => loadConfig(file, "/p"), /missing required field "agent"/);
 });

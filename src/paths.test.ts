@@ -3,17 +3,17 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { LEGACY_DIR, PULSEFLOW_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
+import { DOGWATCH_DIR, LEGACY_DIRS, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
 
 function project(dir: string): string {
-  const root = mkdtempSync(join(tmpdir(), "pulseflow-"));
+  const root = mkdtempSync(join(tmpdir(), "dogwatch-"));
   mkdirSync(join(root, dir), { recursive: true });
   writeFileSync(join(root, dir, "config.json"), "{}");
   return root;
 }
 
 test("the project root is found from a nested directory", () => {
-  const root = project(PULSEFLOW_DIR);
+  const root = project(DOGWATCH_DIR);
   const nested = join(root, "src", "deep");
   mkdirSync(nested, { recursive: true });
 
@@ -21,17 +21,25 @@ test("the project root is found from a nested directory", () => {
   assert.equal(findLegacyRoot(nested), null);
 });
 
-test("a pre-rename .runpulse run is found separately, so the CLI can explain the migration", () => {
-  const root = project(LEGACY_DIR);
+test("a run under any older directory name is found separately, so the CLI can explain the migration", () => {
+  for (const dir of LEGACY_DIRS) {
+    const root = project(dir);
 
-  assert.equal(findProjectRoot(root), null, "it must not be treated as a working project");
-  assert.equal(findLegacyRoot(root), root);
+    assert.equal(findProjectRoot(root), null, `${dir} must not be treated as a working project`);
+    assert.deepEqual(findLegacyRoot(root), { root, dir });
+  }
+});
+
+test("every rename keeps the previous names findable, not just the last one", () => {
+  assert.ok(LEGACY_DIRS.includes(".pulseflow"), "a run parked across two renames still needs the message");
+  assert.ok(LEGACY_DIRS.includes(".runpulse"));
+  assert.ok(!(LEGACY_DIRS as readonly string[]).includes(DOGWATCH_DIR), "the current name is not a legacy one");
 });
 
 test("the whole layout hangs off the directory name, which is why renaming it is the migration", () => {
   const layout = layoutFor("/p");
   for (const path of Object.values(layout)) {
     if (path === "/p") continue;
-    assert.ok(String(path).includes(PULSEFLOW_DIR), `${path} escapes the pulseflow directory`);
+    assert.ok(String(path).includes(DOGWATCH_DIR), `${path} escapes the dogwatch directory`);
   }
 });

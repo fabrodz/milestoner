@@ -1,19 +1,20 @@
 import { appendFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
 import { buildAgentArgs } from "./config.js";
 import type { Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { readSteering, type Steering } from "./steering.js";
-import { findMilestone, loadState, nextMilestone, saveState } from "./state.js";
-import type { AttemptRecord, KillMarker, Milestone, PulseflowConfig, RunState } from "./types.js";
+import { findMilestone, loadState, nextMilestone, updateState } from "./state.js";
+import type { AttemptRecord, KillMarker, Milestone, DogwatchConfig, RunState } from "./types.js";
 import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
 import { color, fail, humanDuration, info, ok, step, warn } from "./util/log.js";
 import { iso, sleep } from "./util/time.js";
 
 export interface RunOptions {
-  config: PulseflowConfig;
+  config: DogwatchConfig;
   layout: Layout;
   maxAttempts?: number;
   model?: string;
@@ -29,7 +30,9 @@ export interface RunOptions {
 export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted";
 
 function fileStamp(d = new Date()): string {
-  return d.toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  // Milliseconds included: two sessions of one milestone in the same second would otherwise
+  // share a transcript path, and the stream appends rather than truncates.
+  return d.toISOString().replace(/[-:]/g, "").replace("T", "-").replace(".", "-").slice(0, 19);
 }
 
 function logEvent(layout: Layout, milestoneId: string, event: string, detail: string): void {
@@ -38,7 +41,7 @@ function logEvent(layout: Layout, milestoneId: string, event: string, detail: st
 }
 
 export function buildKickoff(
-  config: PulseflowConfig,
+  config: DogwatchConfig,
   layout: Layout,
   milestone: Milestone,
   steering: Steering | null,
@@ -88,6 +91,7 @@ function applyVerdict(
   if (verdict.outcome === "done") {
     m.status = "done";
     m.finishedAt = record.endedAt;
+    m.diagnosis = null;
     return;
   }
   m.attempts += 1;
@@ -108,6 +112,12 @@ export async function run(options: RunOptions): Promise<RunExit> {
   ensureDir(layout.logs);
   ensureDir(layout.results);
 
+  // Built after the --model override so the primary slot carries it.
+  const pool = createPool(config);
+  if (hasFallbacks(pool)) {
+    info(`agents: ${pool.slots.map((s) => s.name).join(" -> ")} (fallback on infrastructure failure)`);
+  }
+
   let infraRetries = 0;
   const startedAt = iso();
 
@@ -123,6 +133,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
       attempt,
       sessionStartedAt,
       agentPid,
+      agent: hasFallbacks(pool) ? currentAgent(pool).name : null,
       transcript: transcriptPath,
       lastEvent: event,
       lastEventAt: iso(),
@@ -145,8 +156,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
           fail(`no milestone with id "${options.milestoneId}"`);
           return "stopped";
         }
-        state.runComplete = true;
-        saveState(layout.state, state);
+        updateState(layout.dir, layout.state, (s) => {
+          s.runComplete = true;
+        });
         step(`RUN COMPLETE (${state.run}) - all milestones done`);
         logEvent(layout, "-", "run-complete", `${state.milestones.length} milestones`);
         return "complete";
@@ -166,23 +178,28 @@ export async function run(options: RunOptions): Promise<RunExit> {
         } else {
           console.log(`  no diagnosis was written; read the last transcript in ${relative(config.projectRoot, layout.logs)}`);
         }
-        console.log(`  resume with: pulseflow unblock ${next.id}`);
+        console.log(`  resume with: dogwatch unblock ${next.id}`);
         pulse(next, next.attempts, null, "blocked");
         return "blocked";
       }
 
       if (next.attempts >= maxAttempts) {
         warn(`${next.id} exhausted ${maxAttempts} attempts - marking blocked`);
-        next.status = "blocked";
-        saveState(layout.state, state);
+        updateState(layout.dir, layout.state, (s) => {
+          const m = findMilestone(s, next.id);
+          if (m) m.status = "blocked";
+        });
         logEvent(layout, next.id, "attempts-exhausted", `${next.attempts}/${maxAttempts}`);
         continue;
       }
 
       const attempt = next.attempts + 1;
-      next.status = "in_progress";
-      next.startedAt = next.startedAt ?? iso();
-      saveState(layout.state, state);
+      updateState(layout.dir, layout.state, (s) => {
+        const m = findMilestone(s, next.id);
+        if (!m) return;
+        m.status = "in_progress";
+        m.startedAt = m.startedAt ?? iso();
+      });
 
       // A leftover drop box from an interrupted session would be graded as this attempt's result.
       removeIfExists(layout.result);
@@ -193,28 +210,35 @@ export async function run(options: RunOptions): Promise<RunExit> {
       transcriptPath = relative(config.projectRoot, transcript);
       const promptFile = join(layout.prompts, next.prompt);
       const steering = readSteering(layout.steering);
-      const args = buildAgentArgs(config, {
+      const active = currentAgent(pool);
+      const args = buildAgentArgs(active.agent, {
         kickoff: buildKickoff(config, layout, next, steering),
         promptFile,
         milestoneId: next.id,
         projectRoot: config.projectRoot,
-        pulseflowDir: layout.dir,
-        model: config.agent.model ?? "",
+        dogwatchDir: layout.dir,
+        model: active.agent.model ?? "",
       });
 
       step(`${next.id} - ${next.title}  (attempt ${attempt}/${maxAttempts})`);
       info(`prompt     ${relative(config.projectRoot, promptFile)}`);
       info(`transcript ${relative(config.projectRoot, transcript)}`);
       if (steering) info(`steering   ${color.bold(steering.headline)}`);
+      if (hasFallbacks(pool)) info(`agent      ${color.bold(active.name)}`);
       const sessionStartedAt = iso();
       pulse(next, attempt, sessionStartedAt, "session-launched");
-      logEvent(layout, next.id, "launch", `attempt ${attempt}/${maxAttempts}${steering ? `, steering: ${steering.headline}` : ""}`);
+      logEvent(
+        layout,
+        next.id,
+        "launch",
+        `attempt ${attempt}/${maxAttempts}, agent ${active.name}${steering ? `, steering: ${steering.headline}` : ""}`,
+      );
 
       const outcome = await runSession({
-        command: config.agent.command,
+        command: active.agent.command,
         args,
         cwd: config.projectRoot,
-        env: config.agent.env,
+        env: active.agent.env,
         transcript,
         signal,
         onSpawn: (pid) => {
@@ -262,9 +286,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
         // Record and hand the milestone back as pending first: whatever happens next, a relaunch
         // must find a clean entry point rather than a milestone stuck in_progress.
-        const back = loadState(layout.state);
-        const m = findMilestone(back, next.id);
-        if (m) {
+        updateState(layout.dir, layout.state, (back) => {
+          const m = findMilestone(back, next.id);
+          if (!m) return;
           m.status = "pending";
           m.history.push({
             attempt,
@@ -276,22 +300,39 @@ export async function run(options: RunOptions): Promise<RunExit> {
             outcome: "infra-failure",
             detail: `${infra.reason}: ${infra.detail}`,
             steering: steering?.headline,
+            agent: active.name,
           });
-          saveState(layout.state, back);
-        }
-        logEvent(layout, next.id, `infra:${infra.reason}`, `${infra.detail}; wait ${infra.waitSeconds}s`);
-
+        });
         if (infraRetries > config.infra.maxRetries) {
+          logEvent(layout, next.id, `infra:${infra.reason}`, infra.detail);
           fail(`too many infrastructure failures (${infraRetries}) - giving up`);
           logEvent(layout, next.id, "infra-exhausted", `${infraRetries} consecutive`);
           return "infra-exhausted";
         }
+
+        // The failing agent is benched for as long as the failure says it is unusable - until the
+        // announced reset for a usage limit - and the run continues on whoever is free.
+        const rotation = benchAndRotate(pool, infra.waitSeconds);
+        logEvent(
+          layout,
+          next.id,
+          `infra:${infra.reason}`,
+          `${active.name}: ${infra.detail}; ${rotation.switched ? `switching to ${rotation.next.name}` : `wait ${rotation.waitSeconds}s`}`,
+        );
+
+        const budget = `attempt NOT consumed (${infraRetries}/${config.infra.maxRetries})`;
+        if (rotation.switched && rotation.waitSeconds === 0) {
+          warn(`${infra.reason}: ${infra.detail} - switching to ${color.bold(rotation.next.name)}, ${budget}`);
+          pulse(next, attempt, null, `switched to ${rotation.next.name} after ${infra.reason}`);
+          continue;
+        }
+
+        const target = rotation.switched ? ` then ${rotation.next.name}` : "";
         warn(
-          `${infra.reason}: ${infra.detail} - waiting ${humanDuration(infra.waitSeconds * 1000)}, ` +
-            `attempt NOT consumed (${infraRetries}/${config.infra.maxRetries})`,
+          `${infra.reason}: ${infra.detail} - waiting ${humanDuration(rotation.waitSeconds * 1000)}${target}, ${budget}`,
         );
         pulse(next, attempt, null, `waiting out ${infra.reason}`);
-        await sleep(infra.waitSeconds, anySignal);
+        await sleep(rotation.waitSeconds, anySignal);
         continue;
       }
       infraRetries = 0;
@@ -310,11 +351,10 @@ export async function run(options: RunOptions): Promise<RunExit> {
         outcome: verdict.outcome,
         detail: verdict.warnings.join("; ") || undefined,
         steering: steering?.headline,
+        agent: active.name,
       };
 
-      const after = loadState(layout.state);
-      applyVerdict(after, next.id, record, verdict, maxAttempts);
-      saveState(layout.state, after);
+      const after = updateState(layout.dir, layout.state, (s) => applyVerdict(s, next.id, record, verdict, maxAttempts));
       logEvent(
         layout,
         next.id,
@@ -330,9 +370,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
         warn(`${next.id} incomplete - retrying`);
       }
 
-      if (options.once) return "stopped";
+      if (options.once) return findMilestone(after, next.id)?.status === "blocked" ? "blocked" : "stopped";
       if (stopping()) {
-        warn("stopping as requested - the run resumes with `pulseflow run`");
+        warn("stopping as requested - the run resumes with `dogwatch run`");
         return "stopped";
       }
       if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);

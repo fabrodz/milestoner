@@ -4,7 +4,7 @@ import { readJsonIfExists, removeIfExists, writeJsonAtomic } from "./util/fs.js"
 import { resolveFrom } from "./paths.js";
 import type { Pulse } from "./types.js";
 
-const SKIP = new Set(["node_modules", ".git", ".pulseflow", "dist", "Library", "Temp", "obj", "bin"]);
+const SKIP = new Set(["node_modules", ".git", ".dogwatch", "dist", "Library", "Temp", "obj", "bin"]);
 
 export interface LivenessSignal {
   path: string;
