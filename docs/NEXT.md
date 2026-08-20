@@ -20,6 +20,26 @@ usage limit or agent fallback mid-flight, a non-Claude agent across a whole run 
 milestone, and the supervisor loop against a live multi-milestone run rather than the one blocked run
 it has been tried on.
 
+## 0. Two things are owed before anything else here
+
+**M05's fix is on `main` without the Linux verification its own gate asked for.** The lock fix
+(D-028) is merged and green on Windows at 111/111, but AC3 wanted a green CI matrix and CI is
+unavailable: the repository is private and the GitHub account's Actions minutes are exhausted. The
+milestone is still `blocked` in `.milestoner/state.json`, deliberately, and there is no `v05/M05`
+tag. The session itself refused to merge or tag for exactly this reason; merging was an operator
+decision taken because leaving a known lost-update bug on `main` is worse than merging a fix that
+three platforms have not yet all agreed on. Close it properly when CI returns: `milestoner unblock
+M05`, let the retry read the matrix, then tag.
+
+**The rewritten history is clean, but GitHub still serves the old objects.** The repository's history
+was rewritten on 2026-08-20 to remove the originating project's name, its absolute paths, a Windows
+username, and to unify four author identities into one. A fresh clone is clean. Force-pushing does
+not make the pre-rewrite commits unreachable on GitHub, though: they are still served by SHA, with
+their contents, and the only ways to be rid of them are a new repository or a purge request to
+GitHub Support. The repository is private in the meantime, which is what makes that safe to defer.
+It is also why Actions is unavailable, so this item and the one above are the same item wearing two
+hats.
+
 ## 1. A crashed session is charged an attempt it did not deserve
 
 New, and the most valuable thing the v0.5 run produced, because the engine found it by failing at it.
@@ -87,6 +107,11 @@ first and work only if the decision goes a particular way.
 
 ## Order
 
+0 is not really a task but a debt, and both halves of it are waiting on the same decision about what
+happens to the repository. Nothing below it is blocked by it, which is the only reason the rest can
+proceed at all.
+
 1 and 2 are small and both came out of using the tool, so they are the cheapest things here and
-should go first. 3 is next and is the only item that changes anything for anyone outside this
-repository. 4 needs its decision written before any screen. 5 is still a question, not a task.
+should go first. 3 cannot happen before 0 is settled, because publishing from a repository whose
+history is still being decided is the wrong order. 4 needs its decision written before any screen.
+5 is still a question, not a task.
