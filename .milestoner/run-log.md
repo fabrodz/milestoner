@@ -1,0 +1,6 @@
+2026-08-20T14:27:37.632Z | M01 | launch | attempt 1/3, agent claude
+2026-08-20T14:38:12.021Z | M01 | done | attempt 1, 634s
+2026-08-20T14:38:12.035Z | M02 | launch | attempt 1/3, agent claude
+2026-08-20T14:54:42.597Z | M02 | done | attempt 1, 991s
+2026-08-20T14:54:42.605Z | M03 | launch | attempt 1/3, agent claude
+2026-08-20T15:10:11.350Z | M03 | incomplete | attempt 1, 929s, no result.json written
