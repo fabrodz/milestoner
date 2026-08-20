@@ -419,3 +419,108 @@ The run's four milestones are complete. Outstanding across the run: push and rea
 M01, M02 and M04, none of which have been through CI on Linux or macOS. Nothing in M04 is
 platform-specific beyond what `serve` already did, but the two new port-binding tests are the kind
 that behave differently on a loaded CI runner.
+
+## M05 - The state lock cannot be broken by the process that just took it (2026-08-20)
+
+The fix, the regression tests and the docs are complete and green locally; the milestone is
+**blocked on AC3 alone**, because GitHub Actions refuses to start any job on this account.
+
+### What was built
+
+`src/lock.ts` rewritten around three changes, recorded together as D-028:
+
+- **Acquisition publishes the payload atomically.** The holder JSON goes into a per-process temp
+  file and `linkSync(tmp, lockfile)` makes it the lock: the link lands whole or fails `EEXIST`, so
+  no contender can observe an empty lock. A filesystem without hard links (first non-EEXIST link
+  error) drops the process to the old `wx`-then-write for good, where the grace below covers the
+  reopened window. `at` is built per attempt, so a long wait cannot make a fresh acquisition look
+  stale.
+- **`breakIfStale` honours what it cannot read.** An unreadable or empty lock is broken only when
+  the file's own mtime is older than a 3-second grace - the filesystem is the only party that saw
+  the file appear, so no contender has to remember anything across processes. 3s not 300ms because
+  FAT-family filesystems round mtime to whole seconds and FAT is exactly where the `wx` fallback
+  runs. Readable holders keep the old rules: dead pid broken at once, `at` older than 30s broken.
+- **The 5-second steal-and-run-unlocked fallback is gone.** Liveness now comes from the stale rules;
+  the deadline is 60s, unreachable through any nameable failure, and on that path the caller
+  proceeds unlocked but leaves the lock file alone, because deleting it is what let a third process
+  in. Release is ownership-checked (exact payload compare), so a holder broken as stale cannot
+  delete the lock its breaker has since taken.
+
+5 new tests in `src/lock.test.ts`; the two concurrent tests hardened (6 writers x 5 writes, 6
+registrars x 4 registrations). Suite 106 -> 111.
+
+### Evidence per acceptance criterion
+
+- **AC1** - `.milestoner/evidence/M05-lock.txt`. Pre-fix run (src/lock.ts from cf4fa0c, one word
+  `export` added so the import resolves, stated in the file): exit 1, `# pass 8` / `# fail 3` -
+  `not ok 5 - an empty lock is a lock acquired this instant, and a contender must not break it`
+  ("must survive a contender"), `not ok 7 - a contender that meets an empty lock waits out the
+  grace instead of stealing it` ("waited 22ms"), `not ok 8 - release removes only its own lock,
+  never one that was broken and retaken` (lock already deleted). Post-fix run: exit 0, `# pass 11`
+  / `# fail 0`. Test 5 drives the window exactly as the prompt describes: open `wx`, run
+  `breakIfStale` from the contender's position, assert the lock survives and a third `wx` fails.
+- **AC2** - `.milestoner/evidence/M05-repeats.txt`: 10 rounds of
+  `node --import tsx --test src/lock.test.ts src/registry.test.ts`, every round exit 0, `# pass 20`
+  / `# fail 0`, zero `not ok` lines. The rounds include `concurrent writers from separate processes
+  do not lose an update` (now 30 interleaved acquisitions) and `concurrent registration from
+  several processes loses no entry` (now 24). Full suite in `.milestoner/evidence/M05-test.txt`:
+  `# tests 111`, `# pass 111`, `# fail 0` against the 106/106 baseline in `M05-test-baseline.txt`.
+- **AC3** - **Not achieved**, `.milestoner/evidence/M05-ci.txt`. Run 32423986143 on wip/M05 at
+  9621f63 (PR #3): all eight jobs `failure` with zero steps, annotation "The job was not started
+  because recent account payments have failed or your spending limit needs to be increased", twice
+  (initial + `gh run rerun`). The prompt's premise "the repository is public now, so Actions
+  minutes are free" is false: `gh repo view` reports `visibility: PRIVATE`. No WSL, no Docker on
+  this host. This is the blocker.
+- **AC4** - `docs/DECISIONS.md`, `## D-028 - The lock carries its holder from the first instant,
+  because D-022 broke empty locks on sight (2026-08-20)`. Opens on what D-022 got wrong (`wx`
+  creates the lock empty, and "unreadable or empty" was deleted on sight - reasoning inverted),
+  then one paragraph per decision with rejected alternatives.
+- **AC5** - `CHANGELOG.md` under `## [Unreleased]` / `### Fixed`, first line: "Two milestoner
+  processes writing state at the same moment could silently lose one of the writes". Symptoms
+  named as a person sees them: an `unblock` that vanishes as if never typed, a live run missing
+  from `milestoner runs`.
+
+Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0 (111/111),
+`claude plugin validate .` exit 0, `node dist/cli.js --version` prints 0.5.0. `dist/` left built
+and green.
+
+### Problems hit
+
+GitHub Actions would not start a single job: every job in run 32423986143 fails instantly with a
+billing annotation, on both the initial trigger and a rerun. The repository turned out to be
+private, contradicting the prompt. With no WSL and no Docker on this host there is no local Linux
+substitute, so AC3 - a core criterion, explicitly not descopeable - cannot be evidenced from here.
+Everything else was done first, so the retry only needs a green matrix.
+
+### Decisions
+
+Three in `.milestoner/decisions.md`: the three lock decisions promoted to D-028; `breakIfStale`
+exported so the regression test can drive the window deterministically (rejected: a test-only
+grace knob, and child-process choreography whose spawn latency is the same order as any affordable
+grace); and the pre-fix evidence run modifying the old lock by exactly one word, stated in the
+evidence file.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+None from the engine itself. One finding about the run's scaffolding: the milestone prompt asserts
+the repository is public and it is not, and the two cheap confirmations (visibility, one rerun)
+were worth more than spending the remaining push-and-wait cycles on identical billing failures.
+
+### Backlog
+
+- The `wx` fallback path in `tryAcquire` is exercised only implicitly (no CI filesystem lacks hard
+  links). A test that forces `linkUnsupported` would close that.
+- `workflow_dispatch` on the CI workflow, carried from M03 and M04: still true, and this milestone
+  would have used it.
+
+### Next step
+
+For the retry session, once the user has fixed GitHub billing or made the repository public: the
+branch wip/M05 at 9621f63 holds everything, PR #3 is open; `gh run rerun 32423986143` (or an empty
+push to wip/M05), `gh run watch`, write the ubuntu conclusions into
+`.milestoner/evidence/M05-ci.txt`, then merge wip/M05 to main locally (no push to main), tag
+`v05/M05`, and report done. The working tree is left checked out on wip/M05.
