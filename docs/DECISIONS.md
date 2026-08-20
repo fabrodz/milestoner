@@ -512,3 +512,43 @@ contains no secret. `milestoner run --serve --open` therefore exits `1` and says
 ignoring the flag: a user who typed it wants the browser open and needs to know it will not happen
 and what to do instead. Copying one URL out of the terminal is the whole difference, and it keeps
 the key in one place the user chose.
+
+## D-028 - The lock carries its holder from the first instant, because D-022 broke empty locks on sight (2026-08-20)
+
+D-022's lock could be broken by the process that had just taken it. `openSync(file, "wx")` was the
+atomic test-and-set, but it creates the file *empty*; the holder's pid landed on the next line. For
+that instant the lock existed with no contents, and `breakIfStale` treated "unreadable or empty" as
+nothing worth waiting for and deleted it on sight. The reasoning was inverted: an empty lock file is
+the signature of a lock acquired microseconds ago, which is the one that most needs respecting. A
+contender deleted it, took `wx` itself, and two processes ran the read-modify-write D-022 exists to
+serialise; one update was silently lost. CI caught it once as
+`concurrent registration from several processes loses no entry` on `ubuntu-latest / node 20` (run
+32420272395, `run-1` lost out of six) - green on the other seven jobs, because the window is
+microseconds and the suite mostly failed to lose. Three decisions close it.
+
+**The lock becomes visible with its payload already in it.** The payload is written to a temp file
+first and `linkSync(tmp, lockfile)` publishes it: a hard link lands whole or fails with `EEXIST`,
+so on this path no contender can ever observe an empty lock. Rejected: keeping `wx` and writing
+faster, which shrinks the window without closing it, and `renameSync`, which overwrites an existing
+destination and so is not a test-and-set at all. On a filesystem without hard links (FAT and some
+network shares), the first failed link drops the process to the old `wx`-then-write for good, and
+correctness there rests on the next paragraph.
+
+**A lock that cannot be read is honoured for a grace window, not deleted.** The window is keyed on
+the lock file's own mtime, because the contender is a different process on each attempt and the
+filesystem is the only party that saw the file appear; no contender has to remember anything across
+attempts. Three seconds, not something tighter, because FAT-family filesystems round mtime to whole
+seconds and the fallback path above is exactly where they show up. The cost is bounded and rare: a
+holder that crashes inside the microsecond gap between `wx` and its write delays contenders by three
+seconds, once, and only on filesystems where the fallback runs at all.
+
+**The 5-second steal-and-run-unlocked fallback is gone.** D-022 said a run that stops because a lock
+never cleared is worse than the race, and after `WAIT_MS` it deleted whatever lock existed and ran
+the critical section unlocked - a second, deliberate way for two processes to end up inside. The
+premise was wrong once the stale rules are trusted to do their job: a dead holder is broken at once,
+a live-but-wedged one when its `at` passes 30 seconds, an unreadable lock when its mtime passes the
+grace, so no failure that can be named leaves the lock standing for a minute. The deadline is now 60
+seconds and reaching it means something the rules cannot name; only then does the caller proceed
+unlocked, and it leaves the lock file in place, because deleting it is what would let a third
+process in. Release is ownership-checked for the same reason: a holder that was broken as stale must
+not, on finishing, delete the lock its breaker has since taken.

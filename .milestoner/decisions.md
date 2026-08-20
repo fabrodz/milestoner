@@ -182,3 +182,40 @@ protocol already forbids writing to them; not committing them is the same rule a
 Rejected: `.gitignore` plus `git rm --cached`. It is the cleaner end state but it rewrites how the
 engine's own files are tracked, which is a change to the run's scaffolding made by one milestone that
 has nothing to do with it. Worth doing deliberately, in its own change.
+
+## 2026-08-20 - M05 - The three lock decisions, promoted to D-028
+
+Context: M05 named three decisions - how the lock becomes visible with its payload in it, what
+`breakIfStale` does with a lock it cannot read, and whether the `WAIT_MS` fallback keeps running
+`fn()` unlocked. All three are one mechanism, so they are one permanent entry.
+
+Decision: `linkSync` from a payload-carrying temp file, with a per-process fall back to `wx` where
+hard links are unavailable; a 3-second grace for unreadable locks keyed on the file's own mtime, so
+no contender has to remember anything across processes; and the steal-and-run-unlocked fallback
+replaced by trust in the stale rules, with a 60-second valve that runs unlocked without deleting
+the lock, plus ownership-checked release. Written up as D-028 with the rejected alternatives.
+
+## 2026-08-20 - M05 - `breakIfStale` is exported, so the regression test can drive the window
+
+Context: the window is microseconds inside `withStateLock`, and the milestone requires a test that
+drives it deterministically rather than spawning contenders and hoping one loses.
+
+Decision: export `breakIfStale` and have the test freeze the window itself - open the lock `wx`,
+call `breakIfStale` from the contender's position, assert the empty lock survives. This is the
+exact reproduction the milestone prompt describes. A timing-based sibling test covers the same
+window through the public `withStateLock` path, so the export is corroboration, not the only gate.
+
+Rejected: a test-only grace knob (an env var or parameter), which puts configuration into
+production code to serve one test; and child-process choreography against the real window, whose
+spawn latency on a loaded CI runner is the same order as any affordable grace.
+
+## 2026-08-20 - M05 - The pre-fix evidence run modifies the old lock by one word
+
+Context: AC1 wants the regression test's output against the pre-fix lock, but the test imports
+`breakIfStale`, which the pre-fix module does not export; run as-is the whole file dies at import
+time, which proves nothing about the window.
+
+Decision: for the evidence run only, restore `src/lock.ts` from cf4fa0c and add the keyword
+`export` in front of `function breakIfStale`, changing nothing else. Stated in
+`.milestoner/evidence/M05-lock.txt` itself. The tests then fail for the real reason: the empty lock
+is deleted, the contender steals it in 22ms, release removes a lock it no longer owns.

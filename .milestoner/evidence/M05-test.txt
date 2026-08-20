@@ -1,0 +1,717 @@
+﻿
+> milestoner@0.5.0 test
+> node scripts/test.mjs
+
+TAP version 13
+# Subtest: a run with no fallbacks behaves exactly as it did before rotation existed
+ok 1 - a run with no fallbacks behaves exactly as it did before rotation existed
+  ---
+  duration_ms: 0.8427
+  type: 'test'
+  ...
+# Subtest: an agent that is out of quota hands the run to one that is free, without waiting
+ok 2 - an agent that is out of quota hands the run to one that is free, without waiting
+  ---
+  duration_ms: 0.2191
+  type: 'test'
+  ...
+# Subtest: when everyone is benched it sleeps for the shortest cooldown and resumes there
+ok 3 - when everyone is benched it sleeps for the shortest cooldown and resumes there
+  ---
+  duration_ms: 0.0834
+  type: 'test'
+  ...
+# Subtest: the primary comes back when its quota does, instead of being written off for the run
+ok 4 - the primary comes back when its quota does, instead of being written off for the run
+  ---
+  duration_ms: 0.0704
+  type: 'test'
+  ...
+# Subtest: with three agents it does not retry the same fallback first every time
+ok 5 - with three agents it does not retry the same fallback first every time
+  ---
+  duration_ms: 0.0776
+  type: 'test'
+  ...
+# Subtest: benching never shortens a cooldown already in force
+ok 6 - benching never shortens a cooldown already in force
+  ---
+  duration_ms: 0.3004
+  type: 'test'
+  ...
+# Subtest: both runs are printed with their project, milestone, progress and verdict
+ok 7 - both runs are printed with their project, milestone, progress and verdict
+  ---
+  duration_ms: 59.8281
+  type: 'test'
+  ...
+# Subtest: a blocked run exits 2, the same signal `status` gives
+ok 8 - a blocked run exits 2, the same signal `status` gives
+  ---
+  duration_ms: 17.803
+  type: 'test'
+  ...
+# Subtest: a deleted project is reported as pruned and does not take the listing down with it
+ok 9 - a deleted project is reported as pruned and does not take the listing down with it
+  ---
+  duration_ms: 50.5662
+  type: 'test'
+  ...
+# Subtest: --json is the same listing, machine-readable
+ok 10 - --json is the same listing, machine-readable
+  ---
+  duration_ms: 30.1316
+  type: 'test'
+  ...
+# Subtest: an empty registry says so and exits 0
+ok 11 - an empty registry says so and exits 0
+  ---
+  duration_ms: 0.6847
+  type: 'test'
+  ...
+# Subtest: placeholders are substituted, unknown ones stay visible
+ok 12 - placeholders are substituted, unknown ones stay visible
+  ---
+  duration_ms: 1.0806
+  type: 'test'
+  ...
+# Subtest: model args are appended only when a model is configured
+ok 13 - model args are appended only when a model is configured
+  ---
+  duration_ms: 1.0392
+  type: 'test'
+  ...
+# Subtest: a different agent is only a config change
+ok 14 - a different agent is only a config change
+  ---
+  duration_ms: 0.4019
+  type: 'test'
+  ...
+# Subtest: a partial config keeps the defaults it does not mention
+ok 15 - a partial config keeps the defaults it does not mention
+  ---
+  duration_ms: 9.0445
+  type: 'test'
+  ...
+# Subtest: a config without the required fields is rejected
+ok 16 - a config without the required fields is rejected
+  ---
+  duration_ms: 2.1921
+  type: 'test'
+  ...
+# Subtest: every write bumps rev, so a reader can tell a change from a change back
+ok 17 - every write bumps rev, so a reader can tell a change from a change back
+  ---
+  duration_ms: 63.9001
+  type: 'test'
+  ...
+# Subtest: the lock is released even when the mutation throws
+ok 18 - the lock is released even when the mutation throws
+  ---
+  duration_ms: 22.9058
+  type: 'test'
+  ...
+# Subtest: a lock left by a process that no longer exists is broken, not waited for
+ok 19 - a lock left by a process that no longer exists is broken, not waited for
+  ---
+  duration_ms: 65.2469
+  type: 'test'
+  ...
+# Subtest: concurrent writers from separate processes do not lose an update
+ok 20 - concurrent writers from separate processes do not lose an update
+  ---
+  duration_ms: 583.009
+  type: 'test'
+  ...
+# Subtest: an empty lock is a lock acquired this instant, and a contender must not break it
+ok 21 - an empty lock is a lock acquired this instant, and a contender must not break it
+  ---
+  duration_ms: 8.6721
+  type: 'test'
+  ...
+# Subtest: an empty lock whose holder died before writing is broken after the grace, not honoured forever
+ok 22 - an empty lock whose holder died before writing is broken after the grace, not honoured forever
+  ---
+  duration_ms: 1.8176
+  type: 'test'
+  ...
+# Subtest: a contender that meets an empty lock waits out the grace instead of stealing it
+ok 23 - a contender that meets an empty lock waits out the grace instead of stealing it
+  ---
+  duration_ms: 3058.1725
+  type: 'test'
+  ...
+# Subtest: release removes only its own lock, never one that was broken and retaken
+ok 24 - release removes only its own lock, never one that was broken and retaken
+  ---
+  duration_ms: 13.4736
+  type: 'test'
+  ...
+# Subtest: the lock names its holder for as long as it exists
+ok 25 - the lock names its holder for as long as it exists
+  ---
+  duration_ms: 8.6183
+  type: 'test'
+  ...
+# Subtest: withStateLock returns whatever the critical section returns
+ok 26 - withStateLock returns whatever the critical section returns
+  ---
+  duration_ms: 8.7318
+  type: 'test'
+  ...
+# Subtest: state.json is left parseable, not half-written, after a burst
+ok 27 - state.json is left parseable, not half-written, after a burst
+  ---
+  duration_ms: 177.304
+  type: 'test'
+  ...
+# Subtest: the project root is found from a nested directory
+ok 28 - the project root is found from a nested directory
+  ---
+  duration_ms: 5.1394
+  type: 'test'
+  ...
+# Subtest: a run under any older directory name is found separately, so the CLI can explain the migration
+ok 29 - a run under any older directory name is found separately, so the CLI can explain the migration
+  ---
+  duration_ms: 4.5573
+  type: 'test'
+  ...
+# Subtest: every rename keeps the previous names findable, not just the last one
+ok 30 - every rename keeps the previous names findable, not just the last one
+  ---
+  duration_ms: 0.1466
+  type: 'test'
+  ...
+# Subtest: the whole layout hangs off the directory name, which is why renaming it is the migration
+ok 31 - the whole layout hangs off the directory name, which is why renaming it is the migration
+  ---
+  duration_ms: 0.2302
+  type: 'test'
+  ...
+# Subtest: the plugin ships /milestoner-init with the frontmatter the runtime needs
+ok 32 - the plugin ships /milestoner-init with the frontmatter the runtime needs
+  ---
+  duration_ms: 1.0695
+  type: 'test'
+  ...
+# Subtest: the plugin ships /milestoner-status with the frontmatter the runtime needs
+ok 33 - the plugin ships /milestoner-status with the frontmatter the runtime needs
+  ---
+  duration_ms: 0.436
+  type: 'test'
+  ...
+# Subtest: the plugin ships /milestoner-supervise with the frontmatter the runtime needs
+ok 34 - the plugin ships /milestoner-supervise with the frontmatter the runtime needs
+  ---
+  duration_ms: 1.0685
+  type: 'test'
+  ...
+# Subtest: the plugin ships /milestoner-report with the frontmatter the runtime needs
+ok 35 - the plugin ships /milestoner-report with the frontmatter the runtime needs
+  ---
+  duration_ms: 0.3317
+  type: 'test'
+  ...
+# Subtest: no command hands the model a path the supervisor is denied
+ok 36 - no command hands the model a path the supervisor is denied
+  ---
+  duration_ms: 0.9315
+  type: 'test'
+  ...
+# Subtest: two runs in different directories are both listed, each with its own milestone and verdict
+ok 37 - two runs in different directories are both listed, each with its own milestone and verdict
+  ---
+  duration_ms: 51.865
+  type: 'test'
+  ...
+# Subtest: a runner that is gone leaves no live entry, and expires out of the file a day later
+ok 38 - a runner that is gone leaves no live entry, and expires out of the file a day later
+  ---
+  duration_ms: 52.2511
+  type: 'test'
+  ...
+# Subtest: a recycled pid is not mistaken for a live run
+ok 39 - a recycled pid is not mistaken for a live run
+  ---
+  duration_ms: 30.8102
+  type: 'test'
+  ...
+# Subtest: a registered project whose directory is gone is pruned and reported, not fatal
+ok 40 - a registered project whose directory is gone is pruned and reported, not fatal
+  ---
+  duration_ms: 47.9493
+  type: 'test'
+  ...
+# Subtest: concurrent registration from several processes loses no entry
+ok 41 - concurrent registration from several processes loses no entry
+  ---
+  duration_ms: 596.6521
+  type: 'test'
+  ...
+# Subtest: registering the same directory twice replaces the entry, because one run per directory is the rule
+ok 42 - registering the same directory twice replaces the entry, because one run per directory is the rule
+  ---
+  duration_ms: 16.5654
+  type: 'test'
+  ...
+# Subtest: deregistering removes that runner's entry and leaves the others alone
+ok 43 - deregistering removes that runner's entry and leaves the others alone
+  ---
+  duration_ms: 23.2001
+  type: 'test'
+  ...
+# Subtest: a run that finished reads as complete rather than as a runner that vanished
+ok 44 - a run that finished reads as complete rather than as a runner that vanished
+  ---
+  duration_ms: 8.2216
+  type: 'test'
+  ...
+# Subtest: an unreadable or absent registry lists nothing instead of throwing
+ok 45 - an unreadable or absent registry lists nothing instead of throwing
+  ---
+  duration_ms: 2.6679
+  type: 'test'
+  ...
+# Subtest: agent-authored text cannot inject markup into the report
+ok 46 - agent-authored text cannot inject markup into the report
+  ---
+  duration_ms: 1.7177
+  type: 'test'
+  ...
+# Subtest: escapeHtml covers every character that can break out of markup or an attribute
+ok 47 - escapeHtml covers every character that can break out of markup or an attribute
+  ---
+  duration_ms: 0.1094
+  type: 'test'
+  ...
+# Subtest: the report carries the facts that make a run auditable
+ok 48 - the report carries the facts that make a run auditable
+  ---
+  duration_ms: 0.2389
+  type: 'test'
+  ...
+# Subtest: the report is self-contained
+ok 49 - the report is self-contained
+  ---
+  duration_ms: 0.2076
+  type: 'test'
+  ...
+# Subtest: timeline segments stay inside the track
+ok 50 - timeline segments stay inside the track
+  ---
+  duration_ms: 0.1928
+  type: 'test'
+  ...
+# Subtest: the attempt budget comes from the config, not from what happened to be spent
+ok 51 - the attempt budget comes from the config, not from what happened to be spent
+  ---
+  duration_ms: 0.1896
+  type: 'test'
+  ...
+# Subtest: done with evidence is done
+ok 52 - done with evidence is done
+  ---
+  duration_ms: 0.9171
+  type: 'test'
+  ...
+# Subtest: done without evidence is downgraded to incomplete
+ok 53 - done without evidence is downgraded to incomplete
+  ---
+  duration_ms: 0.1266
+  type: 'test'
+  ...
+# Subtest: a missing result file is incomplete
+ok 54 - a missing result file is incomplete
+  ---
+  duration_ms: 0.0772
+  type: 'test'
+  ...
+# Subtest: a result for another milestone is ignored
+ok 55 - a result for another milestone is ignored
+  ---
+  duration_ms: 0.0629
+  type: 'test'
+  ...
+# Subtest: blocked keeps a complete diagnosis
+ok 56 - blocked keeps a complete diagnosis
+  ---
+  duration_ms: 0.1044
+  type: 'test'
+  ...
+# Subtest: blocked without a diagnosis still blocks but warns
+ok 57 - blocked without a diagnosis still blocks but warns
+  ---
+  duration_ms: 0.0584
+  type: 'test'
+  ...
+# Subtest: an unknown status is incomplete
+ok 58 - an unknown status is incomplete
+  ---
+  duration_ms: 0.0958
+  type: 'test'
+  ...
+# == M01 - M01  (attempt 1/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-273.log
+# 19:21:20 session ended (exit 0, 0s, 2001 B transcript)
+# 19:21:20 M01 reported blocked
+# == M01 - M01  (attempt 1/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-514.log
+# Subtest: --once reports a block, so a script cannot read exit 0 over a blocked run
+ok 59 - --once reports a block, so a script cannot read exit 0 over a blocked run
+  ---
+  duration_ms: 247.3801
+  type: 'test'
+  ...
+# 19:21:20 session ended (exit 0, 0s, 2001 B transcript)
+# 19:21:20 M01 DONE - 1 evidence line(s)
+# == M01 - M01  (attempt 1/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-667.log
+# Subtest: --once on a session that succeeds still just stops
+ok 60 - --once on a session that succeeds still just stops
+  ---
+  duration_ms: 153.5031
+  type: 'test'
+  ...
+# 19:21:20 session ended (exit 0, 0s, 2001 B transcript)
+# 19:21:20 M01 reported blocked
+# == M01 - M01  (attempt 2/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-761.log
+# 19:21:20 session ended (exit 0, 0s, 2001 B transcript)
+# 19:21:20 M01 DONE - 1 evidence line(s)
+# Subtest: a milestone that recovers does not keep the diagnosis of the attempt that failed
+ok 61 - a milestone that recovers does not keep the diagnosis of the attempt that failed
+  ---
+  duration_ms: 187.1309
+  type: 'test'
+  ...
+# == M01 - M01  (attempt 1/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-287.log
+# 19:21:20 session ended (exit 0, 0s, 2001 B transcript)
+# 19:21:20 M01 DONE - 1 evidence line(s)
+# Subtest: the runner registers while it runs and deregisters in the same finally that clears the pulse
+ok 62 - the runner registers while it runs and deregisters in the same finally that clears the pulse
+  ---
+  duration_ms: 297.946
+  type: 'test'
+  ...
+# Subtest: the panel comes up with the run and answers with this run's live state
+ok 63 - the panel comes up with the run and answers with this run's live state
+  ---
+  duration_ms: 1440.0144
+  type: 'test'
+  ...
+# Subtest: the panel is closed once the run ends, and its port is free again
+ok 64 - the panel is closed once the run ends, and its port is free again
+  ---
+  duration_ms: 1293.1242
+  type: 'test'
+  ...
+# Subtest: a port already in use moves the panel and does not take the run down
+ok 65 - a port already in use moves the panel and does not take the run down
+  ---
+  duration_ms: 1305.3229
+  type: 'test'
+  ...
+# Subtest: one interrupt with a panel attached still finishes and grades the running session
+ok 66 - one interrupt with a panel attached still finishes and grades the running session
+  ---
+  duration_ms: 1296.048
+  type: 'test'
+  ...
+# Subtest: a second interrupt with a panel attached still leaves the milestone in_progress
+ok 67 - a second interrupt with a panel attached still leaves the milestone in_progress
+  ---
+  duration_ms: 730.8893
+  type: 'test'
+  ...
+# == M01 - M01  (attempt 1/3)
+# 19:21:20 prompt     .milestoner\\prompts\\M01.md
+# 19:21:20 transcript .milestoner\\logs\\M01-20260820-222120-394.log
+# 19:21:21 session ended (exit 0, 1s, 15 B transcript)
+# 19:21:21 M01 DONE - 1 evidence line(s)
+# 19:21:21 stopping as requested - the run resumes with `milestoner run`
+# == M01 - M01  (attempt 1/3)
+# 19:21:21 prompt     .milestoner\\prompts\\M01.md
+# 19:21:21 transcript .milestoner\\logs\\M01-20260820-222121-823.log
+# Subtest: one interrupt lets the running session finish and be graded, then stops
+ok 68 - one interrupt lets the running session finish and be graded, then stops
+  ---
+  duration_ms: 1452.0141
+  type: 'test'
+  ...
+# 19:21:22 killed - leaving the milestone in_progress
+# Subtest: a second interrupt kills the session and leaves the milestone in_progress
+ok 69 - a second interrupt kills the session and leaves the milestone in_progress
+  ---
+  duration_ms: 762.0556
+  type: 'test'
+  ...
+# Subtest: the kickoff points at the protocol, the prompt and the result contract
+ok 70 - the kickoff points at the protocol, the prompt and the result contract
+  ---
+  duration_ms: 1.3345
+  type: 'test'
+  ...
+# Subtest: steering is inlined into the kickoff, not merely referenced
+ok 71 - steering is inlined into the kickoff, not merely referenced
+  ---
+  duration_ms: 1.1597
+  type: 'test'
+  ...
+# Subtest: no token, a wrong token and a truncated token are all refused
+ok 72 - no token, a wrong token and a truncated token are all refused
+  ---
+  duration_ms: 50.7316
+  type: 'test'
+  ...
+# Subtest: the token is accepted as a bearer header, so it can stay out of the URL
+ok 73 - the token is accepted as a bearer header, so it can stay out of the URL
+  ---
+  duration_ms: 3.4817
+  type: 'test'
+  ...
+# Subtest: a Host header we did not expect is refused before anything else happens
+ok 74 - a Host header we did not expect is refused before anything else happens
+  ---
+  duration_ms: 10.899
+  type: 'test'
+  ...
+# Subtest: a cross-origin write is refused even with a valid token
+ok 75 - a cross-origin write is refused even with a valid token
+  ---
+  duration_ms: 7.7693
+  type: 'test'
+  ...
+# Subtest: a transcript name cannot escape the logs directory
+ok 76 - a transcript name cannot escape the logs directory
+  ---
+  duration_ms: 13.8953
+  type: 'test'
+  ...
+# Subtest: the state view carries what the panel renders, including the revision to poll on
+ok 77 - the state view carries what the panel renders, including the revision to poll on
+  ---
+  duration_ms: 3.7128
+  type: 'test'
+  ...
+# Subtest: a read-only panel refuses every write and says so in its state
+ok 78 - a read-only panel refuses every write and says so in its state
+  ---
+  duration_ms: 8.3942
+  type: 'test'
+  ...
+# 19:21:20 no pulse.json - no run is in progress
+# Subtest: a panel attached to a run keeps every control except starting a second runner
+ok 79 - a panel attached to a run keeps every control except starting a second runner
+  ---
+  duration_ms: 8.6796
+  type: 'test'
+  ...
+# Subtest: an unknown endpoint is a 404, not a stack trace
+ok 80 - an unknown endpoint is a 404, not a stack trace
+  ---
+  duration_ms: 3.4585
+  type: 'test'
+  ...
+# Subtest: the page and the report are served as self-contained HTML
+ok 81 - the page and the report are served as self-contained HTML
+  ---
+  duration_ms: 9.7979
+  type: 'test'
+  ...
+# Subtest: the page only reads fields the state view actually sends
+ok 82 - the page only reads fields the state view actually sends
+  ---
+  duration_ms: 3.0367
+  type: 'test'
+  ...
+# Subtest: a token only matches itself
+ok 83 - a token only matches itself
+  ---
+  duration_ms: 0.8743
+  type: 'test'
+  ...
+# Subtest: tokens are long enough and distinct
+ok 84 - tokens are long enough and distinct
+  ---
+  duration_ms: 0.4438
+  type: 'test'
+  ...
+# Subtest: only a loopback Host is served, which is what stops DNS rebinding
+ok 85 - only a loopback Host is served, which is what stops DNS rebinding
+  ---
+  duration_ms: 0.2819
+  type: 'test'
+  ...
+# Subtest: a cross-origin post is refused, and a non-browser client is not
+ok 86 - a cross-origin post is refused, and a non-browser client is not
+  ---
+  duration_ms: 0.3981
+  type: 'test'
+  ...
+# 19:21:21 killed the agent session on M01 (pid 66468) - the runner will consume the attempt and retry
+# Subtest: a wrapper's grandchild is killed with the session, not orphaned
+ok 87 - a wrapper's grandchild is killed with the session, not orphaned
+  ---
+  duration_ms: 1355.962
+  type: 'test'
+  ...
+# Subtest: the runner's abort takes the grandchild with it too
+ok 88 - the runner's abort takes the grandchild with it too
+  ---
+  duration_ms: 1053.5121
+  type: 'test'
+  ...
+# Subtest: a session that ignores SIGTERM is killed after the grace period
+ok 89 - a session that ignores SIGTERM is killed after the grace period
+  ---
+  duration_ms: 951.4849
+  type: 'test'
+  ...
+# Subtest: an instant death with a tiny transcript is infrastructure
+ok 90 - an instant death with a tiny transcript is infrastructure
+  ---
+  duration_ms: 0.6999
+  type: 'test'
+  ...
+# Subtest: a usage limit is infrastructure even with a larger transcript
+ok 91 - a usage limit is infrastructure even with a larger transcript
+  ---
+  duration_ms: 0.2695
+  type: 'test'
+  ...
+# Subtest: an announced reset time replaces the fixed usage-limit wait
+ok 92 - an announced reset time replaces the fixed usage-limit wait
+  ---
+  duration_ms: 0.6498
+  type: 'test'
+  ...
+# Subtest: a session that wrote a result is never infrastructure
+ok 93 - a session that wrote a result is never infrastructure
+  ---
+  duration_ms: 0.0899
+  type: 'test'
+  ...
+# Subtest: a long session with a small transcript is real work, not infrastructure
+ok 94 - a long session with a small transcript is real work, not infrastructure
+  ---
+  duration_ms: 0.0616
+  type: 'test'
+  ...
+# Subtest: an agent that never reached its model is infrastructure, however loudly it said so
+ok 95 - an agent that never reached its model is infrastructure, however loudly it said so
+  ---
+  duration_ms: 0.1416
+  type: 'test'
+  ...
+# Subtest: a usage limit still wins over a generic agent failure
+ok 96 - a usage limit still wins over a generic agent failure
+  ---
+  duration_ms: 0.0825
+  type: 'test'
+  ...
+# Subtest: a session that did real work is never refunded, whatever its text says
+ok 97 - a session that did real work is never refunded, whatever its text says
+  ---
+  duration_ms: 0.05
+  type: 'test'
+  ...
+# Subtest: cmd-shim quoting keeps operators and quotes inside one argument
+ok 98 - cmd-shim quoting keeps operators and quotes inside one argument
+  ---
+  duration_ms: 0.175
+  type: 'test'
+  ...
+# Subtest: %VAR% is flagged because cmd expands it and it cannot be escaped
+ok 99 - %VAR% is flagged because cmd expands it and it cannot be escaped
+  ---
+  duration_ms: 0.3422
+  type: 'test'
+  ...
+# Subtest: a pre-v0.1 state file loads: mvpComplete and string evidence
+ok 100 - a pre-v0.1 state file loads: mvpComplete and string evidence
+  ---
+  duration_ms: 1.6109
+  type: 'test'
+  ...
+# Subtest: an unknown status falls back to pending
+ok 101 - an unknown status falls back to pending
+  ---
+  duration_ms: 0.1838
+  type: 'test'
+  ...
+# Subtest: state with no milestones is rejected
+ok 102 - state with no milestones is rejected
+  ---
+  duration_ms: 0.3793
+  type: 'test'
+  ...
+# Subtest: the next milestone is the first that is not done
+ok 103 - the next milestone is the first that is not done
+  ---
+  duration_ms: 0.2932
+  type: 'test'
+  ...
+# Subtest: an empty or comment-only steering file means no steering
+ok 104 - an empty or comment-only steering file means no steering
+  ---
+  duration_ms: 0.5251
+  type: 'test'
+  ...
+# Subtest: the headline skips headings so logs show the actual instruction
+ok 105 - the headline skips headings so logs show the actual instruction
+  ---
+  duration_ms: 0.1254
+  type: 'test'
+  ...
+# Subtest: steering longer than the injection limit is truncated, not dropped
+ok 106 - steering longer than the injection limit is truncated, not dropped
+  ---
+  duration_ms: 0.189
+  type: 'test'
+  ...
+# Subtest: the skill has the frontmatter Claude Code needs to discover it
+ok 107 - the skill has the frontmatter Claude Code needs to discover it
+  ---
+  duration_ms: 0.8701
+  type: 'test'
+  ...
+# Subtest: the playbook only reaches for commands the engine actually exposes
+ok 108 - the playbook only reaches for commands the engine actually exposes
+  ---
+  duration_ms: 0.7377
+  type: 'test'
+  ...
+# Subtest: the playbook keeps its bounded shape
+ok 109 - the playbook keeps its bounded shape
+  ---
+  duration_ms: 0.1958
+  type: 'test'
+  ...
+# Subtest: the plugin ships the same skill text the CLI writes
+ok 110 - the plugin ships the same skill text the CLI writes
+  ---
+  duration_ms: 0.6604
+  type: 'test'
+  ...
+# Subtest: the version is single-sourced across package.json, plugin.json and the marketplace entry
+ok 111 - the version is single-sourced across package.json, plugin.json and the marketplace entry
+  ---
+  duration_ms: 1.925
+  type: 'test'
+  ...
+1..111
+# tests 111
+# suites 0
+# pass 111
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6606.9066

@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Two milestoner processes writing state at the same moment could silently lose one of the writes:
+  an `unblock` issued while the runner was grading could vanish as if never typed, and a run could
+  be missing from `milestoner runs` even though its runner was alive (seen once in CI, where one of
+  six simultaneous runners was absent from the listing). The state lock that should have prevented
+  this could be broken by a contender in the first instant after it was taken; the lock now names
+  its holder from the moment it exists, a lock that cannot be read yet is waited out instead of
+  discarded, and the lock is no longer stolen after a 5-second wait. The worst case for a contender
+  facing a crashed or wedged holder is a bounded wait (3 or 30 seconds), never a lost update.
+  Recorded as D-028.
+
 ## [0.5.0] - 2026-08-20
 
 Built as a four-milestone milestoner run (`v05-debt`), the second time the engine has been used on

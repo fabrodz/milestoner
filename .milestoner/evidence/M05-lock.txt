@@ -1,0 +1,214 @@
+M05 - AC1: the regression tests against the pre-fix and post-fix lock
+=====================================================================
+
+Both runs: node --import tsx --test src/lock.test.ts, on Windows (win32), node v22.20.0, 2026-08-20.
+
+Pre-fix run: src/lock.ts restored from commit cf4fa0c (git checkout HEAD -- src/lock.ts before
+any M05 commit) with exactly one change so the test file's import resolves: the keyword
+'export ' added in front of 'function breakIfStale'. The window logic is untouched. The three
+regression tests fail; the concurrent test happens to pass on this machine, which is precisely
+how the bug got through CI.
+
+--- PRE-FIX RUN (exit 1) -------------------------------------------------------
+TAP version 13
+# Subtest: every write bumps rev, so a reader can tell a change from a change back
+ok 1 - every write bumps rev, so a reader can tell a change from a change back
+  ---
+  duration_ms: 11.9734
+  type: 'test'
+  ...
+# Subtest: the lock is released even when the mutation throws
+ok 2 - the lock is released even when the mutation throws
+  ---
+  duration_ms: 3.229
+  type: 'test'
+  ...
+# Subtest: a lock left by a process that no longer exists is broken, not waited for
+ok 3 - a lock left by a process that no longer exists is broken, not waited for
+  ---
+  duration_ms: 45.3633
+  type: 'test'
+  ...
+# Subtest: concurrent writers from separate processes do not lose an update
+ok 4 - concurrent writers from separate processes do not lose an update
+  ---
+  duration_ms: 344.8614
+  type: 'test'
+  ...
+# Subtest: an empty lock is a lock acquired this instant, and a contender must not break it
+not ok 5 - an empty lock is a lock acquired this instant, and a contender must not break it
+  ---
+  duration_ms: 2.149
+  type: 'test'
+  location: 'D:\\Dev\\milestoner\\src\\lock.test.ts:5:516'
+  failureType: 'testCodeFailure'
+  error: 'an empty lock is the signature of a holder mid-acquisition and must survive a contender'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<repo>\src\lock.test.ts:123:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: an empty lock whose holder died before writing is broken after the grace, not honoured forever
+ok 6 - an empty lock whose holder died before writing is broken after the grace, not honoured forever
+  ---
+  duration_ms: 1.609
+  type: 'test'
+  ...
+# Subtest: a contender that meets an empty lock waits out the grace instead of stealing it
+not ok 7 - a contender that meets an empty lock waits out the grace instead of stealing it
+  ---
+  duration_ms: 23.1425
+  type: 'test'
+  location: 'D:\\Dev\\milestoner\\src\\lock.test.ts:5:1480'
+  failureType: 'testCodeFailure'
+  error: 'the empty lock must be respected for its grace, not stolen at once (waited 22ms)'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<repo>\src\lock.test.ts:156:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: release removes only its own lock, never one that was broken and retaken
+not ok 8 - release removes only its own lock, never one that was broken and retaken
+  ---
+  duration_ms: 1.2914
+  type: 'test'
+  location: 'D:\\Dev\\milestoner\\src\\lock.test.ts:5:1990'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open 'C:\\Users\\Fabian\\AppData\\Local\\Temp\\milestoner-lock-JJw3N6\\state.lock'"
+  code: 'ENOENT'
+  stack: |-
+    readFileSync (node:fs:441:20)
+    TestContext.<anonymous> (<repo>\src\lock.test.ts:170:16)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the lock names its holder for as long as it exists
+ok 9 - the lock names its holder for as long as it exists
+  ---
+  duration_ms: 6.6429
+  type: 'test'
+  ...
+# Subtest: withStateLock returns whatever the critical section returns
+ok 10 - withStateLock returns whatever the critical section returns
+  ---
+  duration_ms: 1.1903
+  type: 'test'
+  ...
+# Subtest: state.json is left parseable, not half-written, after a burst
+ok 11 - state.json is left parseable, not half-written, after a burst
+  ---
+  duration_ms: 44.6083
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 8
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 665.9235
+
+--- POST-FIX RUN (exit 0) ------------------------------------------------------
+TAP version 13
+# Subtest: every write bumps rev, so a reader can tell a change from a change back
+ok 1 - every write bumps rev, so a reader can tell a change from a change back
+  ---
+  duration_ms: 16.6416
+  type: 'test'
+  ...
+# Subtest: the lock is released even when the mutation throws
+ok 2 - the lock is released even when the mutation throws
+  ---
+  duration_ms: 16.4971
+  type: 'test'
+  ...
+# Subtest: a lock left by a process that no longer exists is broken, not waited for
+ok 3 - a lock left by a process that no longer exists is broken, not waited for
+  ---
+  duration_ms: 37.0411
+  type: 'test'
+  ...
+# Subtest: concurrent writers from separate processes do not lose an update
+ok 4 - concurrent writers from separate processes do not lose an update
+  ---
+  duration_ms: 373.8379
+  type: 'test'
+  ...
+# Subtest: an empty lock is a lock acquired this instant, and a contender must not break it
+ok 5 - an empty lock is a lock acquired this instant, and a contender must not break it
+  ---
+  duration_ms: 9.664
+  type: 'test'
+  ...
+# Subtest: an empty lock whose holder died before writing is broken after the grace, not honoured forever
+ok 6 - an empty lock whose holder died before writing is broken after the grace, not honoured forever
+  ---
+  duration_ms: 1.5867
+  type: 'test'
+  ...
+# Subtest: a contender that meets an empty lock waits out the grace instead of stealing it
+ok 7 - a contender that meets an empty lock waits out the grace instead of stealing it
+  ---
+  duration_ms: 3063.5472
+  type: 'test'
+  ...
+# Subtest: release removes only its own lock, never one that was broken and retaken
+ok 8 - release removes only its own lock, never one that was broken and retaken
+  ---
+  duration_ms: 12.8221
+  type: 'test'
+  ...
+# Subtest: the lock names its holder for as long as it exists
+ok 9 - the lock names its holder for as long as it exists
+  ---
+  duration_ms: 8.2273
+  type: 'test'
+  ...
+# Subtest: withStateLock returns whatever the critical section returns
+ok 10 - withStateLock returns whatever the critical section returns
+  ---
+  duration_ms: 6.9569
+  type: 'test'
+  ...
+# Subtest: state.json is left parseable, not half-written, after a burst
+ok 11 - state.json is left parseable, not half-written, after a burst
+  ---
+  duration_ms: 181.6372
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3889.5894
