@@ -2,7 +2,7 @@
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
   "runComplete": false,
-  "rev": 18,
+  "rev": 20,
   "milestones": [
     {
       "id": "M01",
@@ -207,13 +207,31 @@
       "id": "M07",
       "title": "Scaffolding a new run cannot leave the previous run's protocol behind",
       "prompt": "M07.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-20T23:34:35.252Z",
+      "finishedAt": "2026-08-20T23:45:26.344Z",
+      "evidence": [
+        "AC1: test `ok 8 - scaffolding over a protocol naming a different run refuses before writing anything` in src/commands/init.test.ts. The exact user-visible output is in .milestoner/evidence/M07-init.txt section 2, captured against the built dist/cli.js: `.milestoner/protocol.md names run \"v04-plugin\", not \"v05-debt\" - a session would read the old run's rules`, then the bring-in-line-or-delete instructions, exit 1; section 3 shows the old protocol, config, state and prompts all untouched, so no session can silently receive a stale protocol - init refuses before anything is written.",
+        "AC2: tests `ok 9 - re-init over the same run's protocol keeps it byte for byte and says nothing about it` (hand edits appended to the protocol survive a --force re-init byte-identical, and neither check message appears in the output) and `ok 7 - a fresh scaffold writes a protocol naming the run, tagged without a slash`. Both in .milestoner/evidence/M07-test.txt; the silent same-run path also shown live in M07-init.txt section 4.",
+        "AC3: .milestoner/evidence/M07-tags.txt, commands and output from a temp repository with a local bare origin. Old scheme: branch and tag both named v05/M03, `git push origin v05/M03` fails `error: src refspec v05/M03 matches more than one`, exit 1. New scheme: branch v05-debt/M07 and tag v05-debt-M07 each push cleanly (exit 0) and `git ls-remote` lists refs/heads/v05-debt/M07 beside refs/tags/v05-debt-M07 - tags carry no slash, work branches keep their slash namespace, so the names cannot collide. Existing tags v05/M01..v05/M05 and v0.5.0 left alone, per D-030. This milestone itself is tagged v05-debt-M07.",
+        "AC4: .milestoner/evidence/M07-protocol-diff.txt - header line 1 reads `# Execution protocol - run \"v05-debt\"` (already correct, unchanged), and the git diff of section 5 replaces `v04-plugin/<milestoneId>` with `v05-debt-<milestoneId>` plus the no-slash rationale. Committed in d143a1e.",
+        "AC5: docs/DECISIONS.md `## D-030 - Re-init refuses another run's protocol, and tags lose their slash (2026-08-20)`, one paragraph per decision (refusal, run name stays in the body, dash tags with existing tags untouched) each with its rejected alternative; docs/GUIDE.md gained the paragraph `**Re-init over an existing .milestoner/.**` under `### milestoner init`, which previously said nothing about re-init.",
+        "Gate: npm run typecheck exit 0, npm run build exit 0, npm test exit 0 with # tests 118 / # pass 118 / # fail 0 and zero `not ok` lines in .milestoner/evidence/M07-test.txt (baseline 114/114 from M06), claude plugin validate . exit 0, node dist/cli.js --version prints 0.5.0. Engine change committed as b7179a4, docs and evidence as d143a1e, tagged v05-debt-M07; dist/ left built and green. CI not run, per the prompt: nothing pushed, and this is filesystem and template logic the local suite covers."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-20T23:34:35.259Z",
+          "endedAt": "2026-08-20T23:45:26.344Z",
+          "seconds": 651,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M07-20260820-233435-258.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     }
   ]
 }
