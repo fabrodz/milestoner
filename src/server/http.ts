@@ -89,7 +89,7 @@ export function createPanel(options: ServerOptions) {
           break;
         }
         case "/api/kill":
-          result = doKill(ctx, str("reason") ?? "killed from the web panel");
+          result = await doKill(ctx, str("reason") ?? "killed from the web panel");
           break;
         case "/api/attend": {
           const raw = body.seconds;

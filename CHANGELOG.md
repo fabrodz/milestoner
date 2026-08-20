@@ -23,6 +23,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- `milestoner kill` and the runner's second interrupt now end the whole agent session on macOS and
+  Linux, not just the process the engine spawned. The session is launched in its own process group
+  and the group is signalled, so an agent reached through a wrapper script no longer survives the
+  kill and is left orphaned. The signal escalates from `SIGTERM` to `SIGKILL` after five seconds, so
+  a session that ignores the first one cannot leave the runner waiting. Windows already killed the
+  tree with `taskkill /T /F` and is unchanged, except that the runner's abort path now uses that
+  same tree kill instead of signalling the one process. One consequence worth knowing: a Ctrl-C in
+  the terminal running `milestoner run` no longer reaches the agent directly, which is what makes the
+  first interrupt mean "finish and grade this session" on POSIX as it already did on Windows.
+  Recorded as D-026.
 - Renamed from `dogwatch` to `milestoner`. The npm package and the command are `milestoner`, the
   state directory is `.milestoner/`, the supervisor skill is `milestoner-supervisor`, and the slash
   commands are `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and

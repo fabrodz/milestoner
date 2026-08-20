@@ -209,7 +209,7 @@ async function main(): Promise<number> {
   }
 
   if (command === "kill") {
-    return kill({
+    return await kill({
       layout: project.layout,
       reason: values.reason ?? "no reason given",
       rule: values.rule ? `rule ${values.rule}` : "manual",

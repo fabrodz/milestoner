@@ -95,3 +95,46 @@ normally and simply does not appear in `milestoner runs`.
 
 Rejected: raising, which would turn a convenience across projects into a precondition for one and
 could stop an overnight run before it launched a single session.
+
+## 2026-08-20 - M03 - CI is reached through a pull request, not by widening the push trigger
+
+Context: the milestone's evidence has to come from a Linux and a macOS runner, and this host is
+Windows with no WSL. `.github/workflows/ci.yml` fires on `push` to `main` and on `pull_request`, so
+pushing branch `v05/M03` on its own runs nothing. Protocol section 5 forbids `git push`; the
+milestone prompt overrides it for this branch specifically and forbids pushing `main`.
+
+Decision: push `v05/M03` and open a draft pull request against `main` to trigger the `pull_request`
+matrix, read it with `gh run watch`, and leave the PR open and unmerged for the user to decide on.
+Nothing is pushed to `main` and no workflow file changes.
+
+Rejected: adding `v05/**` to the workflow's `push` branches. It works, because a push event reads
+the workflow file from the pushed ref, but it leaves run-specific scaffolding in a shared config
+file that outlives the run, and it would silently spend CI minutes on every future branch matching
+the pattern.
+
+## 2026-08-20 - M03 - The runner's abort path on Windows now uses the same tree kill as `kill`
+
+Context: the milestone scopes Windows out. But `runSession`'s abort used `child.kill("SIGTERM")` on
+every platform, which on Windows terminates the one process - and when the agent is an npm `.cmd`
+shim, that one process is `cmd.exe`, not the agent. `milestoner kill` has always used
+`taskkill /T /F` there. The two paths disagreed on Windows too, in the same direction.
+
+Decision: both paths go through `terminateSessionTree`, so Windows gets `taskkill /T /F` from the
+abort path as well. Windows behaviour for `milestoner kill` is byte-for-byte what it was; what
+changed is that the second Ctrl-C now kills what it already claimed to kill.
+
+Rejected: fixing POSIX only, as the scope line reads literally. It would leave the second interrupt
+on Windows killing the shim and orphaning the agent, which is the exact bug this milestone exists to
+close, discovered one layer over.
+
+## 2026-08-20 - M03 - Five seconds of grace between SIGTERM and SIGKILL
+
+Context: the escalation delay is a guess either way, and it is paid twice - once by `milestoner kill`
+before it returns, once by the runner before it stops waiting.
+
+Decision: five seconds, a module constant, overridable per call so the tests do not sleep. Long
+enough for an agent to flush a transcript and exit, short enough that a supervisor's `kill` still
+feels immediate.
+
+Rejected: no wait at all (SIGKILL immediately), which loses whatever the session was about to write,
+and a configurable value, which is a knob nobody has asked for on a number nobody will tune.

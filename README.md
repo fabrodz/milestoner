@@ -41,8 +41,9 @@ install and add the plugin only to drive and supervise the run from inside Claud
 terminal.
 
 Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
-the engine: killing a session (`taskkill` or `SIGTERM`), opening the report (`start`, `open` or
-`xdg-open`), and launching through an npm `.cmd` shim on Windows with the quoting `cmd.exe` needs.
+the engine: killing a session and everything it spawned (`taskkill /T` or the session's own POSIX
+process group), opening the report (`start`, `open` or `xdg-open`), and launching through an npm
+`.cmd` shim on Windows with the quoting `cmd.exe` needs.
 The one thing you supply per platform is the environment adapter, because unsticking a host is
 inherently host-shaped; examples for both families ship in
 [examples/adapters/](examples/adapters/).

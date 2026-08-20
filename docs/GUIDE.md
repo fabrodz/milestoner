@@ -505,6 +505,11 @@ Run it from the project root or any subdirectory: milestoner walks up looking fo
 `in_progress`; a later `milestoner run` picks it up and starts a fresh attempt. **Ctrl-C twice**: the
 agent session is killed immediately (exit 130).
 
+The interrupt goes to the runner alone. The agent session runs in its own process group, so the
+terminal cannot end it behind the runner's back and the first Ctrl-C means what it says; the second
+one signals that group and everything the session started. See
+[D-026](DECISIONS.md#d-026---the-agent-session-gets-its-own-process-group-and-the-kill-escalates-2026-08-20).
+
 Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
 infrastructure failures.
 
@@ -819,6 +824,13 @@ the attempt, so the same intervention could repeat forever. The kill is also app
 It refuses to act when there is no `pulse.json`, when the runner process is not alive, or when no
 agent session is currently running. `--reason` records what you observed; `--rule <n>` tags the log
 line with the playbook rule that fired.
+
+The kill reaches the whole session, not just the process the engine spawned, so an agent launched
+through a wrapper script goes with it. On Windows that is `taskkill /T /F`; on macOS and Linux the
+session is spawned in its own process group and the group is signalled `SIGTERM`, then `SIGKILL`
+five seconds later if anything is still there. The consequence for a terminal is in
+[`milestoner run`](#milestoner-run): a Ctrl-C no longer reaches the agent directly, which is what
+makes the two-interrupt contract mean the same thing on every platform.
 
 ### milestoner attend
 
@@ -1584,9 +1596,9 @@ strength of that guarantee is the quality of your criteria. Review the tags.
   in.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
-- **`kill` reaches the process tree on Windows, one process on macOS and Linux.** Windows uses
-  `taskkill /T`; elsewhere the engine signals the child it spawned. When the agent command is a
-  wrapper script that forks, the real session can outlive the kill.
+- **`kill` reaches the whole process tree on all three platforms.** `taskkill /T /F` on Windows, the
+  session's own process group elsewhere, with `SIGKILL` five seconds behind the `SIGTERM`. A wrapper
+  script that forks no longer outlives the kill.
 - **The test suite passes on all three platforms.** The Windows failures were checkout line endings
   and one test that built a Windows path where an ESM specifier was expected; both are fixed and the
   tree is pinned to LF by `.gitattributes`.

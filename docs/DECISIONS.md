@@ -439,3 +439,34 @@ verdicts share one function so they cannot drift.
 
 `milestoner runs` exits `2` when any listed run is blocked **or** its runner is gone, which is the
 same "this needs you" signal `status` gives, widened by the one state this command exists to surface.
+
+## D-026 - The agent session gets its own process group, and the kill escalates (2026-08-20)
+
+`milestoner kill` and the runner's second-interrupt abort both signalled the one pid the engine
+spawned. On Windows that was already a tree kill (`taskkill /T /F`); on macOS and Linux it was a
+plain `SIGTERM` to the child. An agent is routinely reached through a wrapper - an npm shim, a
+launcher script, a login shell - and killing the wrapper leaves the agent it started running,
+reparented to init. Playbook rule 4 then reported a kill that had not happened, and the runner sat
+waiting for a session that was no longer attached to anything it could see.
+
+**The session is spawned `detached: true` on POSIX**, which makes it the leader of its own process
+group, and both kill paths signal `-pid` - the group - falling back to the bare pid if that fails.
+Windows keeps `taskkill /T /F`, which already walks the tree and has no gentler step to offer.
+
+**What `detached` changes about Ctrl-C, which is the cost of this and is not incidental.** A
+detached child is no longer in the terminal's foreground process group, so a Ctrl-C in the terminal
+running `milestoner run` reaches the runner and nothing else. Before, the agent got that SIGINT
+directly from the tty and usually died on it. That is a real behaviour change, and it is the one we
+want: the two-interrupt contract says the *first* interrupt finishes and grades the running session
+and only the *second* kills it, and a tty that kills the agent on the first Ctrl-C quietly broke
+that contract on POSIX. Signal delivery is now the engine's decision rather than the terminal's, on
+every platform, and `runner.stop.test.ts` is the gate on both halves of it.
+
+The rejected alternative was leaving the spawn attached and walking the process table for children
+of the pid. It needs a different implementation per platform (`ps -o ppid=`, `pgrep -P`, recursion
+over the results), it races a wrapper that is still spawning, and it reimplements what the kernel
+already tracks. A process group is the portable POSIX answer to exactly this question.
+
+**SIGTERM, then SIGKILL after five seconds.** A session that traps or ignores the polite signal used
+to leave the caller believing it had killed something, and the runner waiting on a child that was
+never going to close. The escalation is skipped on Windows because `/F` is unconditional.
