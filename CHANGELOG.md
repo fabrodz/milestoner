@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `milestoner runs [--json]` lists every run registered on this machine, with its project directory,
+  run name, current milestone, done/total and a liveness verdict. It is the only command that does
+  not need a project: `status` answers for the directory you are in, `runs` answers for the machine.
+  It exits `2` when a listed run is blocked or its runner is gone, so it works on a timer.
+- A machine-level registry at `~/.milestoner/runs.json`, or `$MILESTONER_HOME/runs.json`. A runner
+  registers itself on start, refreshes the entry on every pulse, and removes it in the same step that
+  clears the pulse. A runner that was killed never reaches that step, so its entry is kept and
+  reported `gone` for 24 hours before expiring, because a run that died overnight is the one worth
+  being told about. Writes are serialised with the same lock as `state.json` (D-022) and are
+  best-effort: a read-only home directory means no entry, never a run that will not start. An entry
+  counts as live only when the pid is alive and the project's own `pulse.json` names that pid and
+  that run, so a recycled pid cannot masquerade as a runner. A registered project whose `.milestoner/`
+  is gone is pruned and reported instead of failing the listing. Recorded as D-025.
+
 ### Changed
 
 - Renamed from `dogwatch` to `milestoner`. The npm package and the command are `milestoner`, the

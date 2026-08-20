@@ -51,3 +51,47 @@ log, in `docs/NEXT.md` and in `result.json`, not papered over.
 Rejected: pushing anyway to satisfy the criterion literally, which breaks an explicit protocol rule
 to satisfy a criterion the same protocol makes unreachable. Also rejected: reporting `blocked`,
 which would misdescribe a milestone whose work is complete and whose gates are green.
+
+## 2026-08-20 - M02 - The three registry decisions, promoted to D-025
+
+Context: M02 named three decisions to take and record - what is registered, where the file lives,
+and how stale entries die. All three are product-level, so they belong in the permanent record.
+
+Decision: live runners with a 24-hour retention window for a runner that was killed;
+`~/.milestoner/runs.json` with a `MILESTONER_HOME` override and no XDG; and pid liveness
+corroborated by the project's own `pulse.json` naming that pid and that run. Written up as D-025 in
+`docs/DECISIONS.md`, with the rejected alternative and the reasoning for each.
+
+## 2026-08-20 - M02 - The liveness verdict in `runs` reads the pulse, not the watched paths
+
+Context: `status` computes its verdict from a recursive mtime scan of `config.liveness`. `runs`
+opens every project on the machine, so doing the same there means N recursive walks for one line of
+output each, and it would also mean loading every project's config.
+
+Decision: `runs` derives its verdict from the age of each project's `pulse.lastEventAt`, on the same
+thresholds. `verdictFor` moved from `commands/status.ts` into `pulse.ts` so the two share one
+function and cannot drift. `status` in a directory remains the answer for the watched-path verdict.
+
+Rejected: reusing `newestSignal` per project, which is accurate but turns the cheap machine-wide
+question into a filesystem walk of every project on the disk.
+
+## 2026-08-20 - M02 - `milestoner runs` exits 2 for a gone runner as well as for a blocked run
+
+Context: every other command uses exit 2 for "blocked". A dead runner is not blocked, but it is
+exactly the state this command exists to surface, and a listing nobody reads is worth little.
+
+Decision: exit 2 when any listed run is blocked **or** its runner is gone, documented as such in the
+README, the guide and the usage text. It makes `milestoner runs >/dev/null || notify` a real check.
+
+Rejected: exit 2 for blocked only, which keeps the vocabulary uniform and makes the command useless
+on a timer for the one failure it was built to report.
+
+## 2026-08-20 - M02 - Registry writes are best-effort and never fail a run
+
+Context: `~` can be read-only, on an unmounted share, or absent in a container.
+
+Decision: every registry write is wrapped and swallowed. A run whose registration fails starts
+normally and simply does not appear in `milestoner runs`.
+
+Rejected: raising, which would turn a convenience across projects into a precondition for one and
+could stop an overnight run before it launched a single session.

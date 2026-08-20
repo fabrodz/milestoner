@@ -64,14 +64,18 @@ wrapper which forks, or it will regress unnoticed.
 
 ## 4. A registry of runs, and a panel that spans them
 
-`serve` and `status` only ever show the directory they were started in, because there is no notion
-of "the runs on this machine". The missing primitive is a machine-level registry - runners
-registering their project path and pid under something like `~/.milestoner/runs.json`, pruning
-themselves on exit.
+The registry half is done on 2026-08-20 as milestone M02 of the `v05-debt` run. Runners register
+their project path, run name and pid in `~/.milestoner/runs.json` and deregister in the same step
+that clears the pulse; `milestoner runs [--json]` lists every one of them from any directory, with
+its milestone, progress and liveness verdict, and exits `2` when one is blocked or its runner is
+gone. A killed runner's entry is kept and reported `gone` for a day rather than vanishing. Recorded
+as D-025.
 
-Build it as a CLI command first (`milestoner runs`, listing every live run with its milestone and
-liveness verdict). It is useful on its own, and a multi-run panel without it can only show one
-directory, which is what the panel already does.
+What is left is the panel. `serve` still shows only the directory it was started in, so a multi-run
+view is a `serve` change now that the primitive it needs exists: a run picker across the registry,
+and a decision about whether one process may act on a project it was not started in. That is a
+security question (D-020's write surface is scoped to one project) and should be answered before the
+screen is built.
 
 ## 5. Still unanswered: authoring flows in a UI
 
@@ -86,6 +90,6 @@ that supersedes a decision in BRIEF.md and should be written down as one before 
 ## Plans
 
 Items 1, 3 and 4 are planned as v0.5 in [PLAN-v05.md](PLAN-v05.md), as three milestones in this
-project's own format: the Windows suite (done), `kill` on POSIX, and the run registry. Item 5 is planned
+project's own format: the Windows suite (done), the run registry (done), and `kill` on POSIX. Item 5 is planned
 separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision first and
 work only if the decision goes a particular way. Item 2 comes after both.
