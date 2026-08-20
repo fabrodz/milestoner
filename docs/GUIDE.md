@@ -3,9 +3,10 @@
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
 
-Applies to **v0.3**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
-(`skill install`, `kill`, `attend`), mid-flight steering (`steer`) and the HTML run report
-(`report`). Where a behaviour is planned for a later version it says so.
+Applies to **v0.4**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
+(`skill install`, `kill`, `attend`), mid-flight steering (`steer`), the HTML run report (`report`),
+the local web panel (`serve`), agent fallback, and the Claude Code plugin. Where a behaviour is
+planned for a later version it says so.
 
 - [What dogwatch actually does](#what-dogwatch-actually-does)
 - [When to use it, and when not to](#when-to-use-it-and-when-not-to)
@@ -28,7 +29,7 @@ Applies to **v0.3**: the engine (`init`, `run`, `status`, `unblock`), the active
 - [Recipes](#recipes)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [Limits of v0.3](#limits-of-v03)
+- [Limits of v0.4](#limits-of-v04)
 
 ## What dogwatch actually does
 
@@ -1424,7 +1425,8 @@ dogwatch skill install --print | less
 }
 ```
 
-Only Claude Code is tested in v0.3, but the engine never learns agent names.
+Claude Code and Codex have both been exercised; see [Running a different agent](#running-a-different-agent).
+The engine never learns agent names.
 
 **Read what a session actually claimed.** `.dogwatch/results/M03-attempt2.json` is the raw, ungraded
 claim. Compare it against the graded outcome in `state.json` when a verdict surprises you.
@@ -1475,7 +1477,7 @@ grep killed .dogwatch/run-log.md
 the runner is stopped. The runner reloads the state file every iteration, but editing it under a live
 runner risks losing a write.
 
-**Can two runs share a project directory?** Not in v0.3: the paths under `.dogwatch/` are fixed. Use
+**Can two runs share a project directory?** Not in v0.4: the paths under `.dogwatch/` are fixed. Use
 separate working copies.
 
 **Does it need git?** No, but the default protocol assumes it and tags every green milestone. Without
@@ -1501,18 +1503,25 @@ it as a protocol violation and fix the prompt.
 **Does `done` mean the code is good?** It means the acceptance criteria have written evidence. The
 strength of that guarantee is the quality of your criteria. Review the tags.
 
-## Limits of v0.3
+## Limits of v0.4
 
 - **Not published to npm.** Install from source. The name is claimed but nothing is published yet.
-- **Plugin packaging shipped in v0.4.** Besides the CLI-written skill, the supervisor and four slash
-  commands install as a Claude Code plugin from an in-repo marketplace; see the install section of
+- **Plugin packaging.** Besides the CLI-written skill, the supervisor and four slash commands
+  install as a Claude Code plugin from an in-repo marketplace; see the install section of
   [../README.md](../README.md). The CLI is still the engine and the required install.
 - **Two agents exercised.** Claude Code and Codex; see
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.
-- **One run per project directory.**
+- **One run per project directory**, and no view across runs. There is no registry of the runs on a
+  machine, so `serve` and `status` only ever show the directory they were started in.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
+- **`kill` reaches the process tree on Windows, one process on macOS and Linux.** Windows uses
+  `taskkill /T`; elsewhere the engine signals the child it spawned. When the agent command is a
+  wrapper script that forks, the real session can outlive the kill.
+- **The test suite fails on Windows**, on checkout line endings and one test that builds a Windows
+  path where an ESM specifier is expected. Linux and macOS are green. The engine itself is unaffected;
+  see [NEXT.md](NEXT.md).
 
 The roadmap is in [../README.md](../README.md); the reasoning behind each design decision is in
 [DECISIONS.md](DECISIONS.md).

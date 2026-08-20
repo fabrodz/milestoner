@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation
+
+- The changelog itself: six entries describing additions (`infraFailurePatterns`, the different-agent
+  recipes, `attend.sh`, macOS CI, `fallbackAgents`, `dogwatch serve`) were filed under `Fixed`, and
+  the `dogwatch serve` entry plus a `pulseflow`-era rename note were duplicated into `[0.2.0]`, where
+  neither belongs. Releases 0.1.0 to 0.3.0 now carry dates.
+- `docs/DECISIONS.md`: three decisions taken during v0.4 had no entry. D-020 records the local web
+  panel and states plainly that it supersedes D-015's rejection of "a live web view with a server",
+  with what changed; D-021 records benching a failing agent instead of waiting for it, and why
+  `infraFailurePatterns` was needed once agents other than Claude Code were in play; D-022 records
+  serialising `state.json` writes and the `rev` counter.
+- `docs/GUIDE.md` announced itself as v0.3. It now says v0.4, and its limits section names what v0.4
+  actually lacks: no view across runs, `kill` reaching one process rather than a tree off Windows,
+  and the failing Windows test suite.
+- `docs/NEXT.md` was written before v0.4 and had been overtaken almost entirely. Rewritten around
+  what is actually left, and recording that its own prediction about `promptDelivery` was wrong.
+- The README no longer claims CI covers only Linux and Windows, and says the Windows jobs are red.
+
 ## [0.4.0] - 2026-08-19
 
 ### Added
@@ -31,22 +49,6 @@ All notable changes to this project are documented here. The format follows
 - CI on GitHub Actions: typecheck, tests and build on Node 20, 22 and 24, on Linux and Windows.
 - A section in the README and the guide on what `--dangerously-skip-permissions` actually grants an
   unattended session, and what reduces the risk.
-
-### Fixed
-
-- `npm test` failed on Node 20, the declared minimum: globs in `node --test` need Node 22. Test
-  files are now discovered by a small script that also works where no shell expands the pattern.
-- The run report showed an invented attempt budget. It used the highest attempt count seen in the
-  run as the denominator, so a milestone that passed first try read `0/1 attempts`. It now reads
-  `maxAttempts` from the config and reports the session count alongside it.
-- `dogwatch run --once` exited `0` on a milestone that reported blocked, contradicting the
-  documented exit codes. It now exits `2`, like a full run.
-- A milestone that recovered kept the diagnosis written by the attempt that failed, so `status` and
-  the report described a live block on a milestone that was done.
-- Two sessions of one milestone starting in the same second shared a transcript path and appended to
-  the same file. Transcript names now carry milliseconds.
-- `init` wrote `projectRoot` into the generated `config.json`, where it was always overridden by the
-  directory the config was found in. Editing it did nothing.
 
 - `infra.infraFailurePatterns`: case-insensitive substrings that mark an agent or backend failure
   which is not a usage limit (a model endpoint that never answered, an expired login, a dropped
@@ -80,6 +82,22 @@ All notable changes to this project are documented here. The format follows
   format into sentences with relative times, outcomes read as words rather than enum values, and the
   internal vocabulary ("attempts charged", "infra-failure") is gone from the page.
 
+### Fixed
+
+- `npm test` failed on Node 20, the declared minimum: globs in `node --test` need Node 22. Test
+  files are now discovered by a small script that also works where no shell expands the pattern.
+- The run report showed an invented attempt budget. It used the highest attempt count seen in the
+  run as the denominator, so a milestone that passed first try read `0/1 attempts`. It now reads
+  `maxAttempts` from the config and reports the session count alongside it.
+- `dogwatch run --once` exited `0` on a milestone that reported blocked, contradicting the
+  documented exit codes. It now exits `2`, like a full run.
+- A milestone that recovered kept the diagnosis written by the attempt that failed, so `status` and
+  the report described a live block on a milestone that was done.
+- Two sessions of one milestone starting in the same second shared a transcript path and appended to
+  the same file. Transcript names now carry milliseconds.
+- `init` wrote `projectRoot` into the generated `config.json`, where it was always overridden by the
+  directory the config was found in. Editing it did nothing.
+
 ### Changed
 
 - Renamed from `pulseflow` to `dogwatch`. The state directory is `.dogwatch/`, the command is
@@ -92,7 +110,7 @@ All notable changes to this project are documented here. The format follows
   both, and its "Limits" section reflects v0.3.
 - The published package includes `LICENSE`.
 
-## [0.3.0]
+## [0.3.0] - 2026-08-19
 
 ### Added
 
@@ -100,7 +118,7 @@ All notable changes to this project are documented here. The format follows
 - `dogwatch steer`: mid-flight corrections injected into every session launched from then on.
 - One interrupt finishes the current session and stops; a second kills it.
 
-## [0.2.0]
+## [0.2.0] - 2026-08-18
 
 ### Added
 
@@ -108,25 +126,7 @@ All notable changes to this project are documented here. The format follows
 - `dogwatch kill` and `dogwatch attend`, the supervisor's only interventions, both logged.
 - The environment adapter as a config string.
 
-- `dogwatch serve`: a local web panel for a run. Shows what `status` shows, refreshed over
-  server-sent events, and exposes the CLI's own write surface - steer, unblock, kill, attend, start
-  and stop a runner - by calling the same functions, so interventions land in the same logs. Bound
-  to loopback, key required per request, `Host` and `Origin` checked, read-only unless `--write`.
-  A write-enabled panel can start an unsandboxed agent and run the environment adapter through a
-  shell; the README and the guide say so plainly, and document SSH forwarding as the one supported
-  way to reach it from another device.
-
-  The panel leads with a plain-language verdict - what is happening, why, and when it needs a human,
-  the single action the session asked for. Engine events are rendered from `run-log.md`'s machine
-  format into sentences with relative times, outcomes read as words rather than enum values, and the
-  internal vocabulary ("attempts charged", "infra-failure") is gone from the page.
-
-### Changed
-
-- Renamed from `runpulse` to `dogwatch`. A `.runpulse/` directory is detected and the CLI explains
-  the one-step migration.
-
-## [0.1.0]
+## [0.1.0] - 2026-08-18
 
 ### Added
 

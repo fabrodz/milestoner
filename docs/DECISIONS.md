@@ -281,3 +281,69 @@ This is the second half of [D-002](#d-002---distribution-npm-first-claude-code-p
 the plugin channel now has a marketplace to install from. It does not replace npm. The CLI remains
 the engine and the required install; the plugin, delivered through this marketplace, is a Claude Code
 layer over it and does not put the `dogwatch` binary on PATH.
+
+## D-020 - The local web panel, superseding the rejection in D-015 (2026-08-19)
+
+[D-015](#d-015---the-report-is-one-self-contained-html-file-generated-on-demand-2026-08-19) rejected
+"a live web view with a server" on the grounds that the report answers what happened overnight and
+`status` answers what is happening now. `dogwatch serve` builds it anyway. What changed:
+
+- **`status` answers for a terminal, not for a person away from one.** The panel exists for the
+  moment you are not at the keyboard where the run lives. That is the same argument that justified
+  the supervisor, and it does not go away because a report exists.
+- **The panel is not the report made live.** It leads with a plain-language verdict - what is
+  happening, why, and when it needs a human, the single action the session asked for - and renders
+  `run-log.md` into sentences. The internal vocabulary ("attempts charged", "infra-failure") is
+  deliberately absent. The report stays the post-mortem; the panel is the answer to "is this fine".
+
+The write surface is the CLI's own: steer, unblock, kill, attend, start and stop a runner, each
+calling the same function the command calls, so an intervention through the panel lands in the same
+logs as one typed by hand. There is no second code path to keep honest.
+
+Security is the reason `--write` is opt-in. A write-enabled panel can start an unsandboxed agent and
+run the environment adapter through a shell: it is remote code execution by design. It binds
+loopback only, requires a per-process key on every request, and checks `Host` and `Origin`. SSH
+forwarding is the one supported way to reach it from another device; the README and the guide say
+so rather than leaving it to be discovered.
+
+Note that the panel deliberately does **not** honour the supervisor's boundary: it offers `unblock`
+and `steer`, which [D-012](#d-012---interventions-are-engine-commands-with-a-narrow-surface-2026-08-18)
+denies the supervisor. That is consistent - those are human decisions, and the panel is a human at a
+keyboard, not an automated actor.
+
+## D-021 - A failing agent is benched, not waited for (2026-08-19)
+
+[D-008](#d-008---infra-failures-never-consume-an-attempt-2026-08-18) refunds the attempt and waits
+out the reset. Waiting is correct when there is nothing else to run, and wasteful when there is: a
+usage limit at 2am with a 5am reset costs three idle hours even if a second agent is authenticated.
+
+`fallbackAgents` makes the primary and its fallbacks one rotation. On an infrastructure verdict the
+failing agent is benched for exactly the cooldown its failure implies - the seconds until an
+announced reset, so it returns when its quota does - and the next free agent takes over immediately.
+Waiting only happens when every agent is benched. It never triggers on a work verdict: a milestone
+that failed on its merits is not an agent problem, and rotating there would only spread one bad
+attempt across two providers.
+
+The agent that ran each attempt is recorded in `state.json`, `run-log.md`, `status` and the report,
+because "which agent produced this evidence" stops being obvious the moment a run uses two.
+
+`infra.infraFailurePatterns` exists for the same reason. The tiny-transcript heuristic in D-008 is
+shaped by how Claude Code dies: fast and quiet. A chattier agent narrates a startup failure for
+kilobytes and was charged an attempt for what was never work. The patterns refund it like a usage
+limit, but wait `genericWaitSeconds` because there is no announced reset to wait for.
+
+## D-022 - state.json writes are serialised across processes (2026-08-19)
+
+Writes were already atomic - temp file plus rename - but atomic is not the same as safe. The runner
+and an `unblock` issued at the same moment both load state, both mutate their own copy, and whoever
+renames second silently discards the other. Rare while a human types commands one at a time;
+routine once a panel can post one.
+
+`withStateLock` serialises the whole read-modify-write on a lock file taken with `wx`. The lock is
+broken rather than honoured when its holder is gone, because killing processes is a first-class
+operation here (`dogwatch kill`, two interrupts, a supervisor relaunch) and a lock that outlived its
+owner would be a worse failure than the race it prevents. After a bounded wait the lock is broken
+and the write proceeds: a run that stops because a lock never cleared is worse than the race.
+
+`state.rev` increments on every write so a reader can tell a change from a change back. The panel
+polls; without a revision, a value that moved and returned looks like nothing happened.

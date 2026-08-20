@@ -389,6 +389,7 @@ rather than the one blocked run it has been tried on.
 
 [docs/GUIDE.md](docs/GUIDE.md) is the user guide: the mental model, a full walkthrough, command and
 config reference, grading and infra rules, use cases, recipes and troubleshooting.
+[docs/NEXT.md](docs/NEXT.md) is what is left to do and in what order.
 
 ## Background
 
@@ -409,7 +410,10 @@ npm run typecheck
 npm run build
 ```
 
-CI runs all three on Node 20, 22 and 24, on Linux and Windows.
+CI runs all three on Node 20, 22 and 24 on Linux, and on the ends of that range on macOS and
+Windows. **The Windows jobs are currently failing** on checkout line endings and one test that
+builds a Windows path where an ESM specifier is expected; Linux and macOS are green and the engine
+is not implicated. See [docs/NEXT.md](docs/NEXT.md).
 
 ## License
 
