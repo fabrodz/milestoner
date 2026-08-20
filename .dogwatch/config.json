@@ -1,5 +1,5 @@
 {
-  "run": "v04-plugin",
+  "run": "v05-debt",
   "maxAttempts": 3,
   "retryDelaySeconds": 15,
   "agent": {

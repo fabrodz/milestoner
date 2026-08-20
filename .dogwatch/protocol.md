@@ -1,4 +1,4 @@
-# Execution protocol - run "v04-plugin"
+# Execution protocol - run "v05-debt"
 
 You are an autonomous executor. You run **one milestone per session**, then exit. The user is not
 available: decide yourself, verify everything, and leave a complete written trail. State lives in

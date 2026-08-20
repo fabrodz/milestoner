@@ -7,8 +7,15 @@ Three pieces of work, written as milestones in this project's own format so they
 is the only item here that has an external audience.
 
 Ordering: M01 first, because everything after it is verified by a suite that currently cannot be
-trusted on this machine. M02 is independent and small. M03 is the largest and the only piece that is
-new capability rather than debt.
+trusted on this machine. Then the registry, which is the largest piece and the only new capability
+rather than debt. The POSIX kill goes last, because it is the only milestone whose evidence has to
+come from CI rather than from the machine the session runs on, and a slow feedback loop is the one
+you want to hit with work already banked.
+
+**Where this runs.** The development machine is Windows, with no WSL. That is ideal for M01 and
+neutral for M02, and it is the constraint that shapes M03: a fix to process-group signalling on
+macOS and Linux cannot be verified from here at all. The milestones below account for that
+explicitly rather than assuming a session can check its own work.
 
 A note on running this as a dogwatch run: `.dogwatch/state.json` currently holds the completed
 `v04-plugin` record. Scaffolding v0.5 replaces it. That record is committed, so it survives in git
@@ -55,8 +62,8 @@ modules, not in the engine.
 - **AC1** - `npm test` passes on Windows with 0 failures.
   (evidence: the summary lines `# pass` and `# fail` from a local Windows run, in
   `.dogwatch/evidence/M01-test.txt`)
-- **AC2** - CI is green on all seven matrix jobs, Windows included, on the commit that closes this
-  milestone. (evidence: `gh run view <id>` job list showing every job passing)
+- **AC2** - Linux and macOS did not regress: the suite still passes there.
+  (evidence: the CI run id for the closing commit and the conclusion of its Linux and macOS jobs)
 - **AC3** - The cross-process locking guarantee from D-022 is actually verified on Windows: the
   concurrent-writers test runs its six children to completion there rather than failing to load
   them. (evidence: that test named in the passing output, plus the writer exit codes)
@@ -65,67 +72,13 @@ modules, not in the engine.
 
 ### Exit
 
-- All acceptance criteria evidenced, suite green on three platforms.
+- All acceptance criteria evidenced.
 - Committed and tagged `v05/M01`.
 - `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
 
 ---
 
-## M02 - `kill` ends the whole session on every platform
-
-### Objective
-
-`dogwatch kill` terminates the agent session and everything it spawned, on macOS and Linux as it
-already does on Windows. Today the POSIX path signals only the child the engine spawned, so an agent
-launched through a wrapper script survives the kill and playbook rule 4 silently does nothing.
-
-### Context
-
-- `src/commands/kill.ts` uses `taskkill /PID <pid> /T /F` on Windows and `process.kill(pid,
-  "SIGTERM")` elsewhere. `src/session.ts` spawns without `detached`, so there is no process group to
-  signal.
-- The same asymmetry affects the runner's own abort path (`onAbort` in `runSession`), which is what
-  the second interrupt uses. Fix both or the two paths disagree.
-- **Design note that must be decided, not assumed:** `detached: true` on POSIX puts the child in its
-  own process group, which also stops it from receiving the terminal's SIGINT. That is arguably
-  correct - it makes the engine's explicit kill authoritative instead of relying on signal
-  propagation - but it changes what a single Ctrl-C does to the child. The two-interrupt semantics
-  from `runner.stop.test.ts` must still hold afterwards, and that is a gate, not a detail.
-- Out of scope: Windows, which already kills the tree.
-
-### Tasks
-
-1. Spawn the agent `detached: true` on POSIX, keeping stdio piped.
-2. Signal the process group (`process.kill(-pid, ...)`) from both `kill.ts` and the runner's abort
-   path, falling back to the bare pid if the group signal fails.
-3. Escalate: `SIGTERM`, then `SIGKILL` after a short grace period, so a session that ignores the
-   first signal does not leave the runner waiting forever.
-4. Re-verify the interrupt semantics on POSIX after the change.
-5. Write a test that spawns a wrapper which forks a grandchild, kills it through the same code path,
-   and asserts the grandchild is gone. Without it this regresses unnoticed, which is how it got here.
-
-### Acceptance criteria
-
-- **AC1** - A wrapper script that forks a grandchild is fully terminated by the kill path on macOS
-  or Linux; the grandchild's pid is no longer alive afterwards.
-  (evidence: the new test's name and its assertions, in `.dogwatch/evidence/M02-test.txt`)
-- **AC2** - The two-interrupt semantics still hold: one interrupt finishes and grades the running
-  session, a second kills it and leaves the milestone `in_progress` costing no attempt.
-  (evidence: `runner.stop.test.ts` passing, both test names quoted)
-- **AC3** - Windows behaviour is unchanged. (evidence: the Windows CI job passing on the closing
-  commit)
-- **AC4** - The `detached` decision is recorded in `docs/DECISIONS.md` with what it changes about
-  Ctrl-C, not left as an unexplained spawn flag. (evidence: the decision number and its heading)
-
-### Exit
-
-- All acceptance criteria evidenced, suite green on three platforms.
-- Committed and tagged `v05/M02`.
-- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
-
----
-
-## M03 - A registry of runs, and `dogwatch runs`
+## M02 - A registry of runs, and `dogwatch runs`
 
 ### Objective
 
@@ -170,7 +123,7 @@ panel that spans runs is deliberately left for later.
 
 - **AC1** - Two runs started in different directories both appear in `dogwatch runs`, each with the
   right milestone and liveness verdict. (evidence: the command's output for both, captured in
-  `.dogwatch/evidence/M03-runs.txt`)
+  `.dogwatch/evidence/M02-runs.txt`)
 - **AC2** - A runner that is killed leaves no live entry: the next `dogwatch runs` prunes it.
   (evidence: the test name, plus before/after output)
 - **AC3** - Concurrent registration from several processes loses no entry, on the same argument as
@@ -181,6 +134,69 @@ panel that spans runs is deliberately left for later.
   number and heading)
 - **AC6** - `docs/GUIDE.md` documents the command and drops "no view across runs" from its limits.
   (evidence: the section name and the amended limits list)
+
+### Exit
+
+- All acceptance criteria evidenced, suite green on three platforms.
+- Committed and tagged `v05/M02`.
+- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
+
+---
+
+## M03 - `kill` ends the whole session on every platform
+
+### Objective
+
+`dogwatch kill` terminates the agent session and everything it spawned, on macOS and Linux as it
+already does on Windows. Today the POSIX path signals only the child the engine spawned, so an agent
+launched through a wrapper script survives the kill and playbook rule 4 silently does nothing.
+
+### Context
+
+- `src/commands/kill.ts` uses `taskkill /PID <pid> /T /F` on Windows and `process.kill(pid,
+  "SIGTERM")` elsewhere. `src/session.ts` spawns without `detached`, so there is no process group to
+  signal.
+- The same asymmetry affects the runner's own abort path (`onAbort` in `runSession`), which is what
+  the second interrupt uses. Fix both or the two paths disagree.
+- **Design note that must be decided, not assumed:** `detached: true` on POSIX puts the child in its
+  own process group, which also stops it from receiving the terminal's SIGINT. That is arguably
+  correct - it makes the engine's explicit kill authoritative instead of relying on signal
+  propagation - but it changes what a single Ctrl-C does to the child. The two-interrupt semantics
+  from `runner.stop.test.ts` must still hold afterwards, and that is a gate, not a detail.
+- Out of scope: Windows, which already kills the tree.
+- **This milestone cannot verify itself on the development machine.** The fix is to POSIX process
+  groups and the machine is Windows with no WSL, so the only POSIX runner available is CI. Work on a
+  branch `v05/M03`, push, and read the result with `gh run watch`. Do not push to `main`.
+- **Bound the loop.** Each push-and-wait cycle costs minutes, so a wrong assumption about process
+  groups could burn a whole night at five minutes a turn. Allow at most four CI cycles for this
+  milestone; on the fifth, report `blocked` with what the runs showed rather than continuing. This
+  replaces the protocol's usual failure budget, which assumes fast local feedback.
+
+### Tasks
+
+1. Spawn the agent `detached: true` on POSIX, keeping stdio piped.
+2. Signal the process group (`process.kill(-pid, ...)`) from both `kill.ts` and the runner's abort
+   path, falling back to the bare pid if the group signal fails.
+3. Escalate: `SIGTERM`, then `SIGKILL` after a short grace period, so a session that ignores the
+   first signal does not leave the runner waiting forever.
+4. Re-verify the interrupt semantics on POSIX after the change.
+5. Write a test that spawns a wrapper which forks a grandchild, kills it through the same code path,
+   and asserts the grandchild is gone. Without it this regresses unnoticed, which is how it got here.
+
+### Acceptance criteria
+
+- **AC1** - A wrapper script that forks a grandchild is fully terminated by the kill path on macOS
+  or Linux; the grandchild's pid is no longer alive afterwards. The session cannot run this
+  assertion locally, so the evidence is the CI job that did.
+  (evidence: the CI run id, the Linux and macOS job conclusions, and the new test's name in their
+  output, captured in `.dogwatch/evidence/M03-ci.txt`)
+- **AC2** - The two-interrupt semantics still hold: one interrupt finishes and grades the running
+  session, a second kills it and leaves the milestone `in_progress` costing no attempt.
+  (evidence: `runner.stop.test.ts` passing, both test names quoted)
+- **AC3** - Windows behaviour is unchanged, verified locally and in CI.
+  (evidence: the local Windows suite summary, plus the Windows CI job conclusion)
+- **AC4** - The `detached` decision is recorded in `docs/DECISIONS.md` with what it changes about
+  Ctrl-C, not left as an unexplained spawn flag. (evidence: the decision number and its heading)
 
 ### Exit
 
