@@ -1,97 +1,92 @@
 # What to do next
 
-Rewritten 2026-08-20, superseding the version written on 2026-08-19 before v0.4. That file asked for
-one thing above all - prove the engine on a real milestone - and it happened, so it is replaced
-rather than edited.
+Rewritten 2026-08-20 on closing v0.5, superseding the version written earlier the same day. That
+file listed five items; three are done, one is unchanged, and the run that closed them produced two
+findings that were not on it at all.
 
 ## Where things stand
 
-**The engine has been validated.** v0.4 was itself built as a four-milestone milestoner run
-(`.milestoner/`, run `v04-plugin`): four fresh Claude Code sessions, each graded against its written
-evidence, 23 evidence lines, every milestone `done` on its first attempt, no intervention. The
-load-bearing assumption from D-006 - that a session writes `result.json` and the engine grades it -
-held with a real agent.
+**The engine has now been used on itself twice.** v0.4 was built as a four-milestone run
+(`v04-plugin`) and v0.5 as another (`v05-debt`): eight milestones, eight fresh Claude Code sessions,
+each graded against its written evidence. Seven closed on the first attempt.
 
-What that run did not exercise, and is still unproven: a run long enough to hit a real usage limit
-or agent fallback mid-flight, a non-Claude agent across a whole run rather than a single milestone,
-and the supervisor loop against a live multi-milestone run rather than the one blocked run it has
-been tried on.
+The eighth is the interesting one. M03's session did the work, pushed a branch, got a green CI matrix
+on all eight jobs, and then died with a fifteen-byte `Execution error` transcript before writing
+`result.json`. The engine graded it `incomplete` and charged the attempt. It closed on the retry in
+four minutes, because the retry found the work already done and only had to verify and report.
 
-Also closed since the last version of this file: `LICENSE`, CI on three operating systems, agent
-support beyond Claude Code with quota fallback, an environment adapter for macOS and Linux, the
-guide brought up to date, the local web panel, and Claude Code plugin packaging with a marketplace.
+Still unexercised, unchanged from the last version of this file: a run long enough to hit a real
+usage limit or agent fallback mid-flight, a non-Claude agent across a whole run rather than a single
+milestone, and the supervisor loop against a live multi-milestone run rather than the one blocked run
+it has been tried on.
 
-One prediction in the old file was wrong and is worth recording: it called `promptDelivery`
-(`arg` / `stdin` / `file`) "the one real engine change" needed for other agents. It was not needed.
-Codex takes its prompt as an argument like Claude Code does, and the argument template covered it
-with no engine change at all. Do not build it until an agent actually demands it.
+## 1. A crashed session is charged an attempt it did not deserve
 
-## 1. The Windows test suite is red, and has been for every recent commit
+New, and the most valuable thing the v0.5 run produced, because the engine found it by failing at it.
 
-Done on 2026-08-20 as milestone M01 of the `v05-debt` run. 82 of 82 pass on Windows. Both root
-causes were in the tests, neither in the engine:
+`classifyInfraFailure` in `src/session.ts` returns `null` for anything that ran longer than
+`infra.deathSeconds` (90 by default) before testing whether the transcript is tiny. The reasoning was
+sound when it was written: a session that ran for a quarter of an hour has not died instantly, so an
+instant-death rule should not claim it. But a fifteen-byte transcript after fifteen minutes is not a
+milestone that failed. It is an agent that crashed, and the milestone should not pay for it.
 
-- **Checkout line endings.** With no `.gitattributes`, git handed Windows a working tree with CRLF,
-  and the tests that parse `---\n` frontmatter out of files on disk found `---\r\n` and concluded
-  there was no frontmatter. Fixed by a `.gitattributes` pinning `* text=auto eol=lf`, plus
-  normalisation in the parsers themselves, since a shipped `.md` can arrive from anywhere.
-- **A Windows path used as an ESM specifier.** `lock.test.ts` wrote a child script importing
-  `join(process.cwd(), "src", "state.ts")`. On POSIX an absolute path resolves; on Windows Node
-  rejected it with `ERR_UNSUPPORTED_ESM_URL_SCHEME` because `D:` reads as a protocol, so every
-  writer child exited 1. Fixed with `pathToFileURL(...).href`. The cross-process locking guarantee
-  from D-022 is now verified on Windows rather than assumed: six concurrent writers, all exit 0, six
-  evidence entries surviving, `rev` 6.
+The shape of the fix is a pattern the classifier does not have: a transcript far below
+`tinyTranscriptBytes` is evidence of a crash *at any duration*, where the duration bound only ever
+made sense as a guard against misreading a fast legitimate failure. Whether that means dropping the
+bound for the tiny-transcript branch alone, or a second lower threshold that ignores duration, is the
+decision. Both leave the usage-limit and pattern branches untouched.
 
-What is not yet closed: the CI run that proves Linux and macOS did not regress. The protocol for
-that run forbids `git push`, so the session could only verify locally that the changes are a no-op
-on an LF checkout. Push the branch and read the matrix.
+Not academic: it cost a real attempt out of three on a milestone that had already succeeded.
 
-## 2. Publish to npm - deliberately last
+## 2. Tags and branches share a namespace, and git cannot tell them apart
 
-Wanted eventually, not now, and deprioritised on 2026-08-20 behind everything else here. The README
-and the guide document `npm install -g milestoner`; nothing is published. Everything that should gate
-a publish is already in place - LICENSE, CI, changelog, a `files` list verified by `npm pack`, a
-`prepublishOnly` that typechecks, tests and builds. It is the only item with an external audience,
-which is the argument for doing it once the rest has settled rather than before.
+Also new, and small. The run tags milestones `v05/M01` and works on branches named `v05/M03`, so
+`git push origin v05/M03` fails with `src refspec v05/M03 matches more than one` and has to be
+disambiguated with `refs/heads/`. v0.4 never hit it because no milestone in that run needed a branch.
 
-## 3. `kill` on macOS and Linux only reaches one process
+Any milestone that works on a branch will hit it again. Pick one namespace and change the other:
+tags as `v0.5-M03`, or branches as `wip/M03`. The tag scheme is what `.milestoner/protocol.md`
+section 5 names, and that file still says `v04-plugin/<milestoneId>` from the previous run while the
+plans have been saying `v05/<id>`. Both agents followed the plan and ignored the protocol, which is
+its own small finding about which document an agent actually reads.
 
-Windows uses `taskkill /T /F` and kills the tree. Elsewhere the engine signals the child it spawned,
-and the process is not spawned `detached`, so there is no group to signal. When the agent command is
-a wrapper script that forks, the real session outlives the kill and playbook rule 4 quietly does
-nothing. Fix: spawn `detached` on POSIX and signal the process group. Needs a test that spawns a
-wrapper which forks, or it will regress unnoticed.
+## 3. Publish to npm - now genuinely next
 
-## 4. A registry of runs, and a panel that spans them
+Deferred behind v0.5 on 2026-08-20 and nothing is left in front of it. The README and the guide both
+document `npm install -g milestoner`; nothing is published, so both are writing a cheque the registry
+will not cash. `milestoner` is free on npm.
 
-The registry half is done on 2026-08-20 as milestone M02 of the `v05-debt` run. Runners register
-their project path, run name and pid in `~/.milestoner/runs.json` and deregister in the same step
-that clears the pulse; `milestoner runs [--json]` lists every one of them from any directory, with
-its milestone, progress and liveness verdict, and exits `2` when one is blocked or its runner is
-gone. A killed runner's entry is kept and reported `gone` for a day rather than vanishing. Recorded
-as D-025.
+Everything that should gate a publish is in place: LICENSE, CI green on all eight jobs across three
+operating systems, a changelog with a dated `[0.5.0]`, a `files` list verified by `npm pack` (four
+files, 43.7 kB), and a `prepublishOnly` that typechecks, tests and builds.
 
-What is left is the panel across runs. One run's panel now comes up with its run - `milestoner run
---serve`, done on 2026-08-20 as milestone M04, recorded as D-027 - but that is still one directory.
-`serve` shows only the directory it was started in, so a multi-run
-view is a `serve` change now that the primitive it needs exists: a run picker across the registry,
-and a decision about whether one process may act on a project it was not started in. That is a
-security question (D-020's write surface is scoped to one project) and should be answered before the
-screen is built.
+It is the only item here with an external audience, and the first one where a mistake is public.
+
+## 4. A panel that spans runs
+
+The registry landed in v0.5 (D-025) and the panel now comes up with the run (D-027), so what is left
+is the view across them. `serve` still answers for one project directory.
+
+The blocker is a decision, not code: D-020 scoped the panel's write surface to the project it was
+started in, and a cross-run panel means one process acting on projects it was not started in. D-027
+already had to rule on a smaller version of the same question and chose to keep `--write` while
+refusing the one control that conflicts. That is the precedent to argue from.
 
 ## 5. Still unanswered: authoring flows in a UI
 
-Carried over unchanged from the web UI evaluation. Milestone prompts are hand-written on purpose;
-that is the deliberate friction and the stated difference from task-generating loops. A flow builder
-would produce exactly the vague specs the evidence gate exists to catch.
+Carried over unchanged, for the third time. Milestone prompts are hand-written on purpose; that is
+the deliberate friction and the stated difference from task-generating loops. A flow builder would
+produce exactly the vague specs the evidence gate exists to catch.
 
 There is a defensible version - a UI that shows an existing run's shape and edits ordering and
 titles, with the prompt files staying hand-written text. If the goal is really authoring in a GUI,
 that supersedes a decision in BRIEF.md and should be written down as one before any screen is built.
 
-## Plans
+Planned separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision
+first and work only if the decision goes a particular way.
 
-Items 1, 3 and 4 are planned as v0.5 in [PLAN-v05.md](PLAN-v05.md), as three milestones in this
-project's own format: the Windows suite (done), the run registry (done), and `kill` on POSIX. Item 5 is planned
-separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision first and
-work only if the decision goes a particular way. Item 2 comes after both.
+## Order
+
+1 and 2 are small and both came out of using the tool, so they are the cheapest things here and
+should go first. 3 is next and is the only item that changes anything for anyone outside this
+repository. 4 needs its decision written before any screen. 5 is still a question, not a task.

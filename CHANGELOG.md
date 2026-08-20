@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-20
+
+Built as a four-milestone milestoner run (`v05-debt`), the second time the engine has been used on
+itself. Three of the four milestones were debt the v0.4 run exposed; the fourth was asked for while
+the run was in flight and appended to it.
+
 ### Added
 
 - `milestoner run --serve` brings the web panel up with the run and prints its URL, so a run can be
@@ -89,7 +95,8 @@ All notable changes to this project are documented here. The format follows
   and the failing Windows test suite.
 - `docs/NEXT.md` was written before v0.4 and had been overtaken almost entirely. Rewritten around
   what is actually left, and recording that its own prediction about `promptDelivery` was wrong.
-- The README no longer claims CI covers only Linux and Windows, and says the Windows jobs are red.
+- The README no longer claims CI covers only Linux and Windows. The caveat it carried for part of
+  this release, that the Windows jobs were red, is gone with the cause.
 
 ## [0.4.0] - 2026-08-19
 

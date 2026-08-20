@@ -1,8 +1,8 @@
 {
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
-  "runComplete": false,
-  "rev": 10,
+  "runComplete": true,
+  "rev": 11,
   "milestones": [
     {
       "id": "M01",

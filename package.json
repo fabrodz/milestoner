@@ -1,6 +1,6 @@
 {
   "name": "milestoner",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Supervised autonomous-run engine for coding agents: milestone state machine, evidence gates, infra-failure discrimination.",
   "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
   "license": "MIT",

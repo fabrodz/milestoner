@@ -8,7 +8,7 @@ The name is the thesis. A milestone only counts when something on disk proves it
 diff, a commit. Milestoner runs one fresh session per milestone, grades what that session claims
 against the evidence it left behind, and moves the marker only when the two agree.
 
-Status: **v0.4**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, and an HTML run report.
+Status: **v0.5**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
 
 ## Install
 
@@ -394,13 +394,21 @@ agent announces its own failures in prose rather than dying instantly, add its w
 - **v0.4** plugin packaging: manifest, the supervisor skill and four slash commands as plugin
   components, and an in-repo single-plugin marketplace. Done. A second agent behind the config
   string is done too: see [Running a different agent](#running-a-different-agent).
+- **v0.5** the debt v0.4 exposed, plus one addition: a green test suite on Windows, `kill` ending
+  the whole session on macOS and Linux rather than one process, a machine-level registry behind
+  [`milestoner runs`](#commands), and the panel coming up with the run behind
+  [`--serve`](#the-web-panel). Done.
 
-Validated end to end by this release: v0.4 was itself built as a four-milestone milestoner run
-(M01-M04), each milestone a fresh Claude Code session graded against its written evidence, so a full
-multi-milestone run driven by a real agent is no longer unvalidated. What that run did not exercise:
-a run long enough to hit a real usage limit or agent fallback mid-flight, a non-Claude agent across a
-whole run rather than a single milestone, and the supervisor loop against a live multi-milestone run
-rather than the one blocked run it has been tried on.
+Validated end to end: v0.4 and v0.5 were each built as a four-milestone milestoner run, every
+milestone a fresh Claude Code session graded against its written evidence, so a full multi-milestone
+run driven by a real agent is no longer unvalidated. The v0.5 run also produced the first evidence
+of the engine misgrading itself: an agent session crashed after fifteen minutes of completed work
+with a fifteen-byte transcript, and because the infra classifier only looks for a tiny transcript
+inside `infra.deathSeconds`, the crash was charged as a failed attempt rather than refunded.
+
+What neither run exercised: a run long enough to hit a real usage limit or agent fallback mid-flight,
+a non-Claude agent across a whole run rather than a single milestone, and the supervisor loop against
+a live multi-milestone run rather than the one blocked run it has been tried on.
 
 ## Changelog
 

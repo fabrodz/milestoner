@@ -3,10 +3,10 @@
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
 
-Applies to **v0.4**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
+Applies to **v0.5**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
 (`skill install`, `kill`, `attend`), mid-flight steering (`steer`), the HTML run report (`report`),
-the local web panel (`serve`), agent fallback, and the Claude Code plugin. Where a behaviour is
-planned for a later version it says so.
+the local web panel (`serve`, or `run --serve`), the machine-level run registry (`runs`), agent
+fallback, and the Claude Code plugin. Where a behaviour is planned for a later version it says so.
 
 - [What milestoner actually does](#what-milestoner-actually-does)
 - [When to use it, and when not to](#when-to-use-it-and-when-not-to)
@@ -29,7 +29,7 @@ planned for a later version it says so.
 - [Recipes](#recipes)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [Limits of v0.4](#limits-of-v04)
+- [Limits of v0.5](#limits-of-v05)
 
 ## What milestoner actually does
 
@@ -1595,7 +1595,7 @@ grep killed .milestoner/run-log.md
 the runner is stopped. The runner reloads the state file every iteration, but editing it under a live
 runner risks losing a write.
 
-**Can two runs share a project directory?** Not in v0.4: the paths under `.milestoner/` are fixed. Use
+**Can two runs share a project directory?** Not in v0.5: the paths under `.milestoner/` are fixed. Use
 separate working copies.
 
 **Does it need git?** No, but the default protocol assumes it and tags every green milestone. Without
@@ -1621,7 +1621,7 @@ it as a protocol violation and fix the prompt.
 **Does `done` mean the code is good?** It means the acceptance criteria have written evidence. The
 strength of that guarantee is the quality of your criteria. Review the tags.
 
-## Limits of v0.4
+## Limits of v0.5
 
 - **Not published to npm.** Install from source. The name is claimed but nothing is published yet.
 - **Plugin packaging.** Besides the CLI-written skill, the supervisor and four slash commands
@@ -1637,12 +1637,10 @@ strength of that guarantee is the quality of your criteria. Review the tags.
   which is one run's panel, not a view across them.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
-- **`kill` reaches the whole process tree on all three platforms.** `taskkill /T /F` on Windows, the
-  session's own process group elsewhere, with `SIGKILL` five seconds behind the `SIGTERM`. A wrapper
-  script that forks no longer outlives the kill.
-- **The test suite passes on all three platforms.** The Windows failures were checkout line endings
-  and one test that built a Windows path where an ESM specifier was expected; both are fixed and the
-  tree is pinned to LF by `.gitattributes`.
+- **A crashed session can still cost an attempt.** The infra classifier only reads a tiny transcript
+  as an instant death inside `infra.deathSeconds`. An agent that works for fifteen minutes and then
+  dies with a two-line transcript is graded `incomplete` and charged, even though nothing about it
+  was the milestone's fault. This happened during the v0.5 run itself.
 
 The roadmap is in [../README.md](../README.md); the reasoning behind each design decision is in
 [DECISIONS.md](DECISIONS.md).
