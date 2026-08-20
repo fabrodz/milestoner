@@ -146,7 +146,7 @@ retry - not about containment.
 What actually reduces the risk:
 
 - **Work in a git repository, committed and pushed before you start.** The protocol template tags
-  every green milestone; `git reset --hard <run>/<milestoneId>` is then a real rollback, and the
+  every green milestone; `git reset --hard <run>-<milestoneId>` is then a real rollback, and the
   attempt history in `state.json` tells you which tag to go back to.
 - **Scope the directory.** Run it where the blast radius is a project you could restore, not your
   home directory.
@@ -402,8 +402,10 @@ evidence, and add that file to `liveness` in `config.json`:
 **Descope authority.** The one rule that prevents both stalling and cheating: the session may
 simplify cosmetic details, and must log them, but may not descope a core acceptance criterion.
 
-**Git.** Commit per logical step, tag each green milestone `<run>/<milestoneId>`. Those tags are your
-rollback points: `git reset --hard checkout-v2/M02`.
+**Git.** Commit per logical step, tag each green milestone `<run>-<milestoneId>`. Those tags are your
+rollback points: `git reset --hard checkout-v2-M02`. The template deliberately puts no slash in tag
+names: sessions branch as `<run>/<id>` or `wip/<id>`, and a branch and a tag sharing a name makes
+`git push origin <name>` fail with `src refspec matches more than one`.
 
 **Session end.** Append to the execution log, commit, write `result.json`, exit. The template already
 spells out the JSON contract for both `done` and `blocked`.
@@ -455,7 +457,7 @@ built in M01, with the pricing rules from `docs/pricing.md`. Nothing renders it 
 
 - All acceptance criteria evidenced.
 - Build clean, suite green.
-- Committed and tagged `checkout-v2/M02`.
+- Committed and tagged `checkout-v2-M02`.
 - `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 ```
 
@@ -487,6 +489,16 @@ milestoner init [--run <name>] [--milestones <n>] [--force]
 
 Adding a milestone later is a manual edit: create `prompts/M05.md` and append an entry to
 `state.json`. That is intentional. `state.json` is a run's history, not a scratch file.
+
+**Re-init over an existing `.milestoner/`.** The hand-written files - prompts, the protocol, both
+logs - survive every re-init; `--force` only replaces `config.json` and `state.json`. The one thing
+`init` checks about the protocol it is keeping is that it belongs to the run being scaffolded. If
+`.milestoner/protocol.md` names a different run in its header, `init` stops with exit 1 before
+writing anything and asks you to bring the file in line - the run name in the header and the tag
+line in its Git section - or delete it for a fresh template. Without that check, every session of
+the new run would read the finished run's rules, tag instruction included, and nothing would say
+so. A protocol whose header no longer names a run at all is kept with a warning, because `init`
+cannot tell which run it belongs to; a protocol naming the run being scaffolded is kept silently.
 
 ### milestoner run
 
@@ -1513,7 +1525,7 @@ its `status` to `"pending"`, `attempts` to `0`, and clear `evidence`. Then `mile
 **Roll back to the last green milestone.** If your protocol tags, and the default template does:
 
 ```sh
-git reset --hard checkout-v2/M02
+git reset --hard checkout-v2-M02
 # then set M03 back to pending in state.json
 milestoner run
 ```

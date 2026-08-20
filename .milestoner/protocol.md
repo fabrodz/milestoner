@@ -63,8 +63,9 @@ diagnosis.
 
 - Commit per logical step. Message style: `feat: ...`, `fix: ...`, `docs: ...`, `refactor: ...`,
   lowercase summary, English.
-- On a green milestone gate: final commit plus tag `v04-plugin/<milestoneId>`. Tags are the
-  rollback points for the whole run.
+- On a green milestone gate: final commit plus tag `v05-debt-<milestoneId>`. Tags are the
+  rollback points for the whole run. No slash in tag names: a branch and a tag sharing a name
+  makes `git push origin <name>` ambiguous.
 - **No AI attribution of any kind** in commits: no co-author trailer, no "generated with" line.
 - Never `git push`, never `npm publish`, never rewrite history that is already tagged.
 

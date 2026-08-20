@@ -5,8 +5,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The protocol and milestone templates tag green milestones `<run>-<milestoneId>` instead of
+  `<run>/<milestoneId>`. A tag with a slash collides with the branch name a session naturally picks
+  for the same milestone, and `git push origin <name>` then fails with `src refspec matches more
+  than one`. Existing tags are untouched. Recorded as D-030.
+
 ### Fixed
 
+- `milestoner init` over an existing `.milestoner/` no longer silently keeps a protocol that names a
+  different run. The protocol is hand-edited, so `init` still never rewrites or deletes it; what it
+  does now is stop with exit 1 before scaffolding anything when `.milestoner/protocol.md` names
+  another run in its header, and say what to bring in line. Previously every session of the new run
+  was handed the finished run's rules, tag instruction included, and nothing said so - it happened
+  to this repository's own v0.5 run. Recorded as D-030.
 - A session that crashed mid-run no longer costs the milestone an attempt. The infra classifier
   read a tiny transcript as a crash only inside `infra.deathSeconds` (90 s), so an agent that
   worked for fifteen minutes and then died leaving fifteen bytes was graded `incomplete` and

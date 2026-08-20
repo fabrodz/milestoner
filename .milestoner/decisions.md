@@ -273,3 +273,36 @@ Rejected: recreating wip/M05 and pushing to trigger a fresh pull_request run, wh
 minutes and a cycle to reproduce evidence that already exists for the same bytes; the branch
 mechanism existed to avoid pushing main, and main was already pushed by the user, not by this
 session.
+
+## 2026-08-20 - M07 - The three re-init and tag decisions, promoted to D-030
+
+Context: M07 named three decisions - what `init` does when the protocol names a different run,
+whether the run name stays baked into the protocol body, and the tag scheme. All three close one
+silence, so they are one permanent entry.
+
+Decision: `init` refuses cold (exit 1, before writing anything) and says what to bring in line or
+delete; the run name stays in the body, with staleness caught by that refusal rather than by
+de-personalising the document; tags become `<run>-<milestoneId>` while branches keep their slash
+namespace, and the existing tags (`v05/M01`..`v05/M05`, `v0.5.0`) are left alone. Written up as
+D-030 with the rejected alternatives.
+
+Rejected for the refusal in particular: warning and carrying on, which is the same silence one
+line higher - v0.5 proved a wrong instruction survives being technically visible; and rewriting
+only the run references, which pattern-edits a hand-owned file and fails on a rephrased header or
+on prose that legitimately mentions the old run.
+
+## 2026-08-20 - M07 - Detection keys on the header line alone
+
+Context: the check needs to read the run name out of a hand-edited file. The header
+`# Execution protocol - run "<name>"` is the one line every scaffolded protocol starts with; the
+tag line is the other rendered occurrence but sits inside prose the user is told to rewrite.
+
+Decision: `protocolRunName` matches the header only. A protocol whose header no longer names a run
+is kept with a warning that init cannot check it, because a document that names no run cannot hand
+a session another run's rules, and content staleness beyond the run name is out of scope by the
+prompt. A mismatch anywhere else (for example a stale tag line under a correct header, this
+repository's own case) is the user's to fix when the refusal or the warning sends them into the
+file - init cannot diff prose it told the user to own.
+
+Rejected: scanning the whole body for anything shaped like a run name, which cannot distinguish
+"the previous run was v04-plugin" written as history from a stale instruction.

@@ -22,23 +22,19 @@ it has been tried on.
 
 ## 0. Two things are owed before anything else here
 
-**M05's fix is on `main` without the Linux verification its own gate asked for.** The lock fix
-(D-028) is merged and green on Windows at 111/111, but AC3 wanted a green CI matrix and CI is
-unavailable: the repository is private and the GitHub account's Actions minutes are exhausted. The
-milestone is still `blocked` in `.milestoner/state.json`, deliberately, and there is no `v05/M05`
-tag. The session itself refused to merge or tag for exactly this reason; merging was an operator
-decision taken because leaving a known lost-update bug on `main` is worse than merging a fix that
-three platforms have not yet all agreed on. Close it properly when CI returns: `milestoner unblock
-M05`, let the retry read the matrix, then tag.
+**M05 is closed.** The user made the repository public later on 2026-08-20, which restored Actions;
+the push of `main` ran the full matrix green (run 32428734950), M05 was unblocked, closed on its
+second attempt against that run, and tagged `v05/M05`. The paragraph that stood here described the
+deliberate `blocked` state that preceded all of that.
 
 **The rewritten history is clean, but GitHub still serves the old objects.** The repository's history
 was rewritten on 2026-08-20 to remove the originating project's name, its absolute paths, a Windows
 username, and to unify four author identities into one. A fresh clone is clean. Force-pushing does
 not make the pre-rewrite commits unreachable on GitHub, though: they are still served by SHA, with
 their contents, and the only ways to be rid of them are a new repository or a purge request to
-GitHub Support. The repository is private in the meantime, which is what makes that safe to defer.
-It is also why Actions is unavailable, so this item and the one above are the same item wearing two
-hats.
+GitHub Support. The repository has since been made public, so this is no longer safe to defer
+indefinitely: anyone holding a pre-rewrite SHA can read the old contents today. Deciding between a
+purge request and living with it is the user's call, and it still gates nothing below.
 
 ## 1. A crashed session is charged an attempt it did not deserve - done
 
@@ -50,30 +46,21 @@ the usage-limit and pattern branches are untouched, and the refund shares the ex
 thing the v0.5 run produced, because the engine found it by failing at it: a real attempt out of
 three, charged to a milestone that had already succeeded.
 
-## 2. Tags and branches share a namespace, and git cannot tell them apart
+## 2. Tags and branches share a namespace, and git cannot tell them apart - done
 
-Also new, and small. The run tags milestones `v05/M01` and works on branches named `v05/M03`, so
-`git push origin v05/M03` fails with `src refspec v05/M03 matches more than one` and has to be
-disambiguated with `refs/heads/`. v0.4 never hit it because no milestone in that run needed a branch.
+Closed 2026-08-20 by M07 of the continued `v05-debt` run. Both halves landed:
 
-Any milestone that works on a branch will hit it again. Pick one namespace and change the other:
-tags carrying no slash, or branches as `wip/M03`, which is what M05 used and which worked.
+The tag scheme in the protocol and milestone templates is now `<run>-<milestoneId>`, no slash, so a
+tag can no longer share its name with the branch a session naturally creates for the same milestone
+(`v05/M03` existed as both, and `git push origin v05/M03` failed with `src refspec matches more
+than one`). Existing tags are left as they are.
 
-**Tracing this found the larger bug underneath it.** `.milestoner/protocol.md` section 5 tells the
-session to tag `v04-plugin/<milestoneId>` while the run is `v05-debt`, and the reason is in
-`src/commands/init.ts`: the protocol is written with `writeFileIfMissing`, so scaffolding a new run
-over an existing `.milestoner/` keeps the previous run's protocol, name and all. Every one of v0.5's
-five sessions read a protocol naming a run that had finished, and nothing warned anyone.
-
-`writeFileIfMissing` is the right call on its own terms, because the protocol is meant to be
-hand-edited and overwriting it would discard the project's rules. Silently keeping a stale run name
-is not. A warning when the protocol names a different run than the one being scaffolded is the small
-version; templating the run name out of the protocol body is the larger one.
-
-What makes this worth more than its size: for the whole run the protocol and the plan disagreed
-about a concrete instruction, and five sessions resolved it the same way without mentioning it. The
-agents followed the plan. Nothing in the engine noticed the two documents were in conflict, and
-nothing in the evidence records that a choice was made.
+The larger bug underneath it - `init` silently keeping a previous run's protocol - is closed at the
+source: scaffolding over a `.milestoner/protocol.md` whose header names a different run now stops
+`init` with exit 1 before anything is written, and says what to bring in line or delete. The
+protocol stays hand-edited and is never rewritten; what is gone is the silence. This repository's
+own protocol, which told five v0.5 sessions to tag `v04-plugin/<milestoneId>`, is brought in line
+with `v05-debt` in the same milestone. The three decisions are D-030.
 
 ## 3. Publish to npm - now genuinely next
 
@@ -116,7 +103,6 @@ first and work only if the decision goes a particular way.
 happens to the repository. Nothing below it is blocked by it, which is the only reason the rest can
 proceed at all.
 
-1 is done. 2 is small and came out of using the tool, so it is the cheapest thing left and should
-go first. 3 cannot happen before 0 is settled, because publishing from a repository whose
+1 and 2 are done. 3 cannot happen before 0 is settled, because publishing from a repository whose
 history is still being decided is the wrong order. 4 needs its decision written before any screen.
 5 is still a question, not a task.

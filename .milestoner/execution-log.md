@@ -670,3 +670,85 @@ None.
 ### Next step
 
 M07. M06 is already done; the run has one milestone left.
+
+## M07 - Scaffolding a new run cannot leave the previous run's protocol behind (2026-08-20)
+
+### What was built
+
+`milestoner init` now reads the run name out of an existing `.milestoner/protocol.md` header before
+it writes anything. A protocol naming a different run stops the scaffold cold: exit 1, both run
+names in the message, and instructions to bring the file in line (header plus the Git section's tag
+line) or delete it for a fresh template. A protocol naming the same run is kept silently, exactly
+as before; one whose header names no run is kept with a warning that init cannot check it. The
+protocol stays hand-edited and is never rewritten or deleted - what is gone is the silence.
+
+The tag scheme in both templates changed from `{{run}}/<milestoneId>` to `{{run}}-<milestoneId>`
+(`src/templates/protocol.ts` and the Exit section of `src/templates/milestone.ts`), with a template
+line saying why: a branch and a tag sharing a name makes `git push origin <name>` ambiguous. This
+repository's own protocol section 5 now instructs `v05-debt-<milestoneId>` instead of the stale
+`v04-plugin/<milestoneId>` that every v0.5 session read.
+
+Engine change committed as b7179a4; four new tests in `src/commands/init.test.ts`.
+
+### Evidence per acceptance criterion
+
+- **AC1** - test `ok 8 - scaffolding over a protocol naming a different run refuses before writing
+  anything`. The exact user-visible output is in `.milestoner/evidence/M07-init.txt` section 2,
+  captured against the built `dist/cli.js`: `.milestoner/protocol.md names run "v04-plugin", not
+  "v05-debt" - a session would read the old run's rules`, followed by the bring-in-line-or-delete
+  instructions, exit 1; section 3 shows the old protocol, config, state and prompts untouched.
+- **AC2** - tests `ok 9 - re-init over the same run's protocol keeps it byte for byte and says
+  nothing about it` (hand edits appended to the protocol survive a `--force` re-init byte-identical,
+  and neither check message appears) and `ok 7 - a fresh scaffold writes a protocol naming the run,
+  tagged without a slash`. Live confirmation of the silent same-run path in `M07-init.txt`
+  section 4.
+- **AC3** - `.milestoner/evidence/M07-tags.txt`, a temp repository with a local bare origin.
+  Old scheme: branch and tag both `v05/M03`, `git push origin v05/M03` fails with `error: src
+  refspec v05/M03 matches more than one`, exit 1. New scheme: branch `v05-debt/M07` and tag
+  `v05-debt-M07` both push cleanly, exit 0 each, and `git ls-remote` shows them as
+  `refs/heads/v05-debt/M07` and `refs/tags/v05-debt-M07` - no shared name possible while tags carry
+  no slash and work branches keep their slash namespace.
+- **AC4** - `.milestoner/evidence/M07-protocol-diff.txt`: the header reads `# Execution protocol -
+  run "v05-debt"` (unchanged - it was already correct), and the diff of section 5 replaces
+  `v04-plugin/<milestoneId>` with `v05-debt-<milestoneId>` plus the no-slash rationale.
+- **AC5** - `docs/DECISIONS.md`, `## D-030 - Re-init refuses another run's protocol, and tags lose
+  their slash (2026-08-20)`, one paragraph per decision with its rejected alternative.
+  `docs/GUIDE.md` gained the paragraph `**Re-init over an existing .milestoner/.**` under
+  `### milestoner init`, which previously said nothing about re-init at all.
+
+Gate: `npm run typecheck` exit 0, `npm run build` exit 0, `npm test` exit 0 - `# tests 118`,
+`# pass 118`, `# fail 0`, zero `not ok` lines in `.milestoner/evidence/M07-test.txt`, against the
+114/114 baseline M06 left. `claude plugin validate .` exit 0, `node dist/cli.js --version` prints
+0.5.0. CI not run: not pushed, per the prompt's note; this is filesystem and template logic the
+local suite covers.
+
+### Problems hit
+
+None worth the name. The first version of the same-run test asserted no output line contains
+"protocol", which the scaffold's own "Next:" block does; the assertion now targets the two check
+messages specifically.
+
+### Decisions
+
+Two blocks in `.milestoner/decisions.md`: the three prompt-mandated decisions promoted to D-030
+(refuse cold; run name stays in the body; `<run>-<milestoneId>` tags with existing tags left
+alone), and detection keying on the header line alone rather than scanning the body.
+
+### Descoped
+
+Nothing.
+
+### Engine findings
+
+None new; this milestone *is* the engine finding, closed at the source.
+
+### Backlog
+
+- `docs/NEXT.md` item 0 carried two claims M05's close had already made stale (repository private,
+  no `v05/M05` tag); corrected in passing since the file was being edited for item 2. The purge
+  decision it describes is now live because the repository is public - flagged there for the user.
+- `workflow_dispatch` on the CI workflow, carried from M03 through M06.
+
+### Next step
+
+None. M07 is the last milestone of v05-debt; the run is complete.

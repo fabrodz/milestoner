@@ -593,3 +593,37 @@ worst case the rule adds is thirty refunded sessions and thirty short waits befo
 `infra-exhausted`, the same ceiling every other infra rule already had. Rejected: a separate,
 smaller cap for crashes, a knob that distinguishes two flavours of the same "not the milestone's
 fault".
+
+## D-030 - Re-init refuses another run's protocol, and tags lose their slash (2026-08-20)
+
+`milestoner init` writes the protocol with `writeFileIfMissing`, so scaffolding a new run over an
+existing `.milestoner/` kept the old file, previous run's name included. This repository proved the
+cost: `.milestoner/protocol.md` told sessions to tag `v04-plugin/<milestoneId>` while the run was
+`v05-debt`, every v0.5 session read it, all of them followed the plan document instead, and nothing
+anywhere reported that two authority documents disagreed about a concrete instruction. Three
+decisions close it.
+
+**A protocol naming a different run stops `init` cold.** It exits 1 before writing anything, names
+both runs, and asks the user to bring the file in line - the run name in the header, the tag line
+in its Git section - or delete it for a fresh template. The cost is one manual step on every
+re-init over a finished run, paid by exactly the person who has to confirm the old rules still
+apply to the new one. Rejected: warning and carrying on, because a warning above init's "Next:"
+block is precisely the silence being closed - v0.5 showed that a wrong instruction survives being
+technically visible; and rewriting only the run references, which edits a hand-owned file by
+pattern match and fails badly on a rephrased header or on prose that mentions the old run
+legitimately. A protocol whose header names no run at all cannot hand a session another run's
+rules, so it is kept, with a warning that `init` cannot check it.
+
+**The run name stays baked into the protocol body.** A protocol that said "this run" could never go
+stale, but it would stop being a self-contained document a person can read without context, and the
+tag instruction cannot be rendered at all without the name. Staleness is instead caught at the only
+moment it can arise - an `init` over an existing file - by the refusal above.
+
+**Tags are `<run>-<milestoneId>`, and the existing tags stay.** The old scheme's tag was the same
+string a session naturally picks as a branch name: `v05/M03` existed as both, and
+`git push origin v05/M03` failed with `src refspec matches more than one`. Tags now carry no slash
+while the workflow's branches (`<run>/<id>`, `wip/<id>`) keep their slash namespace, so the two
+cannot share a name; M06 had already tagged `v05-debt-M06` in exactly this shape before the scheme
+was written down. `v05/M01` through `v05/M05` and `v0.5.0` are left alone: they are the recorded
+rollback points cited by `state.json` evidence and the execution log, and renaming published tags
+would rewrite pushed history a second time in one day to repair names nothing generates any more.
