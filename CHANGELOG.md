@@ -26,6 +26,17 @@ All notable changes to this project are documented here. The format follows
   exists to keep. Released changelog entries below are left alone for the same reason: they describe
   what shipped, under the name it shipped with.
 
+### Fixed
+
+- `npm test` failed on Windows. Two causes, both in the tests: with no `.gitattributes`, git checked
+  the tree out as CRLF and the tests that split `---\n` frontmatter out of `commands/*.md` and the
+  shipped `SKILL.md` concluded there was no frontmatter; and `lock.test.ts` handed Node an absolute
+  Windows path where an ESM specifier was expected, which Node rejects because `D:` reads as a URL
+  scheme, so all six writer children exited 1. The tree is now pinned to LF, the parsers normalise
+  line endings, and the child's specifier is built with `pathToFileURL`. The cross-process locking
+  guarantee from D-022 is verified on Windows for the first time rather than skipped by a load
+  failure.
+
 ### Documentation
 
 - The changelog itself: six entries describing additions (`infraFailurePatterns`, the different-agent

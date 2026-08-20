@@ -411,9 +411,8 @@ npm run build
 ```
 
 CI runs all three on Node 20, 22 and 24 on Linux, and on the ends of that range on macOS and
-Windows. **The Windows jobs are currently failing** on checkout line endings and one test that
-builds a Windows path where an ESM specifier is expected; Linux and macOS are green and the engine
-is not implicated. See [docs/NEXT.md](docs/NEXT.md).
+Windows. The working tree is pinned to LF by `.gitattributes`, because several tests compare bytes
+read from disk and a CRLF checkout fails them.
 
 ## License
 

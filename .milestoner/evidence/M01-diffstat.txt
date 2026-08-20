@@ -1,0 +1,6 @@
+ .gitattributes              | 3 +++
+ scripts/gen-skill.mjs       | 4 +++-
+ src/lock.test.ts            | 5 ++++-
+ src/plugin-commands.test.ts | 3 ++-
+ src/templates/skill.test.ts | 9 ++++++---
+ 5 files changed, 18 insertions(+), 6 deletions(-)

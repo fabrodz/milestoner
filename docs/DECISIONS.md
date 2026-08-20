@@ -373,3 +373,22 @@ costs the GitHub account and dates the project to a naming fashion that has pass
 
 Cost accepted: read quickly in English, the name contains "stoner". Kept deliberately, as character
 rather than as a defect to design around.
+
+## D-024 - The repository is LF, and the parsers do not trust it (2026-08-20)
+
+`.gitattributes` pins `* text=auto eol=lf`, so every checkout gets an LF working tree whatever
+`core.autocrlf` is set to locally. Without it, git handed Windows CRLF and three tests that split
+`---\n` frontmatter out of shipped `.md` files concluded there was no frontmatter block. Nothing in
+the repository needs CRLF: the one `.ps1` runs fine with LF, and `.sh` requires it.
+
+The parsers normalise line endings anyway, which is deliberate belt and braces rather than
+redundancy. The pin governs files that arrive through git; `commands/*.md` and
+`skills/*/SKILL.md` are read as shipped artefacts that a user or a packaging step can also produce,
+and a parser that fails on CRLF is a parser with a platform bug, not a checkout with one. The same
+argument the other way round is why `scripts/gen-skill.mjs` writes LF unconditionally: it runs on
+whoever's machine builds, and its output is committed, so anything else makes `npm run build`
+produce a diff on Windows and none on Linux.
+
+Rejected: `.gitattributes` alone, which fixes this repository and leaves the parsers wrong. Also
+rejected: normalising in the tests alone, which leaves a Windows contributor with a working tree
+that differs from CI's byte for byte, and every future byte comparison a coin toss.

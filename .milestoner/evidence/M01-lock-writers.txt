@@ -1,0 +1,5 @@
+platform: win32
+specifier: file:///D:/Dev/milestoner/src/state.ts
+writer exit codes: [0,0,0,0,0,0]
+evidence entries surviving: 6 of 6
+rev: 6

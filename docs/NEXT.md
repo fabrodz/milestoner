@@ -28,23 +28,23 @@ with no engine change at all. Do not build it until an agent actually demands it
 
 ## 1. The Windows test suite is red, and has been for every recent commit
 
-The only thing here that is actually broken. CI is failing on `windows-latest` (Node 20 and 24)
-while Linux and macOS are green, and it reproduces locally: 5 failures out of 82, 6 in a clean
-checkout. Two root causes, neither in the engine:
+Done on 2026-08-20 as milestone M01 of the `v05-debt` run. 82 of 82 pass on Windows. Both root
+causes were in the tests, neither in the engine:
 
-- **Checkout line endings.** With no `.gitattributes`, git hands Windows a working tree with CRLF.
-  Three tests parse `---\n` frontmatter out of files on disk (`commands/*.md`,
-  `skills/milestoner-supervisor/SKILL.md`), find `---\r\n`, and conclude there is no frontmatter.
-  Five of the six failures are this. Fix: a `.gitattributes` pinning `* text=auto eol=lf`, and
-  parsers that normalise line endings before splitting, since a file can arrive from anywhere.
-- **A Windows path used as an ESM specifier.** `lock.test.ts` writes a child script that imports
+- **Checkout line endings.** With no `.gitattributes`, git handed Windows a working tree with CRLF,
+  and the tests that parse `---\n` frontmatter out of files on disk found `---\r\n` and concluded
+  there was no frontmatter. Fixed by a `.gitattributes` pinning `* text=auto eol=lf`, plus
+  normalisation in the parsers themselves, since a shipped `.md` can arrive from anywhere.
+- **A Windows path used as an ESM specifier.** `lock.test.ts` wrote a child script importing
   `join(process.cwd(), "src", "state.ts")`. On POSIX an absolute path resolves; on Windows Node
-  rejects it with `ERR_UNSUPPORTED_ESM_URL_SCHEME` because `D:` reads as a protocol. Every writer
-  child exits 1, so **the cross-process locking guarantee from D-022 has never actually been
-  verified on Windows.** Fix: `pathToFileURL(...).href`.
+  rejected it with `ERR_UNSUPPORTED_ESM_URL_SCHEME` because `D:` reads as a protocol, so every
+  writer child exited 1. Fixed with `pathToFileURL(...).href`. The cross-process locking guarantee
+  from D-022 is now verified on Windows rather than assumed: six concurrent writers, all exit 0, six
+  evidence entries surviving, `rev` 6.
 
-Do this first. It is small, and the alternative is a project whose own gate is ignored - the exact
-failure the evidence gate exists to prevent, one level up.
+What is not yet closed: the CI run that proves Linux and macOS did not regress. The protocol for
+that run forbids `git push`, so the session could only verify locally that the changes are a no-op
+on an LF checkout. Push the branch and read the matrix.
 
 ## 2. Publish to npm - deliberately last
 
@@ -86,6 +86,6 @@ that supersedes a decision in BRIEF.md and should be written down as one before 
 ## Plans
 
 Items 1, 3 and 4 are planned as v0.5 in [PLAN-v05.md](PLAN-v05.md), as three milestones in this
-project's own format: the Windows suite, `kill` on POSIX, and the run registry. Item 5 is planned
+project's own format: the Windows suite (done), `kill` on POSIX, and the run registry. Item 5 is planned
 separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision first and
 work only if the decision goes a particular way. Item 2 comes after both.

@@ -1519,9 +1519,9 @@ strength of that guarantee is the quality of your criteria. Review the tags.
 - **`kill` reaches the process tree on Windows, one process on macOS and Linux.** Windows uses
   `taskkill /T`; elsewhere the engine signals the child it spawned. When the agent command is a
   wrapper script that forks, the real session can outlive the kill.
-- **The test suite fails on Windows**, on checkout line endings and one test that builds a Windows
-  path where an ESM specifier is expected. Linux and macOS are green. The engine itself is unaffected;
-  see [NEXT.md](NEXT.md).
+- **The test suite passes on all three platforms.** The Windows failures were checkout line endings
+  and one test that built a Windows path where an ESM specifier was expected; both are fixed and the
+  tree is pinned to LF by `.gitattributes`.
 
 The roadmap is in [../README.md](../README.md); the reasoning behind each design decision is in
 [DECISIONS.md](DECISIONS.md).
