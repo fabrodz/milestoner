@@ -11,3 +11,5 @@
 2026-08-20T21:32:16.576Z | - | run-complete | 4 milestones
 2026-08-20T22:12:22.162Z | M05 | launch | attempt 1/3, agent claude
 2026-08-20T22:26:24.751Z | M05 | blocked | attempt 1, 843s
+2026-08-20T23:16:24.459Z | M06 | launch | attempt 1/3, agent claude
+2026-08-20T23:25:32.986Z | M06 | done | attempt 1, 549s

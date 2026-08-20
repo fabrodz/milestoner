@@ -2,7 +2,7 @@
   "run": "v05-debt",
   "createdAt": "2026-08-20T02:30:00.000Z",
   "runComplete": false,
-  "rev": 13,
+  "rev": 15,
   "milestones": [
     {
       "id": "M01",
@@ -177,13 +177,30 @@
       "id": "M06",
       "title": "A crashed agent does not cost the milestone an attempt",
       "prompt": "M06.md",
-      "status": "pending",
+      "status": "done",
       "attempts": 0,
-      "startedAt": null,
-      "finishedAt": null,
-      "evidence": [],
+      "startedAt": "2026-08-20T23:16:24.447Z",
+      "finishedAt": "2026-08-20T23:25:32.980Z",
+      "evidence": [
+        "AC1: test `ok 95 - an agent that crashed after fifteen minutes of work does not cost the milestone an attempt` in .milestoner/evidence/M06-test.txt, fed the M03 shape verbatim (929 seconds, 15 bytes, text `Execution error`, wroteResult false); asserts reason `crash`, waitSeconds = infra.genericWaitSeconds, and a detail naming `929s` and `15-byte`. Exit code is absent from InfraInput by design - the verdict never comes from it - stated in the test comment.",
+        "AC2: every pre-existing classification test passes unchanged in M06-test.txt: `ok 90` instant death, `ok 91`/`ok 92`/`ok 99` usage limits and reset parsing, `ok 98` infraFailurePatterns, `ok 93` wroteResult wins, and the charged cases `ok 94` (120 B at 4000 s stays null) and `ok 100` (full transcript, never refunded). Suite `# tests 114`, `# pass 114`, `# fail 0` against the 111/111 baseline in M06-test-baseline.txt, zero `not ok` lines.",
+        "AC3: boundary tested from both sides, reading the threshold from the config key: `ok 96 - one byte under the crash line is a crash, however long the session ran` (99 B at 4000 s -> crash) and `ok 97 - at the crash line the transcript counts as work and the attempt is charged` (100 B at 4000 s -> null). Both in M06-test.txt.",
+        "AC4: docs/DECISIONS.md, `## D-029 - A transcript with nothing in it is a crash at any duration (2026-08-20)`, one paragraph per decision: the second lower threshold `infra.crashTranscriptBytes` (100 B) rather than a dropped bound, no refund above the line (a real transcript with no result stays incomplete and charged), and `infra.maxRetries` as the over-refund ceiling, each with its rejected alternative.",
+        "AC5: the `## Limits of v0.5` bullet `**A crashed session can still cost an attempt.**` is removed from docs/GUIDE.md, whose infrastructure-failures section now lists the crash rule as shape 3 with its any-duration wording; CHANGELOG.md carries it under `## [Unreleased]` / `### Fixed`, first line `A session that crashed mid-run no longer costs the milestone an attempt.` Committed as 090bf68, code as 2f07a42, tagged v05-debt-M06."
+      ],
       "diagnosis": null,
-      "history": []
+      "history": [
+        {
+          "attempt": 1,
+          "startedAt": "2026-08-20T23:16:24.453Z",
+          "endedAt": "2026-08-20T23:25:32.980Z",
+          "seconds": 549,
+          "exitCode": 0,
+          "transcript": ".milestoner\\logs\\M06-20260820-231624-452.log",
+          "outcome": "done",
+          "agent": "claude"
+        }
+      ]
     },
     {
       "id": "M07",
