@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { defaultConfig, renderTemplate } from "../config.js";
 import { layoutFor } from "../paths.js";
@@ -7,7 +7,7 @@ import { SUPERVISOR_LOG_HEADER } from "../supervisorLog.js";
 import { PROTOCOL_TEMPLATE } from "../templates/protocol.js";
 import type { Milestone, RunState } from "../types.js";
 import { ensureDir, writeFileIfMissing, writeJsonAtomic } from "../util/fs.js";
-import { color, info, ok, step, warn } from "../util/log.js";
+import { color, fail, info, ok, step, warn } from "../util/log.js";
 import { iso } from "../util/time.js";
 
 export interface InitOptions {
@@ -15,6 +15,10 @@ export interface InitOptions {
   run?: string;
   count: number;
   force: boolean;
+}
+
+export function protocolRunName(protocol: string): string | null {
+  return protocol.match(/^# Execution protocol - run "(.+)"/m)?.[1] ?? null;
 }
 
 const MILESTONER_GITIGNORE = `logs/
@@ -32,6 +36,24 @@ export function init(options: InitOptions): number {
   if (existsSync(layout.config) && !options.force) {
     warn(`${layout.config} already exists - use --force to overwrite the config`);
     return 1;
+  }
+
+  // The protocol is hand-edited, so init never rewrites or deletes it. What it must not do is
+  // silently keep one that belongs to another run: every session would read that run's rules.
+  if (existsSync(layout.protocol)) {
+    const named = protocolRunName(readFileSync(layout.protocol, "utf8"));
+    if (named !== null && named !== run) {
+      fail(`.milestoner/protocol.md names run "${named}", not "${run}" - a session would read the old run's rules`);
+      console.log(`
+  Nothing was scaffolded. Bring the protocol in line yourself - at least the run name in its
+  header and the tag line in its Git section (tag \`${run}-<milestoneId>\`) - or delete the file
+  to get a fresh template, then run init again.
+`);
+      return 1;
+    }
+    if (named === null) {
+      warn(`.milestoner/protocol.md does not name a run, so init cannot tell whether it belongs to "${run}" - check it by hand`);
+    }
   }
 
   ensureDir(layout.dir);

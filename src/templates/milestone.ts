@@ -32,6 +32,6 @@ criterion in \`.milestoner/result.json\`.
 
 - All acceptance criteria evidenced.
 - Build clean, test suite green.
-- Committed and tagged \`{{run}}/{{id}}\`.
+- Committed and tagged \`{{run}}-{{id}}\`.
 - \`.milestoner/result.json\` written with \`status: "done"\` and the evidence lines.
 `;

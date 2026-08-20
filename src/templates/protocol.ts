@@ -45,8 +45,9 @@ diagnosis.
 ## 4. Git
 
 - Commit per logical step. Message style: TODO (e.g. \`feat(area): summary\`). English.
-- On a green milestone gate: final commit plus tag \`{{run}}/<milestoneId>\`. Tags are the rollback
-  points for the whole run.
+- On a green milestone gate: final commit plus tag \`{{run}}-<milestoneId>\`. Tags are the rollback
+  points for the whole run. No slash in tag names: a branch named \`{{run}}/M03\` beside a tag
+  \`{{run}}/M03\` makes \`git push origin {{run}}/M03\` ambiguous.
 - No AI attribution of any kind in commits.
 
 ## 5. Session end (always)
