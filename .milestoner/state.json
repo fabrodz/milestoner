@@ -18,7 +18,7 @@
     },
     {
       "id": "M02",
-      "title": "A registry of runs, and `dogwatch runs`",
+      "title": "A registry of runs, and `milestoner runs`",
       "prompt": "M02.md",
       "status": "pending",
       "attempts": 0,

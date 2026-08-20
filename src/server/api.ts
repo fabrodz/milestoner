@@ -9,10 +9,10 @@ import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
-import type { DogwatchConfig } from "../types.js";
+import type { MilestonerConfig } from "../types.js";
 
 export interface ApiContext {
-  config: DogwatchConfig;
+  config: MilestonerConfig;
   layout: Layout;
   /** Absolute path to this CLI, so `run` is relaunched exactly as the user installed it. */
   cliPath: string;

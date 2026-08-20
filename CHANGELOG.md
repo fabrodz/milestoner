@@ -5,6 +5,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed from `dogwatch` to `milestoner`. The npm package and the command are `milestoner`, the
+  state directory is `.milestoner/`, the supervisor skill is `milestoner-supervisor`, and the slash
+  commands are `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and
+  `/milestoner-report`. A run parked under `.dogwatch/`, `.pulseflow/` or `.runpulse/` is still found
+  and told how to migrate, and `milestoner skill install` now also warns about a stale
+  `dogwatch-supervisor` left behind in `.claude/skills/`. Renaming the directory is still the whole
+  migration.
+- The reason is external rather than a change of heart about the thesis. `dogwatch.com` and the
+  DogWatch trademark belong to a pet-containment company trading since 1990, so the name was not
+  findable; npm carries an unpublished `dog-watch` that can block `dogwatch` at publish time under
+  the too-similar rule; and the nautical dog watch is the short evening watch (16:00-20:00), not the
+  night shift the README claimed. `milestoner` is free on npm as both `milestoner` and
+  `mile-stoner`, the GitHub account is free, `milestoner.dev` is unregistered, and no software
+  product carries the name.
+- `docs/runs/v04-plugin/` keeps the old name deliberately. Those files are the captured evidence of
+  a finished run, raw command output included; rewriting them would falsify the record this engine
+  exists to keep. Released changelog entries below are left alone for the same reason: they describe
+  what shipped, under the name it shipped with.
+
 ### Documentation
 
 - The changelog itself: six entries describing additions (`infraFailurePatterns`, the different-agent

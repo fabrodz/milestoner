@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { defaultConfig } from "./config.js";
-import { DOGWATCH_DIR, layoutFor } from "./paths.js";
+import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import type { RunState } from "./types.js";
 
@@ -18,7 +18,7 @@ writeFileSync(dir + "/result.json", readFileSync(verdictFile, "utf8").replace("_
 `;
 
 function scaffold(verdict: unknown) {
-  const root = mkdtempSync(join(tmpdir(), "dogwatch-once-"));
+  const root = mkdtempSync(join(tmpdir(), "milestoner-once-"));
   const layout = layoutFor(root);
   mkdirSync(layout.prompts, { recursive: true });
   writeFileSync(join(root, "agent.mjs"), AGENT);
@@ -39,7 +39,7 @@ function scaffold(verdict: unknown) {
   const config = defaultConfig("once-test", root);
   config.agent = {
     command: process.execPath,
-    args: [join(root, "agent.mjs"), "{{milestoneId}}", join(root, DOGWATCH_DIR), join(root, "verdict.json")],
+    args: [join(root, "agent.mjs"), "{{milestoneId}}", join(root, MILESTONER_DIR), join(root, "verdict.json")],
     modelArgs: [],
     model: null,
     env: {},

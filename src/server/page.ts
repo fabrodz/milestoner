@@ -3,7 +3,7 @@ export const PAGE = String.raw`<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>dogwatch</title>
+<title>milestoner</title>
 <style>
 :root{
   --bg:#fbfbfa;--fg:#1c1c1a;--muted:#6b6b66;--line:#e2e2dd;--panel:#fff;

@@ -9,7 +9,7 @@ import { loadState, updateState } from "./state.js";
 import type { RunState } from "./types.js";
 
 function scaffold(): { dir: string; state: string } {
-  const dir = mkdtempSync(join(tmpdir(), "dogwatch-lock-"));
+  const dir = mkdtempSync(join(tmpdir(), "milestoner-lock-"));
   const state: RunState = {
     run: "lock-test",
     createdAt: new Date(0).toISOString(),

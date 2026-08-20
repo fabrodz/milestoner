@@ -35,7 +35,7 @@ export function installSkill(options: SkillOptions): number {
     return 1;
   }
 
-  for (const old of ["pulseflow-supervisor", "runpulse-supervisor"]) {
+  for (const old of ["dogwatch-supervisor", "pulseflow-supervisor", "runpulse-supervisor"]) {
     const stale = join(base, ".claude", "skills", old);
     if (!existsSync(stale)) continue;
     warn(`a supervisor skill from before the rename is still installed at ${stale}`);
@@ -48,8 +48,8 @@ Start supervising a run with:
 
   ${color.bold(`/loop 10m Use the ${SKILL_NAME} skill to perform one supervision cycle.`)}
 
-The skill reads the run through ${color.bold("dogwatch status --json")} and may only intervene with
-${color.bold("dogwatch kill")}, ${color.bold("dogwatch attend")}, and relaunching ${color.bold("dogwatch run")}.
+The skill reads the run through ${color.bold("milestoner status --json")} and may only intervene with
+${color.bold("milestoner kill")}, ${color.bold("milestoner attend")}, and relaunching ${color.bold("milestoner run")}.
 `);
   return 0;
 }

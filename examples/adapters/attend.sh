@@ -5,9 +5,9 @@
 #   attend.sh <seconds> [application-name]
 #
 # Wire it up with:
-#   "attendCommand": "bash .dogwatch/adapters/attend.sh {{seconds}}"
+#   "attendCommand": "bash .milestoner/adapters/attend.sh {{seconds}}"
 #
-# The adapter contract dogwatch relies on, whatever the language:
+# The adapter contract milestoner relies on, whatever the language:
 #   - it takes the number of seconds to spend and returns within roughly that time;
 #   - it prints one line per thing it did, and the last line is what lands in supervisor-log.md;
 #   - it exits 0 when it did its job and non-zero when it could not, so playbook rule 3 can tell

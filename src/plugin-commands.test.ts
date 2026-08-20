@@ -9,7 +9,7 @@ const commandsDir = join(repoRoot, "commands");
 
 // The commands the plugin ships. Every CLI command that was considered and rejected
 // (run, serve, unblock, steer, kill, attend, skill install) is recorded in docs/DECISIONS.md D-018.
-const SHIPPED = ["dogwatch-init", "dogwatch-status", "dogwatch-supervise", "dogwatch-report"];
+const SHIPPED = ["milestoner-init", "milestoner-status", "milestoner-supervise", "milestoner-report"];
 
 function read(name: string): string {
   return readFileSync(join(commandsDir, `${name}.md`), "utf8");
@@ -36,8 +36,8 @@ test("no command hands the model a path the supervisor is denied", () => {
   // inside a guard, and the two human-only commands are never spelled as runnable invocations.
   for (const name of SHIPPED) {
     const body = read(name);
-    assert.doesNotMatch(body, /dogwatch unblock/, `${name} spells out a runnable unblock`);
-    assert.doesNotMatch(body, /dogwatch steer/, `${name} spells out a runnable steer`);
+    assert.doesNotMatch(body, /milestoner unblock/, `${name} spells out a runnable unblock`);
+    assert.doesNotMatch(body, /milestoner steer/, `${name} spells out a runnable steer`);
     if (/state\.json/.test(body)) {
       assert.match(body, /never/i, `${name} names state.json without a guard`);
     }

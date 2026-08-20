@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { defaultConfig } from "./config.js";
-import { DOGWATCH_DIR, layoutFor } from "./paths.js";
+import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import type { RunState } from "./types.js";
 
@@ -18,7 +18,7 @@ setTimeout(() => {
 `;
 
 function scaffold(): { root: string; layout: ReturnType<typeof layoutFor> } {
-  const root = mkdtempSync(join(tmpdir(), "dogwatch-stop-"));
+  const root = mkdtempSync(join(tmpdir(), "milestoner-stop-"));
   const layout = layoutFor(root);
   mkdirSync(layout.prompts, { recursive: true });
   writeFileSync(join(root, "agent.mjs"), AGENT);
@@ -48,7 +48,7 @@ function configFor(root: string) {
   const config = defaultConfig("stop-test", root);
   config.agent = {
     command: process.execPath,
-    args: [join(root, "agent.mjs"), "{{milestoneId}}", join(root, DOGWATCH_DIR)],
+    args: [join(root, "agent.mjs"), "{{milestoneId}}", join(root, MILESTONER_DIR)],
     modelArgs: [],
     model: null,
     env: {},

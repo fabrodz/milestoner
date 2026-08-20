@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { renderTemplate } from "../config.js";
 import type { Layout } from "../paths.js";
 import { appendSupervisorLog } from "../supervisorLog.js";
-import type { DogwatchConfig } from "../types.js";
+import type { MilestonerConfig } from "../types.js";
 import { fail, info, ok } from "../util/log.js";
 
 export interface AttendOptions {
-  config: DogwatchConfig;
+  config: MilestonerConfig;
   layout: Layout;
   seconds?: number;
   rule: string;
@@ -20,9 +20,9 @@ export interface AttendOptions {
 export function attend(options: AttendOptions): number {
   const command = options.config.environment.attendCommand;
   if (!command) {
-    fail('no environment adapter configured - set "environment.attendCommand" in .dogwatch/config.json');
+    fail('no environment adapter configured - set "environment.attendCommand" in .milestoner/config.json');
     info("  any shell command that unsticks this project's environment; {{seconds}} is substituted");
-    info('  example: "bash .dogwatch/adapters/unstick.sh {{seconds}}"');
+    info('  example: "bash .milestoner/adapters/unstick.sh {{seconds}}"');
     return 1;
   }
 

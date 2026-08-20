@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
 import { defaultConfig } from "./config.js";
-import type { AgentConfig, DogwatchConfig } from "./types.js";
+import type { AgentConfig, MilestonerConfig } from "./types.js";
 
-function poolOf(...names: string[]): DogwatchConfig {
+function poolOf(...names: string[]): MilestonerConfig {
   const config = defaultConfig("t", "/p");
   const make = (name: string): AgentConfig => ({ ...config.agent, name, command: name });
   config.agent = make(names[0]!);

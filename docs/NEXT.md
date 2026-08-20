@@ -6,8 +6,8 @@ rather than edited.
 
 ## Where things stand
 
-**The engine has been validated.** v0.4 was itself built as a four-milestone dogwatch run
-(`.dogwatch/`, run `v04-plugin`): four fresh Claude Code sessions, each graded against its written
+**The engine has been validated.** v0.4 was itself built as a four-milestone milestoner run
+(`.milestoner/`, run `v04-plugin`): four fresh Claude Code sessions, each graded against its written
 evidence, 23 evidence lines, every milestone `done` on its first attempt, no intervention. The
 load-bearing assumption from D-006 - that a session writes `result.json` and the engine grades it -
 held with a real agent.
@@ -34,7 +34,7 @@ checkout. Two root causes, neither in the engine:
 
 - **Checkout line endings.** With no `.gitattributes`, git hands Windows a working tree with CRLF.
   Three tests parse `---\n` frontmatter out of files on disk (`commands/*.md`,
-  `skills/dogwatch-supervisor/SKILL.md`), find `---\r\n`, and conclude there is no frontmatter.
+  `skills/milestoner-supervisor/SKILL.md`), find `---\r\n`, and conclude there is no frontmatter.
   Five of the six failures are this. Fix: a `.gitattributes` pinning `* text=auto eol=lf`, and
   parsers that normalise line endings before splitting, since a file can arrive from anywhere.
 - **A Windows path used as an ESM specifier.** `lock.test.ts` writes a child script that imports
@@ -49,7 +49,7 @@ failure the evidence gate exists to prevent, one level up.
 ## 2. Publish to npm - deliberately last
 
 Wanted eventually, not now, and deprioritised on 2026-08-20 behind everything else here. The README
-and the guide document `npm install -g dogwatch`; nothing is published. Everything that should gate
+and the guide document `npm install -g milestoner`; nothing is published. Everything that should gate
 a publish is already in place - LICENSE, CI, changelog, a `files` list verified by `npm pack`, a
 `prepublishOnly` that typechecks, tests and builds. It is the only item with an external audience,
 which is the argument for doing it once the rest has settled rather than before.
@@ -66,10 +66,10 @@ wrapper which forks, or it will regress unnoticed.
 
 `serve` and `status` only ever show the directory they were started in, because there is no notion
 of "the runs on this machine". The missing primitive is a machine-level registry - runners
-registering their project path and pid under something like `~/.dogwatch/runs.json`, pruning
+registering their project path and pid under something like `~/.milestoner/runs.json`, pruning
 themselves on exit.
 
-Build it as a CLI command first (`dogwatch runs`, listing every live run with its milestone and
+Build it as a CLI command first (`milestoner runs`, listing every live run with its milestone and
 liveness verdict). It is useful on its own, and a multi-run panel without it can only show one
 directory, which is what the panel already does.
 

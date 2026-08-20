@@ -14,7 +14,7 @@ import { createPanel } from "./http.js";
 const TOKEN = "test-token-value";
 
 function scaffold(): ReturnType<typeof layoutFor> {
-  const root = mkdtempSync(join(tmpdir(), "dogwatch-http-"));
+  const root = mkdtempSync(join(tmpdir(), "milestoner-http-"));
   const layout = layoutFor(root);
   ensureDir(layout.logs);
   const state: RunState = {

@@ -20,7 +20,7 @@ sit behind the same agent-config seam.
 
 ## D-002 - Distribution: npm first, Claude Code plugin later (2026-08-18)
 
-`npx dogwatch init|run|status|unblock` in v0.1. The supervisor ships as a Claude Code skill in v0.2
+`npx milestoner init|run|status|unblock` in v0.1. The supervisor ships as a Claude Code skill in v0.2
 and the whole thing gets plugin packaging in v0.4.
 
 The split follows the natural shape: the runner is a process that must survive a dead session, so
@@ -34,7 +34,7 @@ insufficient.
 
 ## D-004 - Observability: `status` plus a pulse block in v0.1 (2026-08-18)
 
-`dogwatch status` prints the milestone table and a **pulse** block: is a runner process alive, what
+`milestoner status` prints the milestone table and a **pulse** block: is a runner process alive, what
 is it on, how long has the current session been running, and how old is the newest liveness signal.
 
 Liveness comes from side signals only - watched source dirs, test-result files, tool logs - never
@@ -47,7 +47,7 @@ poll is the minimum that makes the pulse real.
 ## D-005 - The agent command is a config string from day one (2026-08-18)
 
 `agent.command` plus an `agent.args` template with `{{kickoff}}`, `{{promptFile}}`,
-`{{milestoneId}}`, `{{projectRoot}}`, `{{dogwatchDir}}` and `{{model}}` placeholders. Swapping
+`{{milestoneId}}`, `{{projectRoot}}`, `{{milestonerDir}}` and `{{model}}` placeholders. Swapping
 Claude Code for Codex or Cursor is a config edit; the engine never learns agent names.
 
 Only Claude Code is tested in v0.1. The seam is cheap now and expensive to retrofit.
@@ -57,14 +57,14 @@ Only Claude Code is tested in v0.1. The seam is cheap now and expensive to retro
 Departure from the reference implementation, where the executor session edited `state.json`
 directly and the orchestrator trusted it.
 
-The session now writes one small drop box, `.dogwatch/result.json`:
+The session now writes one small drop box, `.milestoner/result.json`:
 
 ```json
 { "milestone": "M01", "status": "done", "evidence": ["AC1: ..."], "notes": "" }
 ```
 
 The engine grades it, merges it into `state.json`, and archives the raw claim under
-`.dogwatch/results/<id>-attempt<n>.json`. The agent's write surface shrinks from the whole state
+`.milestoner/results/<id>-attempt<n>.json`. The agent's write surface shrinks from the whole state
 machine to one file it cannot corrupt anything else with, and every attempt keeps its own record.
 
 The trust rule from the reference survives intact: the verdict comes from what the session wrote,
@@ -96,9 +96,9 @@ Clearing it is always a human decision - the engine never resets a block on its 
 
 ## D-010 - The supervisor is a skill, installed by the CLI (2026-08-18)
 
-`dogwatch skill install` writes `.claude/skills/dogwatch-supervisor/SKILL.md` into the project
+`milestoner skill install` writes `.claude/skills/milestoner-supervisor/SKILL.md` into the project
 (`--global` for `~/.claude/skills/`). The user starts it with
-`/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.`
+`/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.`
 
 Rejected for now: shipping it as a plugin. Plugin packaging is v0.4 and brings a marketplace repo
 with it; a file the CLI writes needs neither. The skill text lives in the engine
@@ -119,16 +119,16 @@ supervision rule needs to know belongs in that JSON, not in the skill's prose.
 
 The supervisor's entire write surface is three commands plus its own log:
 
-- `dogwatch kill --reason <text>` kills the **agent session**, never the runner. The runner then
+- `milestoner kill --reason <text>` kills the **agent session**, never the runner. The runner then
   grades the session as incomplete, consumes the attempt and relaunches with fresh context.
-- `dogwatch attend` runs the project's configured environment adapter.
-- `dogwatch run` relaunches a dead runner.
+- `milestoner attend` runs the project's configured environment adapter.
+- `milestoner run` relaunches a dead runner.
 
 Nothing else: no editing project code, no editing state.json, no running the project's own tools
-while a session owns them. `dogwatch unblock` is deliberately excluded - clearing a block stays a
+while a session owns them. `milestoner unblock` is deliberately excluded - clearing a block stays a
 human decision, per D-009.
 
-`kill` writes `.dogwatch/kill.json` before killing. Without it, a session killed after 20 quiet
+`kill` writes `.milestoner/kill.json` before killing. Without it, a session killed after 20 quiet
 minutes can still look like an infrastructure death (short, tiny transcript) and D-008 would refund
 the attempt, so the intervention would cost nothing and could repeat forever. The marker makes the
 runner grade a deliberate kill as work.
@@ -136,7 +136,7 @@ runner grade a deliberate kill as work.
 ## D-013 - The environment adapter is one config string, not a plugin API (2026-08-18)
 
 `environment.attendCommand` is a shell command line with a `{{seconds}}` placeholder, run by
-`dogwatch attend`. Being a string is what keeps the engine free of any one environment: the adapter
+`milestoner attend`. Being a string is what keeps the engine free of any one environment: the adapter
 from the reference run points it at a PowerShell script for a GUI editor, but restarting a wedged
 dev server or re-pairing a device is the same one-line change. A headless project leaves it null and
 playbook rule 3 simply cannot fire.
@@ -146,9 +146,9 @@ existence and one hook it needs. A plugin API before the second adapter would be
 
 ## D-014 - Steering persists and is inlined into the kickoff (2026-08-19)
 
-`.dogwatch/STEERING.md` is the user's mid-flight channel: a correction that reaches the next
-session without killing the current one. `dogwatch steer "<text>"` writes it, `--append` adds a
-line, `--clear` removes it, and bare `dogwatch steer` shows what is in force.
+`.milestoner/STEERING.md` is the user's mid-flight channel: a correction that reaches the next
+session without killing the current one. `milestoner steer "<text>"` writes it, `--append` adds a
+line, `--clear` removes it, and bare `milestoner steer` shows what is in force.
 
 Two choices inside it:
 
@@ -171,7 +171,7 @@ wording in its report and the user runs the command.
 
 ## D-015 - The report is one self-contained HTML file, generated on demand (2026-08-19)
 
-`dogwatch report [--out <path>] [--open]` renders `state.json` plus both logs into a single file:
+`milestoner report [--out <path>] [--open]` renders `state.json` plus both logs into a single file:
 stat tiles, a wall-clock timeline of every session that ran, one card per milestone with its
 evidence and diagnosis, the attempt table, and the intervention log.
 
@@ -187,9 +187,9 @@ Everything in it is agent-authored text, so every value is HTML-escaped. That is
 Rejected: a live web view with a server. The report answers "what happened overnight"; `status`
 and the supervisor already answer "what is happening now".
 
-## D-016 - Renamed to dogwatch (2026-08-19)
+## D-016 - Renamed to milestoner (2026-08-19)
 
-The package, the binary and the state directory are `dogwatch` / `.dogwatch`. Every reference in
+The package, the binary and the state directory are `milestoner` / `.milestoner`. Every reference in
 the source, the templates, the supervisor skill and the docs moved with it. D-001 to D-015 describe
 the same decisions; only the name changed.
 
@@ -199,8 +199,8 @@ looks for as a working project. It is still detected, and every command that nee
 with the migration instead of a generic "not found":
 
 ```
-found <path>/.runpulse - this run was set up before the tool was renamed to dogwatch
-  ren "<path>/.runpulse" .dogwatch
+found <path>/.runpulse - this run was set up before the tool was renamed to milestoner
+  ren "<path>/.runpulse" .milestoner
 ```
 
 The layout is derived from the directory name and nothing inside stores it, so renaming the
@@ -215,7 +215,7 @@ deleting it: files under `.claude/` are the user's.
 
 Supersedes the "for now" in [D-010](#d-010---the-supervisor-is-a-skill-installed-by-the-cli-2026-08-18).
 v0.4 makes the repository a Claude Code plugin, so the supervisor skill now ships as a plugin
-component at `skills/dogwatch-supervisor/SKILL.md` **as well as** the file `dogwatch skill install`
+component at `skills/milestoner-supervisor/SKILL.md` **as well as** the file `milestoner skill install`
 writes. Both come from the same `SKILL_TEMPLATE` in `src/templates/skill.ts`: `npm run gen:skill`
 (wired into `build`) regenerates the shipped copy, and a test asserts the two are byte-identical, so
 they cannot drift.
@@ -232,17 +232,17 @@ layout.
 
 ## D-018 - Four slash commands ship; run, serve, and the human-only commands do not (2026-08-19)
 
-The plugin ships four commands under `commands/`: `/dogwatch-init`, `/dogwatch-status`,
-`/dogwatch-supervise` and `/dogwatch-report`. The test comes from what belongs *inside* a session:
+The plugin ships four commands under `commands/`: `/milestoner-init`, `/milestoner-status`,
+`/milestoner-supervise` and `/milestoner-report`. The test comes from what belongs *inside* a session:
 a command earns its place when it is worth running without leaving the session, is not a long-lived
 process, and is not a decision or intervention reserved to a human or to the supervisor.
 
-- `/dogwatch-init` scaffolds a run and walks the user through authoring the prompts - all in-session
+- `/milestoner-init` scaffolds a run and walks the user through authoring the prompts - all in-session
   file work.
-- `/dogwatch-status` is a read-only read of the run.
-- `/dogwatch-report` is a read-only artifact generator; it writes the HTML report and opens it,
+- `/milestoner-status` is a read-only read of the run.
+- `/milestoner-report` is a read-only artifact generator; it writes the HTML report and opens it,
   touching no state.
-- `/dogwatch-supervise` runs one supervision cycle by invoking the `dogwatch-supervisor` skill. It
+- `/milestoner-supervise` runs one supervision cycle by invoking the `milestoner-supervisor` skill. It
   does not duplicate the playbook; the skill remains the single source (D-017).
 
 Rejected, each for a stated reason:
@@ -254,7 +254,7 @@ Rejected, each for a stated reason:
   (D-012, D-014). A slash command that let a model run them would quietly undo that boundary, so no
   command spells them as a runnable invocation - a test asserts this.
 - `kill` and `attend` are supervisor interventions, reached through the playbook the
-  `/dogwatch-supervise` cycle already runs, not something a human types by hand.
+  `/milestoner-supervise` cycle already runs, not something a human types by hand.
 - `skill install` is redundant for a plugin user: the plugin already carries the supervisor skill as
   a component (D-017), so there is nothing to install.
 
@@ -267,7 +267,7 @@ frontmatter of every shipped command.
 
 The plugin is distributed from a `.claude-plugin/marketplace.json` that lives beside `plugin.json`
 in this repository, with one entry whose `source` is `"./"`. A user runs `claude plugin marketplace
-add fabrodz/dogwatch` then `claude plugin install dogwatch@dogwatch`; the marketplace and the plugin
+add fabrodz/milestoner` then `claude plugin install milestoner@milestoner`; the marketplace and the plugin
 it lists are the same repo. `claude plugin validate --strict` accepts it, and `claude plugin tag`
 confirms the entry agrees with `plugin.json` on name and version - the agreement M04 automates.
 
@@ -280,13 +280,13 @@ makes the split pay for itself.
 This is the second half of [D-002](#d-002---distribution-npm-first-claude-code-plugin-later-2026-08-18):
 the plugin channel now has a marketplace to install from. It does not replace npm. The CLI remains
 the engine and the required install; the plugin, delivered through this marketplace, is a Claude Code
-layer over it and does not put the `dogwatch` binary on PATH.
+layer over it and does not put the `milestoner` binary on PATH.
 
 ## D-020 - The local web panel, superseding the rejection in D-015 (2026-08-19)
 
 [D-015](#d-015---the-report-is-one-self-contained-html-file-generated-on-demand-2026-08-19) rejected
 "a live web view with a server" on the grounds that the report answers what happened overnight and
-`status` answers what is happening now. `dogwatch serve` builds it anyway. What changed:
+`status` answers what is happening now. `milestoner serve` builds it anyway. What changed:
 
 - **`status` answers for a terminal, not for a person away from one.** The panel exists for the
   moment you are not at the keyboard where the run lives. That is the same argument that justified
@@ -341,9 +341,35 @@ routine once a panel can post one.
 
 `withStateLock` serialises the whole read-modify-write on a lock file taken with `wx`. The lock is
 broken rather than honoured when its holder is gone, because killing processes is a first-class
-operation here (`dogwatch kill`, two interrupts, a supervisor relaunch) and a lock that outlived its
+operation here (`milestoner kill`, two interrupts, a supervisor relaunch) and a lock that outlived its
 owner would be a worse failure than the race it prevents. After a bounded wait the lock is broken
 and the write proceeds: a run that stops because a lock never cleared is worse than the race.
 
 `state.rev` increments on every write so a reader can tell a change from a change back. The panel
 polls; without a revision, a value that moved and returned looks like nothing happened.
+
+## D-023 - Renamed to milestoner (2026-08-19)
+
+The third rename, and the reasons are all external to the product. `dogwatch.com` and the DogWatch
+trademark belong to a pet-containment company trading since 1990, which owns the search results for
+the word outright. npm carries an unpublished `dog-watch`, and the registry rejects a new name that
+matches an existing one once punctuation is stripped, so `dogwatch` might not have been publishable
+at all. And the nautical dog watch is the short evening watch from 16:00 to 20:00, split in two so
+the crew rotates; the README sold it as the night shift, which it is not. A name whose only job was
+to carry the thesis was carrying the wrong one.
+
+`milestoner` is free on npm as both `milestoner` and `mile-stoner`, the GitHub account is free in
+either casing, and `milestoner.dev`, `.io` and `.sh` are unregistered. No software product uses the
+name. It also stops describing a metaphor and starts describing the machine: deciding when a
+milestone has actually been reached is the whole job.
+
+Rejected: staying on `dogwatch` and fixing only the README, which repairs the metaphor but not the
+search results or the publish risk. `looprunner`, which collides with an existing headless Claude
+Code harness of the same name. `middlewatch`, accurate and free, but it keeps the product in a
+family of `*watch` names that read as file watchers in this ecosystem. `pulseloop`, adopted and
+reverted before it left the machine: three unrelated products already use it, the GitHub account and
+the .com were taken, and `pulse` named only the liveness half of the engine. `milestoneai`, which
+costs the GitHub account and dates the project to a naming fashion that has passed.
+
+Cost accepted: read quickly in English, the name contains "stoner". Kept deliberately, as character
+rather than as a defect to design around.

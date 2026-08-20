@@ -35,6 +35,6 @@ export function unblock(options: UnblockOptions): number {
     warn(`${options.milestoneId} finished while unblocking it - nothing to do`);
     return 0;
   }
-  ok(`${m.id} set to pending${options.keepAttempts ? "" : ", attempts reset to 0"} - run \`dogwatch run\` to resume`);
+  ok(`${m.id} set to pending${options.keepAttempts ? "" : ", attempts reset to 0"} - run \`milestoner run\` to resume`);
   return 0;
 }

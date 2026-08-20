@@ -1,11 +1,11 @@
 import type { Layout } from "../paths.js";
 import { createPanel } from "../server/http.js";
 import { BIND_HOST, newToken } from "../server/security.js";
-import type { DogwatchConfig } from "../types.js";
+import type { MilestonerConfig } from "../types.js";
 import { color, fail, info, warn } from "../util/log.js";
 
 export interface ServeOptions {
-  config: DogwatchConfig;
+  config: MilestonerConfig;
   layout: Layout;
   port: number;
   write: boolean;
@@ -33,7 +33,7 @@ export function serve(options: ServeOptions): Promise<number> {
     // runs on, with the permissions of whoever started it.
     server.listen(options.port, BIND_HOST, () => {
       const url = `http://${BIND_HOST}:${options.port}/?token=${token}`;
-      console.log(`\n${color.bold("dogwatch panel")}  ${options.write ? color.yellow("read-write") : "read-only"}\n`);
+      console.log(`\n${color.bold("milestoner panel")}  ${options.write ? color.yellow("read-write") : "read-only"}\n`);
       console.log(`  ${color.bold(url)}\n`);
       if (options.write) {
         warn("  this panel can start runs, kill sessions and run the environment adapter,");

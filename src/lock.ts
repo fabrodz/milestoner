@@ -22,7 +22,7 @@ function pause(ms: number): void {
 /**
  * A lock is only held across a read-modify-write of state.json, which is microseconds of work, so
  * it is stale the moment it outlives its owner. Killing processes is a first-class operation here -
- * `dogwatch kill`, two interrupts, a supervisor relaunch - so a lock that could survive the process
+ * `milestoner kill`, two interrupts, a supervisor relaunch - so a lock that could survive the process
  * that took it would be a worse failure than the race it prevents.
  */
 function breakIfStale(file: string): void {

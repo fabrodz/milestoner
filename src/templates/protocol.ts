@@ -10,8 +10,8 @@ Fill in the TODO markers below for this project and delete this line.
 
 1. Read the project's own authority documents, in order of precedence: TODO (e.g. \`AGENTS.md\` >
    \`docs/design.md\` > \`docs/architecture.md\`).
-2. Read \`.dogwatch/state.json\` (statuses and evidence so far), the last two entries of
-   \`.dogwatch/execution-log.md\`, and \`.dogwatch/decisions.md\`.
+2. Read \`.milestoner/state.json\` (statuses and evidence so far), the last two entries of
+   \`.milestoner/execution-log.md\`, and \`.milestoner/decisions.md\`.
 3. Verify the environment is reachable: TODO (e.g. the dev server starts, the editor answers, the
    device is connected). If it is not, write a \`blocked\` result with reason
    \`environment-unreachable\` and exit immediately.
@@ -21,7 +21,7 @@ Fill in the TODO markers below for this project and delete this line.
 ## 1. Decision-making
 
 - Decide autonomously anything resolvable from the project docs.
-- Log every non-obvious decision to \`.dogwatch/decisions.md\`: date, context, decision, rejected
+- Log every non-obvious decision to \`.milestoner/decisions.md\`: date, context, decision, rejected
   alternative, why. One short block each.
 - **Descope authority:** you may simplify cosmetic or UX details (log them under \`### Backlog\` in
   the execution log). You may NOT descope a core acceptance criterion.
@@ -51,10 +51,10 @@ diagnosis.
 
 ## 5. Session end (always)
 
-1. Append to \`.dogwatch/execution-log.md\`: milestone, what was built, evidence per acceptance
+1. Append to \`.milestoner/execution-log.md\`: milestone, what was built, evidence per acceptance
    criterion, problems hit and how they were solved, decisions made, descoped items, next step.
 2. Commit everything, including the execution files.
-3. Write \`.dogwatch/result.json\` and exit:
+3. Write \`.milestoner/result.json\` and exit:
 
 \`\`\`json
 {

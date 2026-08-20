@@ -1,7 +1,7 @@
 # Plan: v0.5 - pay down the debt the dogfood run exposed
 
 Three pieces of work, written as milestones in this project's own format so they can become
-`.dogwatch/prompts/` directly. Covers items 1, 3 and 4 of [NEXT.md](NEXT.md).
+`.milestoner/prompts/` directly. Covers items 1, 3 and 4 of [NEXT.md](NEXT.md).
 
 **Publishing to npm is explicitly deferred to after v0.5.** It is wanted eventually, not now, and it
 is the only item here that has an external audience.
@@ -17,9 +17,9 @@ neutral for M02, and it is the constraint that shapes M03: a fix to process-grou
 macOS and Linux cannot be verified from here at all. The milestones below account for that
 explicitly rather than assuming a session can check its own work.
 
-A note on running this as a dogwatch run: `.dogwatch/state.json` currently holds the completed
+A note on running this as a milestoner run: `.milestoner/state.json` currently holds the completed
 `v04-plugin` record. Scaffolding v0.5 replaces it. That record is committed, so it survives in git
-history, but it stops being readable with `dogwatch status` the moment the new run is scaffolded.
+history, but it stops being readable with `milestoner status` the moment the new run is scaffolded.
 
 ---
 
@@ -61,7 +61,7 @@ modules, not in the engine.
 
 - **AC1** - `npm test` passes on Windows with 0 failures.
   (evidence: the summary lines `# pass` and `# fail` from a local Windows run, in
-  `.dogwatch/evidence/M01-test.txt`)
+  `.milestoner/evidence/M01-test.txt`)
 - **AC2** - Linux and macOS did not regress: the suite still passes there.
   (evidence: the CI run id for the closing commit and the conclusion of its Linux and macOS jobs)
 - **AC3** - The cross-process locking guarantee from D-022 is actually verified on Windows: the
@@ -74,11 +74,11 @@ modules, not in the engine.
 
 - All acceptance criteria evidenced.
 - Committed and tagged `v05/M01`.
-- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
+- `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 
 ---
 
-## M02 - A registry of runs, and `dogwatch runs`
+## M02 - A registry of runs, and `milestoner runs`
 
 ### Objective
 
@@ -98,11 +98,11 @@ panel that spans runs is deliberately left for later.
 
 ### Decisions to make inside this milestone, and record
 
-- **What is registered: live runners, or projects that have a `.dogwatch/`?** A registry of live
+- **What is registered: live runners, or projects that have a `.milestoner/`?** A registry of live
   runners is simpler and honest, but then a run whose runner died does not appear at all - which is
   precisely the state a person most wants to be told about. A `lastSeen` field and a retention
   window is the middle path. Pick one and write down why.
-- **Where the file lives.** `~/.dogwatch/runs.json` is the obvious answer; say whether XDG paths are
+- **Where the file lives.** `~/.milestoner/runs.json` is the obvious answer; say whether XDG paths are
   honoured on Linux, and what happens when the home directory is not writable.
 - **How stale entries die.** Pid liveness on read is the cheap answer, but pids are reused. Pair it
   with the project path and the run name so a recycled pid cannot masquerade as a live run.
@@ -112,19 +112,19 @@ panel that spans runs is deliberately left for later.
 1. Registry module: register, deregister, read-with-pruning. Serialised with `withStateLock`.
 2. The runner registers on start and deregisters in the same `finally` that clears the pulse, so the
    two cannot disagree.
-3. `dogwatch runs [--json]`: every known run with its project path, run name, current milestone,
+3. `milestoner runs [--json]`: every known run with its project path, run name, current milestone,
    done/total, and liveness verdict, read from each project's own `state.json` and `pulse.json`.
-4. Handle a registered project whose `.dogwatch/` has been deleted or renamed: prune it and say so,
+4. Handle a registered project whose `.milestoner/` has been deleted or renamed: prune it and say so,
    rather than failing the whole listing.
 5. Tests: concurrent registration from several processes loses nothing; a dead runner's entry is
    pruned; a recycled pid is not mistaken for a live run; a deleted project does not break `runs`.
 
 ### Acceptance criteria
 
-- **AC1** - Two runs started in different directories both appear in `dogwatch runs`, each with the
+- **AC1** - Two runs started in different directories both appear in `milestoner runs`, each with the
   right milestone and liveness verdict. (evidence: the command's output for both, captured in
-  `.dogwatch/evidence/M02-runs.txt`)
-- **AC2** - A runner that is killed leaves no live entry: the next `dogwatch runs` prunes it.
+  `.milestoner/evidence/M02-runs.txt`)
+- **AC2** - A runner that is killed leaves no live entry: the next `milestoner runs` prunes it.
   (evidence: the test name, plus before/after output)
 - **AC3** - Concurrent registration from several processes loses no entry, on the same argument as
   D-022. (evidence: the test name and its assertion)
@@ -139,7 +139,7 @@ panel that spans runs is deliberately left for later.
 
 - All acceptance criteria evidenced, suite green on three platforms.
 - Committed and tagged `v05/M02`.
-- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
+- `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 
 ---
 
@@ -147,7 +147,7 @@ panel that spans runs is deliberately left for later.
 
 ### Objective
 
-`dogwatch kill` terminates the agent session and everything it spawned, on macOS and Linux as it
+`milestoner kill` terminates the agent session and everything it spawned, on macOS and Linux as it
 already does on Windows. Today the POSIX path signals only the child the engine spawned, so an agent
 launched through a wrapper script survives the kill and playbook rule 4 silently does nothing.
 
@@ -189,7 +189,7 @@ launched through a wrapper script survives the kill and playbook rule 4 silently
   or Linux; the grandchild's pid is no longer alive afterwards. The session cannot run this
   assertion locally, so the evidence is the CI job that did.
   (evidence: the CI run id, the Linux and macOS job conclusions, and the new test's name in their
-  output, captured in `.dogwatch/evidence/M03-ci.txt`)
+  output, captured in `.milestoner/evidence/M03-ci.txt`)
 - **AC2** - The two-interrupt semantics still hold: one interrupt finishes and grades the running
   session, a second kills it and leaves the milestone `in_progress` costing no attempt.
   (evidence: `runner.stop.test.ts` passing, both test names quoted)
@@ -202,7 +202,7 @@ launched through a wrapper script survives the kill and playbook rule 4 silently
 
 - All acceptance criteria evidenced, suite green on three platforms.
 - Committed and tagged `v05/M03`.
-- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
+- `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 
 ---
 

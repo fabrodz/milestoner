@@ -20,9 +20,9 @@ const milestone: Milestone = {
 
 test("the kickoff points at the protocol, the prompt and the result contract", () => {
   const kickoff = buildKickoff(config, layout, milestone, null);
-  assert.match(kickoff, /\.dogwatch\/protocol\.md/);
-  assert.match(kickoff, /\.dogwatch\/prompts\/M01\.md/);
-  assert.match(kickoff, /\.dogwatch\/result\.json/);
+  assert.match(kickoff, /\.milestoner\/protocol\.md/);
+  assert.match(kickoff, /\.milestoner\/prompts\/M01\.md/);
+  assert.match(kickoff, /\.milestoner\/result\.json/);
   assert.match(kickoff, /Do not edit state\.json/);
   assert.ok(!kickoff.includes("STEERING"), "no steering section when there is none");
 });

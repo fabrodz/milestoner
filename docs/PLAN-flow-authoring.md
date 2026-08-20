@@ -5,7 +5,7 @@ goes a particular way. Building anything here before answering it would be answe
 
 ## The question
 
-Should dogwatch let you author milestone specs in a UI - a flow builder, a form, anything other than
+Should milestoner let you author milestone specs in a UI - a flow builder, a form, anything other than
 writing markdown in your editor?
 
 [BRIEF.md](../BRIEF.md) puts milestone prompts in their own layer and says they are always
@@ -55,7 +55,7 @@ to produce criteria the gate then rejects.
 
 The experiment is not a UI. It is a linter:
 
-> `dogwatch lint` - check every milestone prompt before a run starts. Does each have acceptance
+> `milestoner lint` - check every milestone prompt before a run starts. Does each have acceptance
 > criteria? Does each criterion name an evidence artifact? Is there an exit section? Does any single
 > milestone carry two unrelated gates?
 
@@ -69,7 +69,7 @@ solved nothing.
 
 Small enough to be one milestone, and it belongs after v0.5 rather than inside it.
 
-### M0x - `dogwatch lint`
+### M0x - `milestoner lint`
 
 **Objective.** A prompt that will not produce gradeable evidence fails before the run starts rather
 than after a session has spent an attempt on it.
@@ -78,7 +78,7 @@ than after a session has spent an attempt on it.
 1. Rules, each with a reason a person can act on: no acceptance criteria; a criterion with no named
    evidence artifact; no exit section; a milestone in `state.json` with no prompt file; a prompt file
    no milestone references.
-2. `dogwatch lint [--json]`, exit 1 on any error, 0 with warnings.
+2. `milestoner lint [--json]`, exit 1 on any error, 0 with warnings.
 3. Decide and record whether `run` lints first and refuses to launch, or only warns. Refusing is
    truer to the evidence gate; warning is kinder to someone mid-iteration. This is the one real
    decision in the milestone.

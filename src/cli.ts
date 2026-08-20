@@ -12,43 +12,43 @@ import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
-import { DOGWATCH_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
+import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
 import { color, fail, warn } from "./util/log.js";
 
 const USAGE = `
-${color.bold("dogwatch")} - supervised autonomous-run engine for coding agents
+${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
 
-  dogwatch init [--run <name>] [--milestones <n>] [--force]
-      Scaffold .dogwatch/ (config, state machine, protocol, prompt skeletons).
+  milestoner init [--run <name>] [--milestones <n>] [--force]
+      Scaffold .milestoner/ (config, state machine, protocol, prompt skeletons).
 
-  dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
+  milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
       Drain the run: one fresh agent session per milestone until complete or blocked.
 
-  dogwatch status [--json]
+  milestoner status [--json]
       Milestones, attempts, evidence counts, and the pulse (is this run alive?).
 
-  dogwatch unblock <id> [--keep-attempts]
+  milestoner unblock <id> [--keep-attempts]
       Clear a block after fixing it and set the milestone back to pending.
 
-  dogwatch steer ["<text>"] [--append] [--clear]
+  milestoner steer ["<text>"] [--append] [--clear]
       Course-correct a run in flight. Applies to the next session launched.
 
-  dogwatch report [--out <path>] [--open]
+  milestoner report [--out <path>] [--open]
       Write a single self-contained HTML report of the run.
 
-  dogwatch serve [--port <n>] [--write]
+  milestoner serve [--port <n>] [--write]
       Local web panel for the run. Binds 127.0.0.1 only and prints a URL carrying a
       one-time key. --write enables the controls; without it the panel only reads.
 
-  dogwatch skill install [--global] [--force] [--print]
+  milestoner skill install [--global] [--force] [--print]
       Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
 
-  dogwatch kill [--reason <text>] [--rule <n>]
+  milestoner kill [--reason <text>] [--rule <n>]
       Supervisor intervention: kill the hung agent session. The runner consumes the
       attempt and relaunches. Never kills the runner.
 
-  dogwatch attend [--seconds <n>] [--rule <n>]
+  milestoner attend [--seconds <n>] [--rule <n>]
       Supervisor intervention: run the configured environment adapter to unstick the host.
 
 Exit codes: 0 ok, 1 error, 2 blocked.
@@ -70,21 +70,21 @@ function requireProject(): { root: string; layout: ReturnType<typeof layoutFor> 
   const legacy = findLegacyRoot();
   if (legacy) {
     const from = join(legacy.root, legacy.dir);
-    const to = join(legacy.root, DOGWATCH_DIR);
-    fail(`found ${from} - this run was set up before the tool was renamed to dogwatch`);
+    const to = join(legacy.root, MILESTONER_DIR);
+    fail(`found ${from} - this run was set up before the tool was renamed to milestoner`);
     console.log(`
   The layout is derived from the directory name, so renaming the directory is the whole migration.
   Nothing inside it needs to change; a run in progress keeps its state, evidence and history.
 
-    ${color.bold(process.platform === "win32" ? `ren "${from}" ${DOGWATCH_DIR}` : `mv "${from}" "${to}"`)}
+    ${color.bold(process.platform === "win32" ? `ren "${from}" ${MILESTONER_DIR}` : `mv "${from}" "${to}"`)}
 
   If a supervisor skill from before the rename is installed, replace it too:
-    ${color.bold("dogwatch skill install")}   (then delete the old .claude/skills/ directory it names)
+    ${color.bold("milestoner skill install")}   (then delete the old .claude/skills/ directory it names)
 `);
     return null;
   }
 
-  fail("no .dogwatch/config.json found here or in any parent directory - run `dogwatch init` first");
+  fail("no .milestoner/config.json found here or in any parent directory - run `milestoner init` first");
   return null;
 }
 
@@ -169,7 +169,7 @@ async function main(): Promise<number> {
   if (command === "unblock") {
     const id = positionals[1];
     if (!id) {
-      fail("usage: dogwatch unblock <milestoneId> [--keep-attempts]");
+      fail("usage: milestoner unblock <milestoneId> [--keep-attempts]");
       return 1;
     }
     return unblock({ layout: project.layout, milestoneId: id, keepAttempts: Boolean(values["keep-attempts"]) });

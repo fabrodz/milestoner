@@ -8,13 +8,13 @@ import { archiveResult, gradeResult, readResult, type Verdict } from "./result.j
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
 import { readSteering, type Steering } from "./steering.js";
 import { findMilestone, loadState, nextMilestone, updateState } from "./state.js";
-import type { AttemptRecord, KillMarker, Milestone, DogwatchConfig, RunState } from "./types.js";
+import type { AttemptRecord, KillMarker, Milestone, MilestonerConfig, RunState } from "./types.js";
 import { ensureDir, readJsonIfExists, removeIfExists } from "./util/fs.js";
 import { color, fail, humanDuration, info, ok, step, warn } from "./util/log.js";
 import { iso, sleep } from "./util/time.js";
 
 export interface RunOptions {
-  config: DogwatchConfig;
+  config: MilestonerConfig;
   layout: Layout;
   maxAttempts?: number;
   model?: string;
@@ -41,7 +41,7 @@ function logEvent(layout: Layout, milestoneId: string, event: string, detail: st
 }
 
 export function buildKickoff(
-  config: DogwatchConfig,
+  config: MilestonerConfig,
   layout: Layout,
   milestone: Milestone,
   steering: Steering | null,
@@ -178,7 +178,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         } else {
           console.log(`  no diagnosis was written; read the last transcript in ${relative(config.projectRoot, layout.logs)}`);
         }
-        console.log(`  resume with: dogwatch unblock ${next.id}`);
+        console.log(`  resume with: milestoner unblock ${next.id}`);
         pulse(next, next.attempts, null, "blocked");
         return "blocked";
       }
@@ -216,7 +216,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         promptFile,
         milestoneId: next.id,
         projectRoot: config.projectRoot,
-        dogwatchDir: layout.dir,
+        milestonerDir: layout.dir,
         model: active.agent.model ?? "",
       });
 
@@ -372,7 +372,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
       if (options.once) return findMilestone(after, next.id)?.status === "blocked" ? "blocked" : "stopped";
       if (stopping()) {
-        warn("stopping as requested - the run resumes with `dogwatch run`");
+        warn("stopping as requested - the run resumes with `milestoner run`");
         return "stopped";
       }
       if (verdict.outcome !== "done") await sleep(config.retryDelaySeconds, anySignal);

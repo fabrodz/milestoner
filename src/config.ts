@@ -1,7 +1,7 @@
 import { readJson } from "./util/fs.js";
-import type { AgentConfig, DogwatchConfig } from "./types.js";
+import type { AgentConfig, MilestonerConfig } from "./types.js";
 
-export function defaultConfig(run: string, projectRoot: string): DogwatchConfig {
+export function defaultConfig(run: string, projectRoot: string): MilestonerConfig {
   return {
     run,
     projectRoot,
@@ -31,8 +31,8 @@ export function defaultConfig(run: string, projectRoot: string): DogwatchConfig 
 
 const REQUIRED = ["run", "agent", "infra"] as const;
 
-export function loadConfig(configPath: string, projectRoot: string): DogwatchConfig {
-  const raw = readJson<Partial<DogwatchConfig>>(configPath);
+export function loadConfig(configPath: string, projectRoot: string): MilestonerConfig {
+  const raw = readJson<Partial<MilestonerConfig>>(configPath);
   for (const key of REQUIRED) {
     if (raw[key] === undefined) throw new Error(`${configPath}: missing required field "${key}"`);
   }

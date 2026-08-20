@@ -1,4 +1,4 @@
-# dogwatch user guide
+# milestoner user guide
 
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
@@ -8,13 +8,13 @@ Applies to **v0.4**: the engine (`init`, `run`, `status`, `unblock`), the active
 the local web panel (`serve`), agent fallback, and the Claude Code plugin. Where a behaviour is
 planned for a later version it says so.
 
-- [What dogwatch actually does](#what-dogwatch-actually-does)
+- [What milestoner actually does](#what-milestoner-actually-does)
 - [When to use it, and when not to](#when-to-use-it-and-when-not-to)
 - [Install and requirements](#install-and-requirements)
 - [What you are agreeing to](#what-you-are-agreeing-to)
 - [The mental model](#the-mental-model)
 - [Quickstart: your first run](#quickstart-your-first-run)
-- [The .dogwatch directory](#the-dogwatch-directory)
+- [The .milestoner directory](#the-milestoner-directory)
 - [Writing the protocol](#writing-the-protocol)
 - [Writing milestone prompts](#writing-milestone-prompts)
 - [Command reference](#command-reference)
@@ -31,15 +31,15 @@ planned for a later version it says so.
 - [FAQ](#faq)
 - [Limits of v0.4](#limits-of-v04)
 
-## What dogwatch actually does
+## What milestoner actually does
 
-You split the work into milestones and hand-write a spec for each one. `dogwatch run` then loops:
+You split the work into milestones and hand-write a spec for each one. `milestoner run` then loops:
 
 1. Pick the first milestone that is not `done`.
 2. Launch a **fresh** headless agent session (by default `claude -p ...`) with a kickoff message that
    points it at the protocol and at that milestone's prompt file.
 3. Wait. Print a heartbeat line every 60 seconds.
-4. When the session exits, read `.dogwatch/result.json` (the session's own verdict), **grade it**,
+4. When the session exits, read `.milestoner/result.json` (the session's own verdict), **grade it**,
    merge the graded result into `state.json`, and archive the raw claim.
 5. Repeat until the run is complete, a milestone is blocked, or attempts run out.
 
@@ -53,7 +53,7 @@ dead runner, escalate a real block.
 
 ```mermaid
 flowchart TD
-  A[dogwatch run] --> B{next milestone<br/>not done?}
+  A[milestoner run] --> B{next milestone<br/>not done?}
   B -- none left --> Z[run complete, exit 0]
   B -- blocked --> Y[print diagnosis, exit 2]
   B -- pending --> C[launch fresh agent session]
@@ -84,37 +84,37 @@ Use it when:
 Do not use it when:
 
 - The task is one prompt long. Just talk to the agent.
-- Success cannot be checked without you looking at it. dogwatch cannot grade taste.
+- Success cannot be checked without you looking at it. milestoner cannot grade taste.
 - The acceptance criteria are still unknown. Explore first, then write milestones.
 
 ## Install and requirements
 
 There are two things you can install, and they do different jobs. The **CLI** is the engine: the
-`dogwatch` binary that runs a run, grades each session and owns the state machine. Nothing works
+`milestoner` binary that runs a run, grades each session and owns the state machine. Nothing works
 without it. The **plugin** is a Claude Code layer on top: it adds the supervisor skill and four slash
-commands to a Claude session, and every one of them shells out to the same `dogwatch` binary. The
-plugin is not a self-contained install; it does not put `dogwatch` on your PATH.
+commands to a Claude session, and every one of them shells out to the same `milestoner` binary. The
+plugin is not a self-contained install; it does not put `milestoner` on your PATH.
 
 **The CLI (required).** Not on npm yet, so install from source:
 
 ```sh
-git clone https://github.com/fabrodz/dogwatch.git
-cd dogwatch && npm install && npm run build && npm link
+git clone https://github.com/fabrodz/milestoner.git
+cd milestoner && npm install && npm run build && npm link
 ```
 
-`npm link` puts `dogwatch` on your PATH. Confirm with `dogwatch --help`.
+`npm link` puts `milestoner` on your PATH. Confirm with `milestoner --help`.
 
-**The plugin (optional).** Adds `/dogwatch-init`, `/dogwatch-status`, `/dogwatch-supervise` and
-`/dogwatch-report`, plus the supervisor skill, inside Claude Code:
+**The plugin (optional).** Adds `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and
+`/milestoner-report`, plus the supervisor skill, inside Claude Code:
 
 ```sh
-claude plugin marketplace add fabrodz/dogwatch
-claude plugin install dogwatch@dogwatch
+claude plugin marketplace add fabrodz/milestoner
+claude plugin install milestoner@milestoner
 ```
 
 The marketplace lives in this same repository (a single-plugin marketplace), so the one `add`
 command points at the repo and the `install` pulls the plugin from it. Because the plugin's commands
-and skill all call the `dogwatch` binary, install the CLI first; the plugin on its own has nothing to
+and skill all call the `milestoner` binary, install the CLI first; the plugin on its own has nothing to
 call. A first-time user needs only the CLI. Add the plugin when you would rather drive and supervise
 the run from inside a Claude session than from a terminal.
 
@@ -139,7 +139,7 @@ on the timeout with an `instant-death` verdict.
 
 State it plainly before the first overnight run: **for as long as the run lasts, the agent can read,
 write and delete anything your user account can, and run any command, with nobody approving it.**
-dogwatch does not sandbox the session and does not review what it does. The engine's guarantees are
+milestoner does not sandbox the session and does not review what it does. The engine's guarantees are
 about *bookkeeping* - that a claim of `done` carries evidence, that a usage limit does not burn a
 retry - not about containment.
 
@@ -173,8 +173,8 @@ incomplete and retried. One evidence line per acceptance criterion, each pointin
 written down: a test count, a log path, a screenshot, a commit hash.
 
 **4. Blocked is a handoff, not a failure.** To block, a session must write a diagnosis: the exact
-symptom, everything it tried, and the single clearest action for you. `dogwatch status` prints that
-diagnosis; `dogwatch unblock <id>` puts the milestone back in play once you have fixed the cause.
+symptom, everything it tried, and the single clearest action for you. `milestoner status` prints that
+diagnosis; `milestoner unblock <id>` puts the milestone back in play once you have fixed the cause.
 
 **5. Infrastructure is not failure.** A session that dies in 20 seconds with an empty transcript hit
 a usage limit, an auth prompt or a network error. That does not consume an attempt. If the agent
@@ -194,7 +194,7 @@ inside a narrow, logged playbook. See [The supervisor](#the-supervisor).
 
 ```sh
 cd /path/to/your/project
-dogwatch init --run checkout-v2 --milestones 4
+milestoner init --run checkout-v2 --milestones 4
 ```
 
 ```
@@ -209,19 +209,19 @@ dogwatch init --run checkout-v2 --milestones 4
   execution-log.md
   decisions.md
   supervisor-log.md
-== initialized .dogwatch/ for run "checkout-v2"
+== initialized .milestoner/ for run "checkout-v2"
 
 Next:
-  1. Edit .dogwatch/protocol.md - replace every TODO with this project's rules.
-  2. Write .dogwatch/prompts/M01.md and friends - objective, tasks, acceptance criteria, exit.
-  3. Set the titles in .dogwatch/state.json to match.
+  1. Edit .milestoner/protocol.md - replace every TODO with this project's rules.
+  2. Write .milestoner/prompts/M01.md and friends - objective, tasks, acceptance criteria, exit.
+  3. Set the titles in .milestoner/state.json to match.
   4. Point "liveness" in config.json at the paths that prove work is happening
      (source dirs, test-result files, tool logs). The transcript is never one.
-  5. dogwatch run
+  5. milestoner run
 
 To supervise a long run, install the supervisor skill and loop it:
-  dogwatch skill install
-  /loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
+  milestoner skill install
+  /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
 `--run` defaults to the directory name, slugified. `--milestones` defaults to 3. Existing files are
@@ -229,13 +229,13 @@ never overwritten; `--force` overwrites `config.json` and `state.json` only.
 
 ### 2. Fill in the protocol
 
-Open `.dogwatch/protocol.md` and replace every `TODO`. This is the file every session reads first, so
+Open `.milestoner/protocol.md` and replace every `TODO`. This is the file every session reads first, so
 it is where your project's non-negotiables go: how tests run, where evidence is written, commit
 conventions, what "the environment is reachable" means here. Ten minutes here saves three retries.
 
 ### 3. Write the milestone prompts
 
-`.dogwatch/prompts/M01.md` and friends. This is the actual work specification and dogwatch never
+`.milestoner/prompts/M01.md` and friends. This is the actual work specification and milestoner never
 generates it for you. See [Writing milestone prompts](#writing-milestone-prompts).
 
 ### 4. Set the titles and the liveness list
@@ -268,13 +268,13 @@ And in `config.json`:
 ### 5. Run
 
 ```sh
-dogwatch run
+milestoner run
 ```
 
 ```
 == M01 - Cart schema + migration  (attempt 1/3)
-   prompt     .dogwatch/prompts/M01.md
-   transcript .dogwatch/logs/M01-20260818-2312.log
+   prompt     .milestoner/prompts/M01.md
+   transcript .milestoner/logs/M01-20260818-2312.log
      M01 running 1m, newest signal 12s old (src/db/schema.ts)
      M01 running 2m, newest signal 4s old (src/db/migrations/0007_cart.sql)
    session ended (exit 0, 8m, 41233 B transcript)
@@ -288,12 +288,12 @@ Leave it running in a terminal, or in `tmux`/`screen`/a detached shell, overnigh
 ### 6. Check on it from another terminal
 
 ```sh
-dogwatch status
+milestoner status
 ```
 
 ```
 checkout-v2  [##>.]  2/4 done
-  .dogwatch/state.json
+  .milestoner/state.json
 
   done     M01   Cart schema + migration att 1/3 ev 3
   done     M02   Cart API endpoints att 1/3 ev 4
@@ -313,21 +313,21 @@ If you installed the plugin, the supervisor skill came with it; skip this comman
 install, write the skill into the project first:
 
 ```sh
-dogwatch skill install
+milestoner skill install
 ```
 
 Then in a Claude Code session at the project root:
 
 ```
-/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
+/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
 That is the whole loop. Everything below is detail.
 
-## The .dogwatch directory
+## The .milestoner directory
 
 ```
-.dogwatch/
+.milestoner/
   config.json          you own it: agent command, attempts, infra rules, liveness watch list
   state.json           the engine owns it: never edit while a run is in progress
   protocol.md          you write it: shared rules every session reads first
@@ -336,9 +336,9 @@ That is the whole loop. Everything below is detail.
   results/             archived raw claims, one per attempt (M01-attempt2.json)
   logs/                session transcripts (M01-20260818-231204-881.log)
   pulse.json           live runner heartbeat, deleted when the runner exits
-  kill.json            transient marker written by `dogwatch kill`
+  kill.json            transient marker written by `milestoner kill`
   STEERING.md          you write it: mid-flight corrections; absent means none in force
-  report.html          generated by `dogwatch report`
+  report.html          generated by `milestoner report`
   run-log.md           append-only engine events
   supervisor-log.md    append-only interventions
   execution-log.md     the agent's own narrative log
@@ -409,7 +409,7 @@ engine will not silently invent your specification.
 A good milestone is one **session** of work (roughly 30-90 minutes for a capable agent), has an end
 state you can check without opening the code, and does not depend on a decision you have not made.
 
-Filled-in example, `.dogwatch/prompts/M02.md`:
+Filled-in example, `.milestoner/prompts/M02.md`:
 
 ```markdown
 # M02 - Cart API endpoints
@@ -449,7 +449,7 @@ built in M01, with the pricing rules from `docs/pricing.md`. Nothing renders it 
 - All acceptance criteria evidenced.
 - Build clean, suite green.
 - Committed and tagged `checkout-v2/M02`.
-- `.dogwatch/result.json` written with `status: "done"` and one evidence line per criterion.
+- `.milestoner/result.json` written with `status: "done"` and one evidence line per criterion.
 ```
 
 Rules of thumb:
@@ -466,10 +466,10 @@ Rules of thumb:
 
 Exit codes across all commands: `0` ok, `1` error, `2` blocked.
 
-### dogwatch init
+### milestoner init
 
 ```sh
-dogwatch init [--run <name>] [--milestones <n>] [--force]
+milestoner init [--run <name>] [--milestones <n>] [--force]
 ```
 
 | Flag | Default | Meaning |
@@ -481,10 +481,10 @@ dogwatch init [--run <name>] [--milestones <n>] [--force]
 Adding a milestone later is a manual edit: create `prompts/M05.md` and append an entry to
 `state.json`. That is intentional. `state.json` is a run's history, not a scratch file.
 
-### dogwatch run
+### milestoner run
 
 ```sh
-dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
+milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
 ```
 
 | Flag | Meaning |
@@ -494,27 +494,27 @@ dogwatch run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
 | `--model <name>` | Appends `agent.modelArgs` (default `--model <name>`) to the agent command for this invocation. |
 | `--once` | Launch one session, grade it, then stop whatever the verdict. Exits `2` if that session reported blocked, so a script can tell the two apart. |
 
-Run it from the project root or any subdirectory: dogwatch walks up looking for
-`.dogwatch/config.json`, the way git finds `.git`.
+Run it from the project root or any subdirectory: milestoner walks up looking for
+`.milestoner/config.json`, the way git finds `.git`.
 
 **Ctrl-C once**: the runner stops after the current session finishes and leaves the milestone
-`in_progress`; a later `dogwatch run` picks it up and starts a fresh attempt. **Ctrl-C twice**: the
+`in_progress`; a later `milestoner run` picks it up and starts a fresh attempt. **Ctrl-C twice**: the
 agent session is killed immediately (exit 130).
 
 Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
 infrastructure failures.
 
-### dogwatch status
+### milestoner status
 
 ```sh
-dogwatch status [--json]
+milestoner status [--json]
 ```
 
 Prints the milestone table, the diagnosis of any blocked milestone, and the pulse block. Exits `2` if
 any milestone is blocked, which makes it usable in a shell check:
 
 ```sh
-dogwatch status >/dev/null || notify-send "dogwatch needs you"
+milestoner status >/dev/null || notify-send "milestoner needs you"
 ```
 
 `--json` prints a machine-readable snapshot:
@@ -542,7 +542,7 @@ dogwatch status >/dev/null || notify-send "dogwatch needs you"
         "endedAt": "2026-08-18T23:20:41.223Z",
         "seconds": 517,
         "exitCode": 0,
-        "transcript": ".dogwatch/logs/M01-20260818-2312.log",
+        "transcript": ".milestoner/logs/M01-20260818-2312.log",
         "outcome": "done"
       }
     }
@@ -554,7 +554,7 @@ dogwatch status >/dev/null || notify-send "dogwatch needs you"
     "attempt": 1,
     "sessionStartedAt": "2026-08-18T23:42:02.110Z",
     "agentPid": 24512,
-    "transcript": ".dogwatch/logs/M03-20260818-2342.log",
+    "transcript": ".milestoner/logs/M03-20260818-2342.log",
     "lastEvent": "running 34m",
     "lastEventAt": "2026-08-19T00:16:04.884Z",
     "runnerAlive": true,
@@ -579,10 +579,10 @@ This snapshot is deliberately complete: it is the supervisor's whole view of the
 replaces any file parsing. `liveness.verdict` is `alive` / `slow` / `hung`, on the same thresholds as
 the printed output.
 
-### dogwatch unblock
+### milestoner unblock
 
 ```sh
-dogwatch unblock <milestoneId> [--keep-attempts]
+milestoner unblock <milestoneId> [--keep-attempts]
 ```
 
 Sets the milestone back to `pending` and clears its diagnosis. Without `--keep-attempts` the attempt
@@ -593,24 +593,24 @@ and are not sure it is fixed.
 Clearing a block is always a human decision: the engine never does it on its own, and the supervisor
 is forbidden from doing it.
 
-### dogwatch steer
+### milestoner steer
 
 ```sh
-dogwatch steer ["<text>"] [--append] [--clear]
+milestoner steer ["<text>"] [--append] [--clear]
 ```
 
 | Form | What it does |
 | --- | --- |
-| `dogwatch steer "<text>"` | Replaces the steering with this line. |
-| `dogwatch steer "<text>" --append` | Adds a line, keeping what was already there. |
-| `dogwatch steer` | Prints what is in force, or says there is none. |
-| `dogwatch steer --clear` | Deletes the file. The next session runs on its milestone prompt alone. |
+| `milestoner steer "<text>"` | Replaces the steering with this line. |
+| `milestoner steer "<text>" --append` | Adds a line, keeping what was already there. |
+| `milestoner steer` | Prints what is in force, or says there is none. |
+| `milestoner steer --clear` | Deletes the file. The next session runs on its milestone prompt alone. |
 
-Writes `.dogwatch/STEERING.md`. Every session launched *from that point on* gets the text inlined
+Writes `.milestoner/STEERING.md`. Every session launched *from that point on* gets the text inlined
 into its kickoff, above the milestone prompt, marked as an override. Inlined rather than referenced
 by path, because a correction the session never opens is not steering.
 
-It does not touch the session that is already running. If you need that one to stop, `dogwatch
+It does not touch the session that is already running. If you need that one to stop, `milestoner
 kill` it and the steering applies to the relaunch.
 
 Rules the engine enforces around it:
@@ -629,19 +629,19 @@ Rules the engine enforces around it:
 **The supervisor cannot steer.** Course-correcting a run is a human judgement; the skill is told to
 propose the exact wording in its report and let you run it.
 
-### dogwatch report
+### milestoner report
 
 ```sh
-dogwatch report [--out <path>] [--open]
+milestoner report [--out <path>] [--open]
 ```
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `--out <path>` | `.dogwatch/report.html` | Where to write it. Relative to the current directory. |
+| `--out <path>` | `.milestoner/report.html` | Where to write it. Relative to the current directory. |
 | `--open` | off | Open it in the default browser afterwards. |
 
 One self-contained HTML file, no scripts and no external assets, so it opens offline and survives
-being emailed to someone who has never heard of dogwatch. It contains:
+being emailed to someone who has never heard of milestoner. It contains:
 
 - **Stat tiles**: milestones done, sessions run, total session time, wall clock, infrastructure
   retries, evidence lines.
@@ -659,10 +659,10 @@ The timeline is what `status` cannot give you. The gaps carry the information: a
 looks nothing like a slow session, and the infrastructure retries that were never charged against
 the attempt budget are finally visible after the fact.
 
-### dogwatch serve
+### milestoner serve
 
 ```sh
-dogwatch serve [--port <n>] [--write] [--token <value>]
+milestoner serve [--port <n>] [--write] [--token <value>]
 ```
 
 | Flag | Default | Meaning |
@@ -678,7 +678,7 @@ functions the commands do, so there is one audit trail rather than two - a kill 
 in `supervisor-log.md` like any other.
 
 Stopping a run sends `SIGINT` to the runner, which is its own "finish this session, then stop".
-Starting one spawns a detached `dogwatch run`: closing the panel must not end an overnight run, and
+Starting one spawns a detached `milestoner run`: closing the panel must not end an overnight run, and
 everything that manages a running runner already works on a separate process.
 
 #### What you are running
@@ -704,7 +704,7 @@ credential: do not paste it into a chat or a ticket.
 #### Reaching it from your phone
 
 The panel binds loopback and there is no flag to change that, so getting to it from another device is
-a transport question, not a dogwatch one. Forward the port over SSH:
+a transport question, not a milestoner one. Forward the port over SSH:
 
 ```sh
 ssh -N -L 4400:127.0.0.1:4400 you@the-machine
@@ -719,13 +719,13 @@ without authentication. Either one hands an agent running with `--dangerously-sk
 whoever finds the address. If you want a permanent hosted setup, put a real authenticating proxy in
 front and understand that you have taken on that decision.
 
-### dogwatch skill install
+### milestoner skill install
 
 ```sh
-dogwatch skill install [--global] [--force] [--print]
+milestoner skill install [--global] [--force] [--print]
 ```
 
-Writes the supervisor skill to `.claude/skills/dogwatch-supervisor/SKILL.md` in the project, or to
+Writes the supervisor skill to `.claude/skills/milestoner-supervisor/SKILL.md` in the project, or to
 `~/.claude/skills/` with `--global`. `--print` dumps the skill text to stdout without writing
 anything, which is how to read the playbook before installing it. It refuses to overwrite an existing
 file without `--force`.
@@ -734,10 +734,10 @@ If you installed the plugin, this is redundant: the plugin ships the same skill 
 so the skill is already available in Claude Code and there is nothing to write. `skill install` is for
 CLI-only users, who have the engine but not the plugin's components.
 
-### dogwatch kill
+### milestoner kill
 
 ```sh
-dogwatch kill [--reason <text>] [--rule <n>]
+milestoner kill [--reason <text>] [--rule <n>]
 ```
 
 Kills the **agent session**, never the runner. The runner sees the session end, grades it as
@@ -745,7 +745,7 @@ incomplete, consumes an attempt and relaunches with fresh context. That is the p
 intervention: a session that has been going nowhere for half an hour is worth restarting, and it
 should cost something.
 
-Before killing, it writes `.dogwatch/kill.json`. Without that marker a session killed after a quiet
+Before killing, it writes `.milestoner/kill.json`. Without that marker a session killed after a quiet
 stretch would look like an infrastructure death (short, tiny transcript) and the engine would refund
 the attempt, so the same intervention could repeat forever. The kill is also appended to
 `supervisor-log.md`.
@@ -754,10 +754,10 @@ It refuses to act when there is no `pulse.json`, when the runner process is not 
 agent session is currently running. `--reason` records what you observed; `--rule <n>` tags the log
 line with the playbook rule that fired.
 
-### dogwatch attend
+### milestoner attend
 
 ```sh
-dogwatch attend [--seconds <n>] [--rule <n>]
+milestoner attend [--seconds <n>] [--rule <n>]
 ```
 
 Runs `environment.attendCommand`, the project's environment adapter, for `--seconds` (default
@@ -767,7 +767,7 @@ touches project code. Fails with an explanation when no adapter is configured. S
 
 ## Configuration reference
 
-`.dogwatch/config.json`, created by `init`:
+`.milestoner/config.json`, created by `init`:
 
 ```json
 {
@@ -812,11 +812,11 @@ touches project code. Fails with an explanation when no adapter is configured. S
 | `infra.genericWaitSeconds` | `60` | Wait after an `instant-death`. |
 | `infra.usageLimitPatterns` | see above | Case-insensitive substrings searched in the last 4 KB of the transcript. Add your provider's wording here. |
 | `liveness` | `[]` | Paths, relative to the project root, whose mtime proves work is happening. Directories are scanned recursively. |
-| `environment.attendCommand` | `null` | Shell command line run by `dogwatch attend`, with a `{{seconds}}` placeholder. `null` disables the intervention. |
+| `environment.attendCommand` | `null` | Shell command line run by `milestoner attend`, with a `{{seconds}}` placeholder. `null` disables the intervention. |
 | `environment.attendSeconds` | `120` | Default duration passed to that command. |
 
 **Placeholders** available in `agent.args`: `{{kickoff}}`, `{{promptFile}}`, `{{milestoneId}}`,
-`{{projectRoot}}`, `{{dogwatchDir}}`, `{{model}}`. An unknown placeholder is left untouched so you can
+`{{projectRoot}}`, `{{milestonerDir}}`, `{{model}}`. An unknown placeholder is left untouched so you can
 see it in the log. `{{kickoff}}` is the generated instruction that points the session at the protocol,
 the milestone prompt and the result contract; most setups only need that one.
 
@@ -830,14 +830,14 @@ the milestone prompt and the result contract; most setups only need that one.
 | Data / notebooks | `["pipelines", "artifacts/last-run.json"]` |
 
 Never list the transcript or a log the runner itself writes: it would look alive even when nothing is
-happening. The recursive scan skips `node_modules`, `.git`, `.dogwatch`, `dist`, `Library`, `Temp`,
+happening. The recursive scan skips `node_modules`, `.git`, `.milestoner`, `dist`, `Library`, `Temp`,
 `obj`, `bin` and dot-entries, and goes six levels deep.
 
 ## Running a different agent
 
 `agent.command` plus `agent.args` is the whole integration surface. The engine spawns that command
 line, captures stdout and stderr into the transcript, waits for it to exit, and then reads
-`.dogwatch/result.json`. It never parses the agent's output, never looks at the exit code for a
+`.milestoner/result.json`. It never parses the agent's output, never looks at the exit code for a
 verdict, and knows no agent by name.
 
 An agent qualifies if it can:
@@ -968,9 +968,9 @@ not choose, so the rotation is recorded wherever the run is auditable:
 | Where | What you see |
 | --- | --- |
 | `state.json` | `agent` on every entry of a milestone's `history` |
-| `dogwatch report` | an `agent:` line per row of the attempt table |
+| `milestoner report` | an `agent:` line per row of the attempt table |
 | `run-log.md` | the agent on each `launch`, and the switch on each `infra:` line |
-| `dogwatch status` | the agent in use, while the run is live |
+| `milestoner status` | the agent in use, while the run is live |
 | `status --json` | `pulse.agent`, so the supervisor sees it too |
 
 With no `fallbackAgents` configured nothing above changes: a pool of one benches its only agent and
@@ -1002,7 +1002,7 @@ changes nothing.
 
 ## How the engine grades a session
 
-The session writes `.dogwatch/result.json` before exiting:
+The session writes `.milestoner/result.json` before exiting:
 
 ```json
 {
@@ -1031,7 +1031,7 @@ What the engine does with it:
 | A `milestone` id that does not match | ignored, warning printed | yes | `pending` (retry) |
 | No `result.json`, session ran long enough | incomplete, "no result.json written" | yes | `pending` (retry) |
 | No `result.json`, session died fast | infrastructure failure | **no** | `pending`, after a wait |
-| Session killed by `dogwatch kill` | incomplete | yes, always | `pending` (retry) |
+| Session killed by `milestoner kill` | incomplete | yes, always | `pending` (retry) |
 
 Notes:
 
@@ -1051,7 +1051,7 @@ against a usage limit.
 
 A session is classified as an infrastructure failure when **all** of these hold:
 
-1. it was not killed by `dogwatch kill`, and
+1. it was not killed by `milestoner kill`, and
 2. it wrote no `result.json`, and
 3. it lasted less than `infra.deathSeconds` (90s), and
 4. either the last 4 KB of transcript matches one of `infra.usageLimitPatterns`, or the transcript is
@@ -1083,7 +1083,7 @@ If your provider words its limit differently, add the wording to `infra.usageLim
 
 ## The pulse: is this run alive?
 
-The pulse block in `dogwatch status` answers three separate questions.
+The pulse block in `milestoner status` answers three separate questions.
 
 **Is a runner process alive?** `pulse.json` holds the runner pid, the current milestone, the agent pid
 and the last event. The file is deleted when the runner exits cleanly, so:
@@ -1092,7 +1092,7 @@ and the last event. The file is deleted when the runner exits cleanly, so:
 - `pulse.json` present and the pid alive means the runner is up; the last-event age tells you when it
   last did anything.
 - `pulse.json` present and the pid dead means the runner died abruptly (closed terminal, reboot, OOM).
-  Relaunch with `dogwatch run`; the milestone is picked up again.
+  Relaunch with `milestoner run`; the milestone is picked up again.
 
 **How long has this session been running?** Printed as `session`. Compare it against how long you
 expected the milestone to take. Three hours on a 45-minute milestone is a hung session.
@@ -1111,7 +1111,7 @@ until the verdict matches reality for your project.
 A poll loop while you work on something else:
 
 ```sh
-while true; do clear; dogwatch status; sleep 300; done
+while true; do clear; milestoner status; sleep 300; done
 ```
 
 ## The supervisor
@@ -1123,13 +1123,13 @@ playbook.
 ### Starting it
 
 ```sh
-dogwatch skill install          # writes .claude/skills/dogwatch-supervisor/SKILL.md
+milestoner skill install          # writes .claude/skills/milestoner-supervisor/SKILL.md
 ```
 
 Then, in a Claude Code session at the project root:
 
 ```
-/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
+/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
 One invocation is one cycle: gather, apply at most one rule, report. The loop is what makes it a
@@ -1137,12 +1137,12 @@ supervisor.
 
 ### What it may and may not do
 
-Its entire write surface is four things: `dogwatch kill`, `dogwatch attend`, relaunching
-`dogwatch run`, and appending to `.dogwatch/supervisor-log.md`.
+Its entire write surface is four things: `milestoner kill`, `milestoner attend`, relaunching
+`milestoner run`, and appending to `.milestoner/supervisor-log.md`.
 
 It never edits project code, prompts, the protocol or `state.json`. It never runs the project's own
 tools (build, tests, dev server, editor) because the executor session owns them and a parallel call
-can corrupt the run. And it never calls `dogwatch unblock`: clearing a block is a human decision.
+can corrupt the run. And it never calls `milestoner unblock`: clearing a block is a human decision.
 
 ### The playbook, first match wins
 
@@ -1150,10 +1150,10 @@ can corrupt the run. And it never calls `dogwatch unblock`: clearing a block is 
 | --- | --- | --- |
 | 1 | `runComplete: true` | Final report, close the log, stop the loop. |
 | 2 | A liveness signal younger than 15 minutes, nothing blocked | Report only. Do not intervene. |
-| 3 | A watched signal frozen past its normal cadence and no fresher one | `dogwatch attend`, then re-check next cycle. Cannot fire without an adapter. |
-| 4 | An agent process exists but every signal is older than 25 minutes | `dogwatch kill --reason "..."`. Twice on the same milestone means escalate instead. |
+| 3 | A watched signal frozen past its normal cadence and no fresher one | `milestoner attend`, then re-check next cycle. Cannot fire without an adapter. |
+| 4 | An agent process exists but every signal is older than 25 minutes | `milestoner kill --reason "..."`. Twice on the same milestone means escalate instead. |
 | 5 | The last run-log entry is `infra:usage-limit` and the runner is alive | Do nothing. The engine is already waiting and not consuming attempts. |
-| 6 | Work remains, nothing blocked, no runner process | Relaunch `dogwatch run`. Two failed relaunches in a row means escalate. |
+| 6 | Work remains, nothing blocked, no runner process | Relaunch `milestoner run`. Two failed relaunches in a row means escalate. |
 | 7 | A milestone is `blocked` | Quote the diagnosis verbatim and stop. No auto-fix, no unblock. |
 | 8 | Anything it cannot explain | Touch nothing, describe precisely, escalate. |
 
@@ -1172,8 +1172,8 @@ conversations.
 ### Doing it without the skill
 
 The supervisor is convenience, not a dependency. Everything it does is available to you:
-`dogwatch status --json` to see the run, `dogwatch kill` for a hung session, `dogwatch attend` for a
-wedged environment, `dogwatch run` to relaunch a dead runner.
+`milestoner status --json` to see the run, `milestoner kill` for a hung session, `milestoner attend` for a
+wedged environment, `milestoner run` to relaunch a dead runner.
 
 ## Environment adapters
 
@@ -1191,7 +1191,7 @@ it does:
 
 ```json
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .dogwatch/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/unity-attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```
@@ -1211,7 +1211,7 @@ Two samples ship in [../examples/adapters/](../examples/adapters/), to read rath
 | `unity-attend.ps1` | Windows | A Unity focus keeper plus Win32 modal dismissal, the adapter the original overnight runs used. |
 
 ```json
-"attendCommand": "bash .dogwatch/adapters/attend.sh {{seconds}} Unity"
+"attendCommand": "bash .milestoner/adapters/attend.sh {{seconds}} Unity"
 ```
 
 Whatever the language, an adapter has the same four obligations, and both samples follow them:
@@ -1223,7 +1223,7 @@ Whatever the language, an adapter has the same four obligations, and both sample
 4. be idempotent and safe to run mid-session: never touch project files, never kill the agent,
    never restart what the session is holding.
 
-A headless project leaves `attendCommand` at `null`. Then `dogwatch attend` fails with an explanation
+A headless project leaves `attendCommand` at `null`. Then `milestoner attend` fails with an explanation
 and playbook rule 3 simply cannot fire, which is the correct behaviour: there is nothing to unstick.
 
 Write adapters that are idempotent and safe to run at any moment. The adapter can be invoked while a
@@ -1237,7 +1237,7 @@ session is using.
 Five milestones, one feature, one night. The classic case.
 
 ```sh
-dogwatch init --run checkout-v2 --milestones 5
+milestoner init --run checkout-v2 --milestones 5
 # write protocol.md and prompts/M01..M05.md, set the titles in state.json
 ```
 
@@ -1247,14 +1247,14 @@ dogwatch init --run checkout-v2 --milestones 5
 ```
 
 ```sh
-dogwatch run 2>&1 | tee run-checkout-v2.txt
+milestoner run 2>&1 | tee run-checkout-v2.txt
 ```
 
-In the morning, `dogwatch status`. Three outcomes are possible and all three are useful.
+In the morning, `milestoner status`. Three outcomes are possible and all three are useful.
 
 - `5/5 done`: read `execution-log.md` and `decisions.md`, then review the five tags.
-- `3/5 done, 1 blocked`: the diagnosis says what to fix. Then `dogwatch unblock M04 && dogwatch run`.
-- `runner gone`: the machine slept or the terminal closed. `dogwatch run` resumes from where the state
+- `3/5 done, 1 blocked`: the diagnosis says what to fix. Then `milestoner unblock M04 && milestoner run`.
+- `runner gone`: the machine slept or the terminal closed. `milestoner run` resumes from where the state
   file says it was. Put a supervisor on the next run and that third case fixes itself.
 
 ### 2. Test hardening on a legacy backend
@@ -1275,14 +1275,14 @@ progress is cumulative even when a verdict is not.
 
 ### 3. A host-bound project: Unity, Unreal, a connected device
 
-The case that made dogwatch exist. The editor must run on your machine with a real window, so
+The case that made milestoner exist. The editor must run on your machine with a real window, so
 container-based loops are not an option.
 
 ```json
 "liveness": ["Assets/Scripts", "Logs/editmode-latest.xml"],
 "infra": { "deathSeconds": 120 },
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .dogwatch/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/unity-attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```
@@ -1301,19 +1301,19 @@ Twenty pages to migrate, thirty endpoints to document, fifteen components to por
 prompt, then copy it with the target changed.
 
 ```sh
-dogwatch init --run port-to-v2 --milestones 15
-for i in $(seq -w 2 15); do sed "s/M01/M$i/" .dogwatch/prompts/M01.md > .dogwatch/prompts/M$i.md; done
+milestoner init --run port-to-v2 --milestones 15
+for i in $(seq -w 2 15); do sed "s/M01/M$i/" .milestoner/prompts/M01.md > .milestoner/prompts/M$i.md; done
 # then edit each one's target and criteria
 ```
 
 Prove the recipe on one milestone before launching the batch:
 
 ```sh
-dogwatch run --milestone M01 --once
-dogwatch status
+milestoner run --milestone M01 --once
+milestoner status
 ```
 
-If M01 comes back `done` with evidence that convinces you, launch the rest with plain `dogwatch run`.
+If M01 comes back `done` with evidence that convinces you, launch the rest with plain `milestoner run`.
 If it comes back `incomplete`, the prompt is wrong, not the agent, and you found that out for the
 price of one session instead of fifteen.
 
@@ -1336,8 +1336,8 @@ To make it smoother:
 And use the cheaper model for mechanical milestones, the strong one for the hard ones:
 
 ```sh
-dogwatch run --milestone M01 --model claude-sonnet-5 --once
-dogwatch run --milestone M02 --model claude-opus-5 --once
+milestoner run --milestone M01 --model claude-sonnet-5 --once
+milestoner run --milestone M02 --model claude-opus-5 --once
 ```
 
 If a supervisor is watching, rule 5 keeps it from "helping" during the wait, which would only burn
@@ -1345,11 +1345,11 @@ the next window.
 
 ### 6. Supervised, one milestone at a time
 
-You do not have to leave. `--once` turns dogwatch into a disciplined single-shot runner: fresh
+You do not have to leave. `--once` turns milestoner into a disciplined single-shot runner: fresh
 session, hand-written spec, evidence gate, archived claim, and you review between milestones.
 
 ```sh
-dogwatch run --once && dogwatch status && git log --oneline -5
+milestoner run --once && milestoner status && git log --oneline -5
 ```
 
 This is also the best way to learn what your prompts are worth before trusting them overnight.
@@ -1359,58 +1359,58 @@ This is also the best way to learn what your prompts are worth before trusting t
 The full setup, and the one the product was built for:
 
 ```sh
-dogwatch skill install
-dogwatch run           # terminal 1, or a detached shell
+milestoner skill install
+milestoner run           # terminal 1, or a detached shell
 ```
 
 ```
 # terminal 2, a Claude Code session at the project root
-/loop 10m Use the dogwatch-supervisor skill to perform one supervision cycle.
+/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
 Overnight, a run like this survives a wedged editor (rule 3), a session that stopped producing
 anything (rule 4), a usage limit (rule 5, by doing nothing), and a runner that died with the terminal
 (rule 6). What it will not do is decide for you: a real block waits with a written diagnosis, and in
-the morning `dogwatch status` plus `supervisor-log.md` tell you the whole story.
+the morning `milestoner status` plus `supervisor-log.md` tell you the whole story.
 
 ## Recipes
 
-**Resume after anything.** `dogwatch run`. There is no separate resume command; the state file is the
+**Resume after anything.** `milestoner run`. There is no separate resume command; the state file is the
 resume point. A milestone left `in_progress` by an interrupt is simply attempted again.
 
 **Redo a milestone that was graded `done` but is not.** With the runner stopped, edit `state.json`: set
-its `status` to `"pending"`, `attempts` to `0`, and clear `evidence`. Then `dogwatch run --milestone M03`.
+its `status` to `"pending"`, `attempts` to `0`, and clear `evidence`. Then `milestoner run --milestone M03`.
 
 **Roll back to the last green milestone.** If your protocol tags, and the default template does:
 
 ```sh
 git reset --hard checkout-v2/M02
 # then set M03 back to pending in state.json
-dogwatch run
+milestoner run
 ```
 
 **Give one milestone a bigger model.**
 
 ```sh
-dogwatch run --milestone M04 --model claude-opus-5
+milestoner run --milestone M04 --model claude-opus-5
 ```
 
 **Give one milestone more attempts.**
 
 ```sh
-dogwatch run --milestone M04 --max-attempts 6
+milestoner run --milestone M04 --max-attempts 6
 ```
 
 **Restart a session that is clearly stuck**, without stopping the run:
 
 ```sh
-dogwatch kill --reason "no test output for 40m, transcript still empty"
+milestoner kill --reason "no test output for 40m, transcript still empty"
 ```
 
 **Read the playbook before installing the skill.**
 
 ```sh
-dogwatch skill install --print | less
+milestoner skill install --print | less
 ```
 
 **Swap the agent.** Only the config changes:
@@ -1428,19 +1428,19 @@ dogwatch skill install --print | less
 Claude Code and Codex have both been exercised; see [Running a different agent](#running-a-different-agent).
 The engine never learns agent names.
 
-**Read what a session actually claimed.** `.dogwatch/results/M03-attempt2.json` is the raw, ungraded
+**Read what a session actually claimed.** `.milestoner/results/M03-attempt2.json` is the raw, ungraded
 claim. Compare it against the graded outcome in `state.json` when a verdict surprises you.
 
 **Watch a live session's output.** Transcripts are flushed only at exit for headless Claude Code, so
-`tail -f` on the log is usually silent. Watch the liveness paths instead, or `dogwatch status`.
+`tail -f` on the log is usually silent. Watch the liveness paths instead, or `milestoner status`.
 
 **Notify yourself when the run needs you.**
 
 ```sh
-dogwatch run; code=$?
+milestoner run; code=$?
 case $code in
   0) echo "run complete" ;;
-  2) echo "blocked: $(dogwatch status --json | jq -r '.milestones[] | select(.status=="blocked") | .id')" ;;
+  2) echo "blocked: $(milestoner status --json | jq -r '.milestones[] | select(.status=="blocked") | .id')" ;;
   *) echo "runner error" ;;
 esac
 ```
@@ -1448,24 +1448,24 @@ esac
 **Audit what the supervisor did.**
 
 ```sh
-cat .dogwatch/supervisor-log.md
-grep killed .dogwatch/run-log.md
+cat .milestoner/supervisor-log.md
+grep killed .milestoner/run-log.md
 ```
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `no .dogwatch/config.json found here or in any parent directory` | You are outside the project. | `cd` into it, or run `dogwatch init`. |
+| `no .milestoner/config.json found here or in any parent directory` | You are outside the project. | `cd` into it, or run `milestoner init`. |
 | `failed to launch "claude": ...` | The agent CLI is not on `PATH` for this shell. | Check `claude --version` in the same terminal; fix `PATH`, or put an absolute path in `agent.command`. |
 | Every session ends in seconds, `instant-death` repeats | The agent cannot start: not authenticated, waiting on a permission prompt, wrong flags. | Run the exact command by hand and read what it says. The default args include `--dangerously-skip-permissions`; without it a headless session waits for a prompt nobody answers. |
 | `claimed "done" with no evidence - downgraded to incomplete` | The protocol is not being followed, or the criteria do not name their evidence. | Rewrite the criteria so each names its evidence file. The template contract is already explicit. |
 | `result.json is for "M02", expected "M03"` | The session wrote a stale or wrong id. | Usually a session that started the wrong milestone. Tighten the prompt's Objective and out-of-scope list. |
-| A milestone is blocked with no diagnosis | The session hit the wall and gave up without writing one. | Read the transcript in `.dogwatch/logs/`, fix the cause, then `unblock`. |
+| A milestone is blocked with no diagnosis | The session hit the wall and gave up without writing one. | Read the transcript in `.milestoner/logs/`, fix the cause, then `unblock`. |
 | `liveness: not configured` | `liveness` is `[]`. | Add the paths that change while work happens. Without it, status can see a process but not progress, and playbook rules 3 and 4 cannot fire. |
 | `liveness: no watched path exists yet` | A watched path does not exist. | Fix the path, or accept it if the file is only created later in the run. |
-| `possibly hung` with a very long session | The agent is stuck in a loop or waiting on something. | `dogwatch kill --reason "..."`. The runner consumes the attempt and relaunches with fresh context. |
-| `runner gone (pid ... not running)` | The runner process died abruptly. | `dogwatch run` to resume. For overnight runs use `tmux`/`screen`, disable sleep, and let the supervisor's rule 6 handle it. |
+| `possibly hung` with a very long session | The agent is stuck in a loop or waiting on something. | `milestoner kill --reason "..."`. The runner consumes the attempt and relaunches with fresh context. |
+| `runner gone (pid ... not running)` | The runner process died abruptly. | `milestoner run` to resume. For overnight runs use `tmux`/`screen`, disable sleep, and let the supervisor's rule 6 handle it. |
 | `no pulse.json - no run is in progress` from `kill` | No runner is running. | Nothing to kill. Start or relaunch the run. |
 | `no environment adapter configured` from `attend` | `environment.attendCommand` is `null`. | Either configure an adapter, or accept that this project has nothing to unstick. |
 | `too many infrastructure failures (31) - giving up` | 30 consecutive failed launches. | Something is systematically wrong: auth expired, network down, plan exhausted. Fix it, then rerun. |
@@ -1477,14 +1477,14 @@ grep killed .dogwatch/run-log.md
 the runner is stopped. The runner reloads the state file every iteration, but editing it under a live
 runner risks losing a write.
 
-**Can two runs share a project directory?** Not in v0.4: the paths under `.dogwatch/` are fixed. Use
+**Can two runs share a project directory?** Not in v0.4: the paths under `.milestoner/` are fixed. Use
 separate working copies.
 
 **Does it need git?** No, but the default protocol assumes it and tags every green milestone. Without
 git you lose your rollback points, and the supervisor loses one of its progress signals.
 
 **Who writes the milestone prompts?** You. You can of course ask an agent to draft them in a normal
-session and then review them. What dogwatch refuses to do is generate them silently as part of a run.
+session and then review them. What milestoner refuses to do is generate them silently as part of a run.
 
 **Is the transcript the source of truth?** No. Transcripts are for post-mortems. `state.json`,
 `results/`, `run-log.md` and `supervisor-log.md` are the record.
