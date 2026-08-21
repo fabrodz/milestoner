@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
+import { lint } from "./commands/lint.js";
 import { report } from "./commands/report.js";
 import { runs } from "./commands/runs.js";
 import { serve, serveAll } from "./commands/serve.js";
@@ -22,6 +23,11 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
 
   milestoner init [--run <name>] [--milestones <n>] [--force]
       Scaffold .milestoner/ (config, state machine, protocol, prompt skeletons).
+
+  milestoner lint [--json]
+      Check the run's form before a session spends time on it: milestone prompts,
+      protocol and config. Exits 1 only on error-severity findings; warnings alone
+      exit 0.
 
   milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
                  [--no-panel] [--open | --no-open] [--serve [--port <n>] [--write]]
@@ -205,6 +211,10 @@ async function main(): Promise<number> {
 
   if (command === "status") {
     return status({ config, layout: project.layout, json: Boolean(values.json) });
+  }
+
+  if (command === "lint") {
+    return lint({ config, layout: project.layout, json: Boolean(values.json) });
   }
 
   if (command === "unblock") {
