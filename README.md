@@ -21,6 +21,10 @@ evidence, and refuses to spend a retry on a usage limit.
 A milestone only counts when something on disk proves it: a passing test, a diff, a commit. The
 marker moves only when the session's claim and the evidence it left behind agree.
 
+milestoner does not remove your work; it moves it. The hours of execution go to the agent, but the
+design, the decomposition and the acceptance criteria are yours, written before the run starts. It
+is a verification engine with an executor inside, not the other way around.
+
 ## Install
 
 The `milestoner` binary is the engine: it runs a run, grades each session and owns the state machine.
@@ -86,7 +90,9 @@ The protocol and the milestone prompts are yours to author; that friction is del
 evidence gate only means something when a person wrote the criteria). If you do not know where to
 start, the planner skill walks a Claude session through it with you: it interviews you, proposes a
 milestone breakdown for your approval, and only then writes the prompts, the protocol TODOs and the
-liveness config. Nothing is generated without your sign-off.
+liveness config. Nothing is generated without your sign-off. That lowers the bar from authoring to
+reviewing, not to zero: you still need to tell a verifiable acceptance criterion from a vague one,
+because a bad plan approved makes the gate theatre.
 
 ```sh
 milestoner skill install planner

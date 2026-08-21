@@ -1,17 +1,18 @@
 # What to do next
 
-Rewritten 2026-08-21, on cutting v0.7.0. The pre-rewrite-history question that used to sit here is
-gone: the repository was recreated fresh, so the old objects are no longer served by anyone.
+Rewritten 2026-08-21, on cutting v0.7.0; updated the same day after the `v08-lint` run closed. The
+pre-rewrite-history question that used to sit here is gone: the repository was recreated fresh, so
+the old objects are no longer served by anyone.
 
 ## Where things stand
 
-**The engine has been used on itself twice** (`v04-plugin`, `v05-debt`): eight milestones, eight
-fresh Claude Code sessions, each graded against its written evidence, seven closed on the first
-attempt. **It is published and current**: 0.7.0 shipped everything that had accumulated in
-`[Unreleased]` - the planner skill, the machine panel, `skill install -g`, the plugin retirement.
-The registry and the README describe the same binary again. Releases are published by hand: the
-tag-triggered workflow lasted one release, failed its only publish on npm auth, and a publish is
-one command with `prepublishOnly` already gating it.
+**The engine has been used on itself three times** (`v04-plugin`, `v05-debt`, `v08-lint`): twelve
+milestones, twelve fresh Claude Code sessions, each graded against its written evidence, eleven
+closed on the first attempt. **It is published**: 0.7.0 is current on npm. Releases are published
+by hand: the tag-triggered workflow lasted one release, failed its only publish on npm auth, and a
+publish is one command with `prepublishOnly` already gating it. `[Unreleased]` again holds a
+finished feature - `milestoner lint`, the run gate and the panel's lint parity (D-035) - so the
+next deliberate step is cutting 0.8.0.
 
 ## 1. Test debt
 
@@ -37,23 +38,23 @@ Carried forward, plus what v0.6 added:
   the answer-probe, but nobody has watched it happen), and the hub with more than a handful of
   runs.
 
-## 3. Authoring flows in a UI, and the cheap experiment that would settle it
+## 3. The linter exists; the experiment is now collecting data
 
-Still a question, not a task. Milestone prompts are hand-written on purpose (D-031); a flow
-builder would produce exactly the vague specifications the evidence gate exists to reject, so
-building one means superseding D-031 in writing first.
+The linter shipped in the `v08-lint` run (D-035): `milestoner lint` and `lint --json`,
+`milestoner run` refuses to start on error-level findings for pending milestones with `--no-lint`
+as the escape, the panel has the same read, gate and override, and every run start writes a
+`lint: N errors, M warnings` line to `run-log.md`. That line is the experiment D-032 refers to:
+if hand-written prompts fail the linter often, a structured prompt editor has a case; if they
+pass, the question closes with data instead of taste.
 
-**What would settle the middle option (a structured prompt editor) is not a UI but a linter.**
-`milestoner lint` would check every prompt before a run starts: does each milestone have
-acceptance criteria, does each criterion name an evidence artifact, is there an exit section, does
-any one milestone carry two unrelated gates. It captures most of what a structured editor would
-enforce, works in any editor, costs a fraction of a UI, and gates a run before a single session
-launches. If hand-written prompts fail it often, a structured editor has a case; if they pass, the
-question is closed with data instead of taste. This is the experiment D-032 refers to; the planner
-skill's checklist is a conversational stand-in for it, not a replacement.
+First datapoint, for what a sample of one is worth: the `v08-lint` run's own hand-written prompts
+passed with 0 errors and 0 warnings. What remains is to read the accumulated lint lines after a
+few more real runs and call it. Until then a flow builder stays rejected (D-031), and the
+semantic checks the linter deliberately does not do - unrelated gates in one milestone, prompts
+that are not self-contained - stay with the planner skill.
 
 ## Order
 
 1 and 2 are opportunistic: close them when a change touches the area, or when a real run offers
-the scenario. 3 stays a question until the linter produces data, which makes the linter the next
-piece of deliberate work.
+the scenario. 3 is now a waiting game, not work: let runs accumulate lint lines, then decide. The
+next deliberate step is cutting 0.8.0.

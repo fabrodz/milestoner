@@ -48,6 +48,10 @@ The value is in step 4, and in what happens when a session dies for reasons that
 with the work. The engine never trusts an exit code, never trusts a "done" without evidence, and
 never spends a retry on a usage limit.
 
+Put differently: milestoner does not think for you, it verifies for you. Your work moves to the
+front of the run - the design, the split, the criteria - and the engine spends the hours holding
+the agent to what you wrote.
+
 On top of that, the **supervisor** is a Claude session on a ten-minute loop that watches the run and
 intervenes inside a bounded playbook: unstick a wedged environment, kill a hung session, relaunch a
 dead runner, escalate a real block.
@@ -87,6 +91,11 @@ Do not use it when:
 - The task is one prompt long. Just talk to the agent.
 - Success cannot be checked without you looking at it. milestoner cannot grade taste.
 - The acceptance criteria are still unknown. Explore first, then write milestones.
+
+One expectation worth stating: milestoner assumes you can recognise a good acceptance criterion
+when you see one. The planner skill can propose the milestone breakdown, but approving it -
+telling a verifiable criterion from a vague one - is judgment the tool cannot supply. The evidence
+gate only holds if the person at the gate knows what evidence looks like.
 
 ## Install and requirements
 
@@ -430,6 +439,11 @@ engine will not silently invent your specification.
 
 A good milestone is one **session** of work (roughly 30-90 minutes for a capable agent), has an end
 state you can check without opening the code, and does not depend on a decision you have not made.
+
+Do not start from a count. You do not decide "five milestones" and divide the plan by five; you cut
+the plan into pieces of that size and the count falls out. Three to seven is the usual result. Two
+means the plan does not need milestoner; twenty means the cuts are too fine, or it is really two
+runs.
 
 Filled-in example, `.milestoner/prompts/M02.md`:
 
