@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 *.tgz
 .vscode/
+
+# Run state: the record of a run belongs to the machine that ran it, not to the repository.
+.milestoner/

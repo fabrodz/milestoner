@@ -84,18 +84,32 @@ started in, and a cross-run panel means one process acting on projects it was no
 already had to rule on a smaller version of the same question and chose to keep `--write` while
 refusing the one control that conflicts. That is the precedent to argue from.
 
-## 5. Still unanswered: authoring flows in a UI
+## 5. Authoring flows in a UI, and the cheap experiment that would settle it
 
-Carried over unchanged, for the third time. Milestone prompts are hand-written on purpose; that is
-the deliberate friction and the stated difference from task-generating loops. A flow builder would
-produce exactly the vague specs the evidence gate exists to catch.
+Milestone prompts are hand-written on purpose. That is the deliberate friction and the stated
+difference from task-generating loops, and it is now recorded as D-031 rather than living only in a
+genesis document. A flow builder would produce exactly the vague specifications the evidence gate
+exists to reject, so building one means superseding D-031 in writing first.
 
-There is a defensible version - a UI that shows an existing run's shape and edits ordering and
-titles, with the prompt files staying hand-written text. If the goal is really authoring in a GUI,
-that supersedes a decision in BRIEF.md and should be written down as one before any screen is built.
+Three options were weighed and the answer is not "no UI, end of discussion":
 
-Planned separately in [PLAN-flow-authoring.md](PLAN-flow-authoring.md), because it is a decision
-first and work only if the decision goes a particular way.
+- **No authoring surface.** Prompts stay files; the panel stays read-and-intervene. This is the
+  status quo and the recommendation.
+- **A structured prompt editor.** A form carrying the sections the protocol expects, refusing to
+  save a milestone with no acceptance criteria. The prompt stays text the user wrote.
+- **A flow builder.** Boxes, arrows, dependencies, generated specifications. Ruled out: this is the
+  one D-031 exists to refuse.
+
+**What would settle the middle option is not a UI but a linter.** `milestoner lint` would check
+every prompt before a run starts: does each milestone have acceptance criteria, does each criterion
+name an evidence artifact, is there an exit section, does any one milestone carry two unrelated
+gates. It captures most of what a structured editor would enforce, works in any editor, costs a
+fraction of a UI, and gates a run before a single session launches, which is worth more than
+catching a vague prompt after three attempts have been spent on it.
+
+It also produces the evidence the decision needs. If hand-written prompts fail the linter often, a
+structured editor has a case. If they pass, it does not, and the question is closed with data
+instead of taste.
 
 ## Order
 

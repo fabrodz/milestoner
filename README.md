@@ -1,3 +1,17 @@
+<p align="center">
+  <img src="docs/assets/logo.jpg" alt="Milestoner" width="500">
+</p>
+
+<p align="center">
+  <strong>An AI agent loop for software development.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/fabrodz/milestoner/actions"><img src="https://github.com/rtk-ai/rtk/workflows/Security%20Check/badge.svg" alt="CI"></a>
+  <a href="https://github.com/fabrodz/milestoner/releases"><img src="https://img.shields.io/github/v/release/fabrodz/milestoner" alt="Release"></a>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
+</p>
+
 # Milestoner
 
 Supervised autonomous-run engine for coding agents. A milestone state machine that launches one
@@ -109,11 +123,9 @@ overnight is the one worth being told about.
 
 ## How a run works
 
-```
-init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete | blocked
-                                            |
-                                            +-- writes .milestoner/result.json, engine grades it
-```
+<p align="center">
+  <img src="docs/assets/run-loop.svg" alt="The milestoner run loop: the engine launches one fresh agent session per milestone, the session writes result.json, the engine grades it into done, incomplete or blocked, while the supervisor watches" width="900">
+</p>
 
 1. **Fresh session per milestone.** Clean context every time. State lives in files, never in the
    conversation.
@@ -135,15 +147,11 @@ init  ->  hand-write prompts  ->  run  ->  [session per milestone]  ->  complete
 The engine keeps a run correct. The supervisor keeps it *alive*: a Claude session that wakes every
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
-If you installed the plugin, the supervisor skill is already there and there is nothing to install;
-skip to the loop. On a CLI-only install, write the skill into the project first:
-
 ```sh
-milestoner skill install
+milestoner skill install     # not needed if you installed the plugin
 ```
 
-`skill install` and the plugin deliver the same skill from the same source, so running it after a
-plugin install is redundant, not harmful. Either way, in a Claude Code session at the project root:
+Then, in a Claude Code session at the project root:
 
 ```
 /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
@@ -152,30 +160,22 @@ plugin install is redundant, not harmful. Either way, in a Claude Code session a
 Each cycle it reads the whole run through `milestoner status --json` and applies the first matching
 rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
 blocked for real, or something it cannot explain. Its entire write surface is `milestoner kill`,
-`milestoner attend`, relaunching `milestoner run`, and appending to `.milestoner/supervisor-log.md`. It
-never edits project code, never touches `state.json`, and never runs the project's own tools while
-a session owns them. Clearing a block stays a human decision.
+`milestoner attend`, relaunching `milestoner run`, and appending to `.milestoner/supervisor-log.md`.
+It never edits project code, never touches `state.json`, and never runs the project's own tools
+while a session owns them. Clearing a block stays a human decision.
 
 `milestoner kill` targets the agent session, not the runner: the runner sees the session end, grades
-it as incomplete, consumes an attempt and relaunches with a fresh context. The kill is recorded so
-it cannot be mistaken for an infrastructure death and silently refunded.
+it incomplete, consumes an attempt and relaunches with fresh context. The kill is recorded so it
+cannot be mistaken for an infrastructure death and silently refunded.
 
 **Environment adapter.** Some environments get stuck in ways no agent can fix from inside its own
-session: a GUI editor loses focus and stops ticking, a native modal blocks the main thread, a
-language server or dev server wedges, a connected device drops off the bus. Playbook rule 3 runs
-`environment.attendCommand` against exactly that, and nothing else.
+session: a GUI editor loses focus, a native modal blocks the main thread, a dev server wedges, a
+connected device drops off the bus. Playbook rule 3 runs `environment.attendCommand` against exactly
+that, and nothing else. The engine knows nothing about any of them; the adapter is one command line
+you write, and a headless project leaves it null so the rule cannot fire. Two examples ship in
+[examples/adapters/](examples/adapters/).
 
-The engine knows nothing about any of these; the adapter is one command line you write. Two
-examples ship in [examples/adapters/](examples/adapters/), one per platform family, along with the
-four obligations any adapter has. A headless project leaves the command null and the rule simply
-cannot fire.
-
-```json
-"environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/unity-attend.ps1 -Seconds {{seconds}}",
-  "attendSeconds": 120
-}
-```
+The full playbook, rule by rule, is in [docs/GUIDE.md](docs/GUIDE.md#the-supervisor).
 
 ## Steering a run in flight
 
@@ -206,48 +206,26 @@ milestoner serve --write    # the panel on its own, against whatever is or is no
 
 Both print a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
 server-sent events, and lets you act on it: set or clear steering, unblock a milestone, kill a hung
-session, run the environment adapter, start a runner or stop it after the current session.
-
-It is deliberately the *same* surface as the CLI, calling the same functions. Nothing is possible
-here that `milestoner` cannot do from a terminal, which is what keeps one audit trail rather than two.
-
-`--serve` takes the same `--port` and `--write` as `serve`, and differs in three ways, all of them
-because the run is the point and the panel is the accessory: the panel closes when the run ends, a
-busy port moves it to a free one instead of failing, and it cannot start a second runner against the
-run it is already attached to. There is no `--open`: the URL carries the key, so handing it to a
-browser writes a live credential into the browser's history. Copy it instead.
-[D-027](docs/DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20)
-has the reasoning.
+session, run the environment adapter, start a runner or stop it. It is deliberately the *same*
+surface as the CLI, calling the same functions, which is what keeps one audit trail rather than two.
 
 The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
-four, and you want to read the diagnosis and the last transcript and steer it from your phone
-without finding a laptop. Reaching it from the phone is the next section.
+four, and you want to read the diagnosis and the last transcript and steer from your phone without
+finding a laptop.
 
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with
-`--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. That makes
-a write-enabled panel a remote code execution endpoint by construction, so:
+`--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. A
+write-enabled panel is a remote code execution endpoint by construction. It binds `127.0.0.1` only
+and that is not configurable, every request needs the key from the URL, non-loopback `Host` headers
+and cross-origin writes are refused, and without `--write` every mutating route answers 403.
+**Treat the URL like a password: it is one.** There is no `--open` for this reason - handing that URL
+to a browser writes a live credential into its history.
 
-- it binds `127.0.0.1` only, and that is not configurable;
-- every request needs the key from the URL, compared in constant time;
-- a `Host` header that is not loopback is refused, which is what stops a page at an attacker's
-  domain resolving to your machine and talking to it;
-- a write from another origin is refused;
-- without `--write` the panel is read-only and every mutating route answers 403.
-
-Treat the URL like a password: it is one.
-
-**Reaching it from another device.** Do not expose the port. Forward it over SSH, which authenticates
-you before a single byte reaches the panel and encrypts what follows:
-
-```sh
-ssh -N -L 4400:127.0.0.1:4400 you@the-machine
-```
-
-The panel then answers at `http://127.0.0.1:4400` on your laptop or phone, still bound to loopback
-on both ends. That is the supported way to get to it from anywhere. Publishing the port directly, or
-putting it behind a tunnel that does not authenticate, hands an unsandboxed agent to whoever finds
-the URL.
+To reach it from another device, forward the port over SSH rather than exposing it. That recipe, the
+full security model and the differences between `--serve` and `serve` are in
+[docs/GUIDE.md](docs/GUIDE.md#milestoner-serve), with the reasoning in
+[D-027](docs/DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20).
 
 ## The run report
 
@@ -286,112 +264,51 @@ never charged against the attempt budget are visible after the fact.
 
 ## Configuration
 
+`.milestoner/config.json`, written by `init` and edited by you:
+
 ```json
 {
   "run": "my-run",
   "maxAttempts": 3,
-  "retryDelaySeconds": 15,
-  "agent": {
-    "command": "claude",
-    "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
-    "modelArgs": ["--model", "{{model}}"],
-    "model": null,
-    "env": {}
-  },
-  "infra": {
-    "deathSeconds": 90,
-    "tinyTranscriptBytes": 500,
-    "crashTranscriptBytes": 100,
-    "maxRetries": 30,
-    "usageLimitWaitSeconds": 600,
-    "genericWaitSeconds": 60,
-    "usageLimitPatterns": ["session limit", "usage limit", "rate limit", "429"],
-    "infraFailurePatterns": ["stream disconnected", "connection refused", "econnrefused",
-                             "authentication failed", "not logged in"]
-  },
+  "agent": { "command": "claude",
+             "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
   "liveness": ["src", "tests/results/latest.txt"],
   "environment": { "attendCommand": null, "attendSeconds": 120 }
 }
 ```
 
 `args` placeholders: `{{kickoff}}`, `{{promptFile}}`, `{{milestoneId}}`, `{{projectRoot}}`,
-`{{milestonerDir}}`, `{{model}}`. A different agent is a config change, not an engine change.
+`{{milestonerDir}}`, `{{model}}`.
 
-`liveness` is the list of paths whose mtime proves work is happening. Set it: without it `status`
-can tell you a process exists, but not that it is doing anything.
+**Set `liveness`.** It is the list of paths whose mtime proves work is happening. Without it,
+`status` can tell you a process exists but not that it is doing anything, which is the difference
+between a run that is thinking and a run that is wedged.
+
+Every key, including the `infra` block that decides what counts as an infrastructure failure rather
+than a milestone failure, is documented in
+[docs/GUIDE.md](docs/GUIDE.md#configuration-reference).
 
 ## Running a different agent
 
-The agent is a command line, so a second agent is a config change. Claude Code is the default and
-the one exercised most; the recipes below were run against this engine.
-
-**OpenAI Codex** (`codex exec`, verified against codex-cli 0.133.0):
+The agent is a command in `.milestoner/config.json`, not a dependency. `{{kickoff}}` is substituted
+with the milestone prompt:
 
 ```json
-"agent": {
-  "command": "codex",
-  "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
-           "--skip-git-repo-check", "-C", "{{projectRoot}}"],
-  "modelArgs": ["--model", "{{model}}"],
-  "model": null,
-  "env": {}
-}
+"agent": { "name": "claude", "command": "claude",
+           "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] }
 ```
 
-Codex needs `-C` because it does not inherit the working directory the way `claude -p` does, and
-`--skip-git-repo-check` only if the project is not a git repository. Its usage-limit message is
-caught by the stock `infra.usageLimitPatterns`: a session that hit an OpenAI quota was refunded and
-waited, with no engine change.
+Claude Code and Codex are both exercised in this repository's own runs. Anything works that accepts
+a prompt as an argument, can read and write files in the project, and exits when finished.
 
-**A local model through Ollama.** Ollama is a model server, not an agent: it has no tools and cannot
-read or write a file, so it cannot execute a milestone on its own. Drive it through an agentic CLI.
-With Codex, that is two extra arguments:
+`fallbackAgents` covers the 2am usage limit: when a session fails for a reason the infra rules
+recognise, the failing agent is benched until its announced reset and the next authenticated one
+takes over immediately, without sleeping and without consuming the attempt. It never triggers on a
+work failure, because an `incomplete` verdict is what the attempt budget is for.
 
-```json
-"args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
-         "-C", "{{projectRoot}}", "--oss", "--local-provider", "ollama"],
-"model": "qwen2.5-coder:7b"
-```
-
-`ollama serve` has to be running. Expect this to be the weakest link by far: a 7B model given this
-protocol invented a script it never wrote, printed its verdict to stdout instead of writing
-`result.json`, and claimed `done`. The engine graded it `incomplete` and retried, which is the point
-of the evidence gate, but no amount of grading turns a small model into a milestone executor.
-
-### Falling back to a second agent
-
-A run that hits a usage limit at 2am with a reset at 5am sleeps three hours. If another agent is
-authenticated, it does not have to:
-
-```json
-"agent": { "name": "claude", "command": "claude", "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
-"fallbackAgents": [
-  { "name": "codex", "command": "codex",
-    "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox", "-C", "{{projectRoot}}"] }
-]
-```
-
-When a session fails for a reason the infra rules recognise, the failing agent is benched and the
-next free one takes over **immediately, without sleeping**. The attempt is still not consumed. Only
-when every agent is cooling down does the runner wait, and then only for the shortest of them.
-
-The bench is a cooldown, not a demotion: a usage limit benches the agent until its announced reset,
-so the primary comes back the moment its quota does rather than being written off for the rest of
-the run.
-
-It never triggers on a work failure. An `incomplete` verdict means the milestone was not finished,
-which is what the attempt budget is for; swapping the agent there would quietly turn a quality
-problem into a different agent's problem.
-
-**The risk is silent degradation**, so the rotation is recorded everywhere it can be read back: the
-agent that ran each attempt is in `state.json`, in the attempt table of the report, in `run-log.md`,
-and in `status --json` while the run is live. Absent `fallbackAgents`, none of this changes: a pool
-of one benches its only agent and waits, exactly as before.
-
-**Anything else.** The engine only needs a command that (a) accepts a prompt as an argument or in
-`args`, (b) can read and write files in the project, and (c) exits when it is finished. If the
-agent announces its own failures in prose rather than dying instantly, add its wording to
-`infra.infraFailurePatterns` so those failures are refunded instead of charged.
+Full recipes for Claude Code, Codex, a local model through Ollama and the fallback pool are in
+[docs/GUIDE.md](docs/GUIDE.md#running-a-different-agent), including what a small local model
+actually does when handed a milestone.
 
 ## Roadmap
 
@@ -410,14 +327,22 @@ agent announces its own failures in prose rather than dying instantly, add its w
   the instant after it was taken, a crashed session charged an attempt it did not deserve, and
   `init` handing a new run the previous run's protocol. First version published to npm. Done.
 
-Validated end to end: v0.4 and v0.5 were each built as a four-milestone milestoner run, every
-milestone a fresh Claude Code session graded against its written evidence, so a full multi-milestone
-run driven by a real agent is no longer unvalidated. The v0.5 run also produced the first evidence
-of the engine misgrading itself: an agent session crashed after fifteen minutes of completed work
-with a fifteen-byte transcript, and because the infra classifier at the time only looked for a tiny
-transcript inside `infra.deathSeconds`, the crash was charged as a failed attempt rather than
-refunded. Closing that hole became a milestone of the same run: a transcript below
-`infra.crashTranscriptBytes` with no `result.json` is now refunded at any duration (D-029).
+Validated end to end, by building itself. v0.4 was a four-milestone milestoner run and v0.5 to v0.6
+was a seven-milestone one, every milestone a fresh Claude Code session graded against the evidence it
+wrote. Nine of the eleven closed on the first attempt.
+
+The more useful result is what the second run found by running. Three of its seven milestones were
+not planned: they were bugs in the engine, hit by the engine while it executed. A session crashed
+after fifteen minutes of finished work leaving a fifteen-byte transcript, and the classifier charged
+it a real attempt because it only read a tiny transcript as a crash inside `infra.deathSeconds`
+(D-029). A state lock could be broken by a contender in the instant after it was taken, losing an
+update (D-028). `init` handed a new run the previous run's protocol, so five sessions read rules
+naming a finished run and nothing said so (D-030). Each became a milestone of the run that exposed
+it.
+
+The runs' own state and evidence are not in the tree, because a run's record belongs to the machine
+that ran it. They are in this repository's git history up to v0.6.0 if you want to read what those
+sessions actually wrote.
 
 What neither run exercised: a run long enough to hit a real usage limit or agent fallback mid-flight,
 a non-Claude agent across a whole run rather than a single milestone, and the supervisor loop against
@@ -435,12 +360,12 @@ config reference, grading and infra rules, use cases, recipes and troubleshootin
 
 ## Background
 
-[BRIEF.md](BRIEF.md) is the genesis document: where this comes from (two real overnight runs on a
-Unity 6 game), what made those runs work, and the competitive landscape.
-[docs/DECISIONS.md](docs/DECISIONS.md) records the product decisions and what was rejected.
-The PowerShell orchestrator these runs grew from is not in the tree: every rule it carried now
-lives in `src/` with tests, and keeping the ancestor beside the engine only invited the question of
-which one to run. It is in the git history if you want to read it.
+This grew out of two real overnight runs on a private Unity 6 project, driven by a PowerShell
+orchestrator. That script is not in the tree: every rule it carried now lives in `src/` with tests,
+and keeping the ancestor beside the engine only invited the question of which one to run.
+
+[docs/DECISIONS.md](docs/DECISIONS.md) records every product decision, what was rejected and why,
+including the ones taken before the first line of TypeScript.
 
 ## Development
 

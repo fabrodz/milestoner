@@ -1,8 +1,10 @@
 # Product decisions
 
-Resolves the "Product decisions to make first" section of [BRIEF.md](../BRIEF.md). Each entry is
-dated, states the alternative that was rejected, and why. Superseding an entry means adding a new
-one that points back at it, not editing history.
+Every product decision, dated, with the alternative that was rejected and why. Superseding an entry
+means adding a new one that points back at it, not editing history.
+
+D-001 to D-009 answer the questions the project opened with, framed before any code existed. D-031
+records the three-layer architecture those questions assumed.
 
 ## D-001 - Runtime: Node CLI, not shell scripts (2026-08-18)
 
@@ -627,3 +629,29 @@ cannot share a name; M06 had already tagged `v05-debt-M06` in exactly this shape
 was written down. `v05/M01` through `v05/M05` and `v0.5.0` are left alone: they are the recorded
 rollback points cited by `state.json` evidence and the execution log, and renaming published tags
 would rewrite pushed history a second time in one day to repair names nothing generates any more.
+
+## D-031 - Three layers, and the middle one is the only one the engine writes (2026-08-21)
+
+Recorded here on 2026-08-21, when `BRIEF.md` was removed. The framing predates every decision in
+this file and was never written down as one, because it arrived as the genesis document's
+architecture section rather than as a question anyone had to answer. Three documents cite it, so it
+needs to survive the file it came from.
+
+**The engine is generic, the protocol is templated, and milestone prompts are always hand-written.**
+The engine is the product: state machine, session runner, infra-failure handling, supervisor
+playbook, liveness heuristics, adapter interface. It knows nothing about any particular project. The
+project protocol sits between them, generated once from a template by `init` and then owned and
+edited by the user: commit conventions, where evidence goes, testing rules, the session ritual.
+Milestone prompts are the third layer and the engine never generates them, silently or otherwise.
+
+**That third layer is the deliberate friction, not an unfinished feature.** Writing an objective,
+its tasks, its acceptance criteria and its exit by hand is what makes the evidence gate mean
+anything: a criterion nobody wrote cannot be a criterion anybody checks. A generated prompt would
+produce exactly the vague specification the gate exists to reject, and the run would pass its own
+grading while building the wrong thing. It is also the stated difference from task-generating
+loops, where an agent decides its own next task and therefore its own definition of done.
+
+Rejected, and still rejected: a flow builder that generates prompts from boxes and arrows. The
+argument for revisiting it, and the narrower version that edits ordering and titles while the prompt
+files stay hand-written text, are in `docs/NEXT.md`. Superseding this decision is what that would
+require, and it has not been superseded.

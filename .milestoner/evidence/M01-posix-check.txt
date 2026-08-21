@@ -1,9 +1,0 @@
-commands\milestoner-init.md: lf=true normalisation-is-identity=true
-commands\milestoner-report.md: lf=true normalisation-is-identity=true
-commands\milestoner-status.md: lf=true normalisation-is-identity=true
-commands\milestoner-supervise.md: lf=true normalisation-is-identity=true
-skills\milestoner-supervisor\SKILL.md: lf=true normalisation-is-identity=true
-
-all normalisations are a no-op on the checked-out bytes: true
-pathToFileURL specifier on win32: file:///D:/Dev/milestoner/src/state.ts
-is an absolute file: URL (the form Node accepts on every platform): true

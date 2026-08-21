@@ -5,6 +5,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- `BRIEF.md`, the genesis document. Its architecture section was the only place recording that the
+  engine is generic, the protocol is templated and milestone prompts are always hand-written, and
+  three documents cited it; that claim is now D-031, where a decision belongs. Its "product
+  decisions to make first" section had been resolved into D-001 to D-009 since 2026-08-18, and its
+  suggested roadmap stopped at v0.4 and had been overtaken.
+- `docs/PLAN-v05.md`, a plan that has been executed. What it planned is in the `[0.5.0]` and
+  `[0.6.0]` entries here and in D-025 to D-030.
+- `docs/PLAN-flow-authoring.md`. Its substance, including the `milestoner lint` experiment that
+  would settle the question with data instead of taste, is folded into item 5 of `docs/NEXT.md`.
+- `docs/runs/`, the archived record of the `v04-plugin` run, and `.milestoner/` is now gitignored
+  rather than partly tracked. A run's state and evidence belong to the machine that ran it. Both are
+  in this repository's git history up to v0.6.0 for anyone who wants to read what those sessions
+  wrote.
+
+### Documentation
+
+- `README.md` is a quarter shorter. Five sections duplicated `docs/GUIDE.md` and one of them, the
+  agent recipes, had drifted into being a strict subset of it. Each now carries what a reader needs
+  before installing and links to the guide for the rest. The panel's security model stays in the
+  README, condensed rather than moved, because a write-enabled panel is a remote code execution
+  endpoint and that is not a detail to look up elsewhere.
+- The roadmap's validation paragraph said v0.5 was a four-milestone run. It was seven, three of
+  which were bugs the run found in the engine while executing.
+
 ## [0.6.0] - 2026-08-20
 
 The first version published to npm, and the first three milestones the engine set for itself. M01 to
