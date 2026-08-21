@@ -13,6 +13,11 @@ All notable changes to this project are documented here. The format follows
   run's tag) exit `1`; warnings (orphaned prompt, protocol naming another run, empty liveness)
   alone exit `0`. `--json` prints `{ run, errors, warnings, findings }` for scripts. The rules are
   the pure `lintRun` core in `src/lint.ts`; the line between form and judgement is D-035.
+- `milestoner run` lints at startup: error-level findings on milestones that are still pending
+  refuse the start with the findings printed the way `milestoner lint` prints them, exit `1`,
+  before any session, state change or panel. `--no-lint` skips the gate; findings on done or
+  blocked milestones never stop a resume, and warnings never block. Every start, gated, clean or
+  bypassed, writes one `lint` summary line to `run-log.md`.
 
 ### Removed
 

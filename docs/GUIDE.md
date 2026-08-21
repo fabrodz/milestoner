@@ -579,7 +579,8 @@ without re-deriving it.
 
 ```sh
 milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
-               [--no-panel] [--open | --no-open] [--serve [--port <n>] [--write]]
+               [--no-lint] [--no-panel] [--open | --no-open]
+               [--serve [--port <n>] [--write]]
 ```
 
 | Flag | Meaning |
@@ -588,12 +589,27 @@ milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
 | `--max-attempts <n>` | Override `maxAttempts` for this invocation only. |
 | `--model <name>` | Appends `agent.modelArgs` (default `--model <name>`) to the agent command for this invocation. |
 | `--once` | Launch one session, grade it, then stop whatever the verdict. Exits `2` if that session reported blocked, so a script can tell the two apart. |
+| `--no-lint` | Skip the startup lint gate and start despite error-level findings. The lint summary line still lands in `run-log.md`, marked as bypassed. |
 | `--no-panel` | Do not bring up or join the [machine panel](#milestoner-serve). By default the first run starts it and every run prints its URL. |
 | `--open` / `--no-open` | Force the browser open on the machine panel, or never open it. The default opens it only on the run that started the daemon. |
 | `--serve` | Bring a per-run [web panel](#milestoner-serve) up with the run instead of the machine panel, and print its URL. Takes `--port` (default `4400`) and `--write`. |
 
 Run it from the project root or any subdirectory: milestoner walks up looking for
 `.milestoner/config.json`, the way git finds `.git`.
+
+Every start lints the run first, with the same rules as [`milestoner lint`](#milestoner-lint).
+Error-level findings on milestones that are still `pending` refuse the start: the findings are
+printed the way `milestoner lint` prints them and the command exits `1` before any session
+launches, any state changes or any panel comes up. Findings on `done` or `blocked` milestones
+never stop a resumed run, and warnings never block anything
+([D-035](DECISIONS.md#d-035---milestoner-lint-checks-form-mechanically-and-judgement-stays-with-the-planner-2026-08-21)).
+Gated, clean or bypassed, every start writes one summary line to `run-log.md`:
+
+```
+2026-08-21T12:13:06.174Z | - | lint | 24 errors, 1 warning
+```
+
+with `(bypassed with --no-lint)` appended when the gate was skipped.
 
 **Ctrl-C once**: the runner stops after the current session finishes and leaves the milestone
 `in_progress`; a later `milestoner run` picks it up and starts a fresh attempt. **Ctrl-C twice**: the
@@ -604,8 +620,8 @@ terminal cannot end it behind the runner's back and the first Ctrl-C means what 
 one signals that group and everything the session started. See
 [D-026](DECISIONS.md#d-026---the-agent-session-gets-its-own-process-group-and-the-kill-escalates-2026-08-20).
 
-Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
-infrastructure failures.
+Exit code: `0` complete or stopped, `2` blocked, `1` on error, a lint refusal, or after too many
+consecutive infrastructure failures.
 
 #### Watching it in a browser: the machine panel, by default
 
