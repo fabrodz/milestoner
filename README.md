@@ -8,7 +8,7 @@ The name is the thesis. A milestone only counts when something on disk proves it
 diff, a commit. Milestoner runs one fresh session per milestone, grades what that session claims
 against the evidence it left behind, and moves the marker only when the two agree.
 
-Status: **v0.5**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
+Status: **v0.6**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
 
 ## Install
 
@@ -16,7 +16,13 @@ Two install paths, and they are not alternatives: the CLI is the engine, the plu
 layer on top of it.
 
 **The CLI - required.** The `milestoner` binary is the engine: it runs a run, grades each session and
-owns the state machine. Not on npm yet, so install from source:
+owns the state machine.
+
+```sh
+npm install -g milestoner
+```
+
+Or from source, which is what you want if you intend to change the engine:
 
 ```sh
 git clone https://github.com/fabrodz/milestoner.git
@@ -400,6 +406,9 @@ agent announces its own failures in prose rather than dying instantly, add its w
   the whole session on macOS and Linux rather than one process, a machine-level registry behind
   [`milestoner runs`](#commands), and the panel coming up with the run behind
   [`--serve`](#the-web-panel). Done.
+- **v0.6** three bugs the v0.5 run found by running: a state lock that a contender could break in
+  the instant after it was taken, a crashed session charged an attempt it did not deserve, and
+  `init` handing a new run the previous run's protocol. First version published to npm. Done.
 
 Validated end to end: v0.4 and v0.5 were each built as a four-milestone milestoner run, every
 milestone a fresh Claude Code session graded against its written evidence, so a full multi-milestone

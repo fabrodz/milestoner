@@ -3,7 +3,7 @@
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
 
-Applies to **v0.5**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
+Applies to **v0.6**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
 (`skill install`, `kill`, `attend`), mid-flight steering (`steer`), the HTML run report (`report`),
 the local web panel (`serve`, or `run --serve`), the machine-level run registry (`runs`), agent
 fallback, and the Claude Code plugin. Where a behaviour is planned for a later version it says so.
@@ -29,7 +29,7 @@ fallback, and the Claude Code plugin. Where a behaviour is planned for a later v
 - [Recipes](#recipes)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [Limits of v0.5](#limits-of-v05)
+- [Limits of v0.6](#limits-of-v06)
 
 ## What milestoner actually does
 
@@ -95,14 +95,20 @@ without it. The **plugin** is a Claude Code layer on top: it adds the supervisor
 commands to a Claude session, and every one of them shells out to the same `milestoner` binary. The
 plugin is not a self-contained install; it does not put `milestoner` on your PATH.
 
-**The CLI (required).** Not on npm yet, so install from source:
+**The CLI (required).**
+
+```sh
+npm install -g milestoner
+```
+
+Or from source, if you intend to change the engine:
 
 ```sh
 git clone https://github.com/fabrodz/milestoner.git
 cd milestoner && npm install && npm run build && npm link
 ```
 
-`npm link` puts `milestoner` on your PATH. Confirm with `milestoner --help`.
+Either way `milestoner` ends up on your PATH. Confirm with `milestoner --help`.
 
 **The plugin (optional).** Adds `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and
 `/milestoner-report`, plus the supervisor skill, inside Claude Code:
@@ -1618,7 +1624,7 @@ grep killed .milestoner/run-log.md
 the runner is stopped. The runner reloads the state file every iteration, but editing it under a live
 runner risks losing a write.
 
-**Can two runs share a project directory?** Not in v0.5: the paths under `.milestoner/` are fixed. Use
+**Can two runs share a project directory?** Not in v0.6: the paths under `.milestoner/` are fixed. Use
 separate working copies.
 
 **Does it need git?** No, but the default protocol assumes it and tags every green milestone. Without
@@ -1644,9 +1650,8 @@ it as a protocol violation and fix the prompt.
 **Does `done` mean the code is good?** It means the acceptance criteria have written evidence. The
 strength of that guarantee is the quality of your criteria. Review the tags.
 
-## Limits of v0.5
+## Limits of v0.6
 
-- **Not published to npm.** Install from source. The name is claimed but nothing is published yet.
 - **Plugin packaging.** Besides the CLI-written skill, the supervisor and four slash commands
   install as a Claude Code plugin from an in-repo marketplace; see the install section of
   [../README.md](../README.md). The CLI is still the engine and the required install.

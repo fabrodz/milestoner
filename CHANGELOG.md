@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-20
+
+The first version published to npm, and the first three milestones the engine set for itself. M01 to
+M04 of the `v05-debt` run were debt planned in advance; M05, M06 and M07 were bugs that run exposed
+by executing, in the engine that was executing it. Two of the three cost the run real attempts before
+anyone knew they existed.
+
+A minor rather than a patch, despite reading as a list of fixes: `init` now refuses where it
+previously proceeded, the tag scheme the templates write has changed, and there is a new
+`infra.crashTranscriptBytes` option.
+
+### Added
+
+- `infra.crashTranscriptBytes` (default 100 B), the threshold below which a transcript is read as a
+  crash regardless of how long the session ran. See the refund entry under Fixed.
+
 ### Changed
 
 - The protocol and milestone templates tag green milestones `<run>-<milestoneId>` instead of

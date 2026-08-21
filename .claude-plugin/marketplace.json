@@ -9,7 +9,7 @@
     {
       "name": "milestoner",
       "description": "Supervise a milestoner autonomous run from Claude Code: an active supervisor skill that reads the run, applies a bounded intervention playbook, and keeps a long overnight run alive.",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "source": "./",
       "author": {
         "name": "Fabian R."
