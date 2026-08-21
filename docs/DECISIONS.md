@@ -783,3 +783,36 @@ Supersedes the plugin half of D-002 and all of D-018/D-019 (their reasoning abou
 may expose - no runnable `unblock`/`steer`, `state.json` only behind a guard - lives on in the
 skill templates and their tests). Reversal is cheap if a reason appears: the manifests are in git
 history, and nothing in the engine grew a dependency on their absence.
+
+## D-035 - `milestoner lint` checks form mechanically, and judgement stays with the planner (2026-08-21)
+
+This is the experiment `docs/NEXT.md` item 3 describes and D-032 refers to: before a structured
+prompt editor is even considered, a linter measures whether hand-written prompts actually fail the
+form rules in practice. The lint core is a pure module, `src/lint.ts`: plain data in, typed
+findings out, no filesystem, so every rule is a unit test.
+
+**The linter checks form, never substance.** Every rule is mechanically decidable from the text: a
+prompt file exists, scaffold placeholders are gone, an objective and acceptance criteria are
+present, each criterion names an evidence artifact, the exit section names the `<run>-<milestoneId>`
+tag (D-030's scheme), no prompt file is orphaned, the protocol header names this run (the
+convention D-030's re-init refusal already parses), and at least one liveness path is configured.
+Whether a criterion is *meaningful*, whether a prompt is self-contained, whether one milestone
+carries two unrelated gates - that is judgement, and judgement stays in the planner interview
+(D-031/D-032), where a human confirms every criterion.
+
+**Two severities, split by what they say about the run.** A milestone whose prompt is missing,
+still scaffold, or short of criteria, evidence notes or an exit tag cannot be graded, so those are
+`error`, attributed to the milestone. An orphaned prompt, a protocol naming the wrong run or none,
+and an empty liveness list degrade the run around the milestones without making any one of them
+ungradable, so those are `warning`, attributed to the run.
+
+**The gating plan.** `milestoner run` will refuse to start while a pending milestone carries
+errors; `--no-lint` escapes the gate, because the linter is younger than the prompts it judges and
+a false positive must not strand a run a human already reviewed. Warnings never block anything.
+Done and blocked milestones never block a run either: their prompts already did their job.
+
+Rejected: heuristics for "unrelated gates" and "not self-contained". Both were named in the
+original sketch and both are semantic judgements wearing a mechanical costume - any proxy
+(keyword overlap, section counts, prompt length) would reject good prompts and pass bad ones,
+and D-031's whole argument is that the substance of a prompt is a human's to supply and to check.
+The planner's checklist covers them conversationally, which is where they can be argued with.
