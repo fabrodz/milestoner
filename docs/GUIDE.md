@@ -936,6 +936,16 @@ unblock, kill, attend, start a runner, stop one after the current session. It ca
 functions the commands do, so there is one audit trail rather than two - a kill from the panel lands
 in `supervisor-log.md` like any other.
 
+The panel also shows the run's lint findings, before anything is started: a lint card with the
+error and warning counts and every finding per milestone, fed by `GET /api/lint`, which returns
+exactly what [`milestoner lint --json`](#milestoner-lint) prints. The same rules gate starting a
+run from the panel that gate `milestoner run` itself: error-level findings on pending milestones
+refuse the start with the counts and the first findings in the message, and a deliberate "start
+anyway" control performs the bypass, passing `--no-lint` to the spawned runner so the run log
+records it. The check runs in the panel's own process before spawning, because the runner is
+spawned detached with its output discarded - its own gate would refuse into the void and the panel
+would report a started runner that is already dead.
+
 Stopping a run sends `SIGINT` to the runner, which is its own "finish this session, then stop".
 Starting one spawns a detached `milestoner run`: closing the panel must not end an overnight run, and
 everything that manages a running runner already works on a separate process.

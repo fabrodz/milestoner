@@ -18,6 +18,14 @@ All notable changes to this project are documented here. The format follows
   before any session, state change or panel. `--no-lint` skips the gate; findings on done or
   blocked milestones never stop a resume, and warnings never block. Every start, gated, clean or
   bypassed, writes one `lint` summary line to `run-log.md`.
+- The web panel keeps lint parity with the terminal: `GET /api/lint` returns exactly what
+  `milestoner lint --json` prints, behind the same auth as every API route; the panel shows a lint
+  card with the counts and the per-milestone findings before anything is started. Starting a run
+  from the panel lints first, in the panel's process (the runner is spawned detached with its
+  output discarded, so its own gate would refuse invisibly): error-level findings on pending
+  milestones refuse with the counts and the first findings in the message, and a deliberate
+  "start anyway" control passes `--no-lint` through to the spawned runner so the run log records
+  the bypass.
 
 ### Removed
 
