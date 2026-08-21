@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The POSIX counterpart to unity-attend.ps1: keep a host-bound application usable while an
+# The POSIX counterpart to attend.ps1: keep a host-bound application usable while an
 # unattended session works, for a bounded time, then exit.
 #
 #   attend.sh <seconds> [application-name]
@@ -77,7 +77,7 @@ case "$(uname -s)" in
     dismiss=:
     ;;
   *)
-    echo "UNSUPPORTED: $(uname -s); on Windows use unity-attend.ps1"
+    echo "UNSUPPORTED: $(uname -s); on Windows use attend.ps1"
     exit 1
     ;;
 esac

@@ -1389,7 +1389,7 @@ it does:
 
 ```json
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```
@@ -1406,7 +1406,7 @@ Two samples ship in [../examples/adapters/](../examples/adapters/), to read rath
 | Script | Platform | What it does |
 | --- | --- | --- |
 | `attend.sh` | macOS, Linux | Keeps a named application focused for the requested seconds; on macOS it also dismisses a modal button when Accessibility permission has been granted. |
-| `unity-attend.ps1` | Windows | A Unity focus keeper plus Win32 modal dismissal, the adapter the original overnight runs used. |
+| `attend.ps1` | Windows | A focus keeper plus Win32 modal dismissal for any process with a main window; born as the Unity adapter the original overnight runs used, hence its defaults. |
 
 ```json
 "attendCommand": "bash .milestoner/adapters/attend.sh {{seconds}} Unity"
@@ -1480,7 +1480,7 @@ container-based loops are not an option.
 "liveness": ["Assets/Scripts", "Logs/editmode-latest.xml"],
 "infra": { "deathSeconds": 120 },
 "environment": {
-  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/unity-attend.ps1 -Seconds {{seconds}}",
+  "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/attend.ps1 -Seconds {{seconds}}",
   "attendSeconds": 120
 }
 ```

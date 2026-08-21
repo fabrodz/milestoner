@@ -11,7 +11,7 @@ thing that fires it. A headless project leaves it `null` and the rule cannot fir
 | Script | Platform | What it does |
 | --- | --- | --- |
 | `attend.sh` | macOS, Linux | Keeps a named application focused for the requested seconds. On macOS it also dismisses a modal button, where Accessibility permission has been granted. |
-| `unity-attend.ps1` | Windows | A Unity focus keeper plus Win32 modal dismissal: the adapter the overnight runs this engine came from actually used. |
+| `attend.ps1` | Windows | A focus keeper plus Win32 modal dismissal for any process with a main window. Born as the Unity adapter the overnight runs this engine came from actually used, hence its defaults. |
 
 Copy one into your project, point `attendCommand` at it, and edit it until it matches your
 environment:

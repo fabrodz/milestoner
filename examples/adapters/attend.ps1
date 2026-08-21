@@ -1,5 +1,14 @@
+# The Windows counterpart to attend.sh: keep a host-bound application usable while an unattended
+# session works, for a bounded time, then exit. Born as the Unity adapter the original overnight
+# runs used, hence the defaults; point -ProcessName at any process with a main window.
+#
+#   attend.ps1 -Seconds <seconds> [-ProcessName Unity] [-ClickButton "Don't Save"]
+#
+# Wire it up with:
+#   "attendCommand": "powershell -ExecutionPolicy Bypass -File .milestoner/adapters/attend.ps1 -Seconds {{seconds}}"
 param(
     [int]$Seconds = 90,
+    [string]$ProcessName = "Unity",
     [string]$ClickButton = "Don't Save"
 )
 
@@ -9,7 +18,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections.Generic;
 
-public static class UnityAttend
+public static class HostAttend
 {
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
     [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd, EnumWindowsProc cb, IntPtr lParam);
@@ -66,20 +75,20 @@ public static class UnityAttend
 }
 "@
 
-$unity = Get-Process Unity -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-if ($null -eq $unity) { Write-Output "NO_UNITY"; exit 1 }
-$pid_ = [uint32]$unity.Id
+$app = Get-Process $ProcessName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+if ($null -eq $app) { Write-Output "NO_APP: $ProcessName is not running"; exit 1 }
+$pid_ = [uint32]$app.Id
 $deadline = (Get-Date).AddSeconds($Seconds)
 $clicks = 0
 while ((Get-Date) -lt $deadline) {
-    $dialogs = [UnityAttend]::FindWindows($pid_, "#32770")
+    $dialogs = [HostAttend]::FindWindows($pid_, "#32770")
     foreach ($d in $dialogs) {
-        if ([UnityAttend]::ClickDialogButton($d, $ClickButton)) {
+        if ([HostAttend]::ClickDialogButton($d, $ClickButton)) {
             $clicks++
             Write-Output "clicked '$ClickButton' on dialog $d at $(Get-Date -Format HH:mm:ss)"
         }
     }
-    [UnityAttend]::Focus($unity.MainWindowHandle)
+    [HostAttend]::Focus($app.MainWindowHandle)
     Start-Sleep -Milliseconds 1500
 }
-Write-Output "done, clicks=$clicks"
+Write-Output "done, attended $ProcessName for ${Seconds}s, modals dismissed=$clicks"
