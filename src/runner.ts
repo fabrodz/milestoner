@@ -1,7 +1,7 @@
 import { appendFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
-import { collectLintInput, lintTotals, renderFindings } from "./commands/lint.js";
+import { collectLintInput, gatingFindings, lintTotals, renderFindings } from "./commands/lint.js";
 import { buildAgentArgs } from "./config.js";
 import { lintRun } from "./lint.js";
 import { registryPath, type Layout } from "./paths.js";
@@ -66,8 +66,7 @@ function lintGate(config: MilestonerConfig, layout: Layout, bypass: boolean): bo
   const { errors, summary } = lintTotals(findings);
   logEvent(layout, "-", "lint", bypass ? `${summary} (bypassed with --no-lint)` : summary);
 
-  const pending = new Set(state.milestones.filter((m) => m.status === "pending").map((m) => m.id));
-  const gating = findings.filter((f) => f.severity === "error" && f.milestone !== null && pending.has(f.milestone));
+  const gating = gatingFindings(state, findings);
   if (gating.length === 0 || bypass) {
     if (errors > 0 && bypass) warn(`lint: ${summary} - starting anyway (--no-lint)`);
     return true;

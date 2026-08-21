@@ -52,6 +52,12 @@ export function lintTotals(findings: LintFinding[]): { errors: number; warnings:
   return { errors, warnings, summary: `${spell(errors, "error")}, ${spell(warnings, "warning")}` };
 }
 
+/** The findings that refuse a start (D-035): errors on milestones this run may still execute. */
+export function gatingFindings(state: RunState, findings: LintFinding[]): LintFinding[] {
+  const pending = new Set(state.milestones.filter((m) => m.status === "pending").map((m) => m.id));
+  return findings.filter((f) => f.severity === "error" && f.milestone !== null && pending.has(f.milestone));
+}
+
 export function renderFindings(
   run: string,
   milestones: readonly { id: string; title: string }[],

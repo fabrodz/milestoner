@@ -3,8 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import { attend } from "../commands/attend.js";
 import { kill } from "../commands/kill.js";
+import { collectLintInput, gatingFindings, lintTotals } from "../commands/lint.js";
 import { steer } from "../commands/steer.js";
 import { unblock } from "../commands/unblock.js";
+import { lintRun, type LintFinding } from "../lint.js";
 import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
@@ -91,9 +93,19 @@ export function transcript(ctx: ApiContext, name: string): string | null {
   return readFileSync(file, "utf8").slice(-200_000);
 }
 
+/** Exactly what `milestoner lint --json` prints: one shape, whichever front end asked. */
+export function lintFindings(ctx: ApiContext): { run: string; errors: number; warnings: number; findings: LintFinding[] } {
+  const state = loadState(ctx.layout.state);
+  const findings = lintRun(collectLintInput(ctx.config, ctx.layout, state));
+  const { errors, warnings } = lintTotals(findings);
+  return { run: state.run, errors, warnings, findings };
+}
+
 export interface ActionResult {
   ok: boolean;
   message: string;
+  /** True when a start was refused by the lint gate, so the panel can offer the deliberate bypass. */
+  lintRefused?: boolean;
 }
 
 const outcome = (code: number, done: string, failed: string): ActionResult =>
@@ -122,11 +134,29 @@ export function doAttend(ctx: ApiContext, seconds: number | undefined): ActionRe
  * an overnight run, and everything that manages a running runner - pulse.json, kill, the two-stage
  * interrupt - already works on a separate process.
  */
-export function startRun(ctx: ApiContext): ActionResult {
+export function startRun(ctx: ApiContext, noLint = false): ActionResult {
   const pulse = readPulse(ctx.layout.pulse);
   if (pulse && isProcessAlive(pulse.pid)) return { ok: false, message: `a runner is already running (pid ${pulse.pid})` };
 
-  const child = spawn(process.execPath, [ctx.cliPath, "run"], {
+  // Lint here, synchronously: the runner is spawned detached with stdio ignored, so its own gate
+  // (D-035) would refuse into the void and the panel would report a runner that is already dead.
+  if (!noLint) {
+    const state = loadState(ctx.layout.state);
+    const findings = lintRun(collectLintInput(ctx.config, ctx.layout, state));
+    const gating = gatingFindings(state, findings);
+    if (gating.length > 0) {
+      const first = gating.slice(0, 3).map((f) => `${f.milestone} ${f.rule}: ${f.message}`).join("; ");
+      return {
+        ok: false,
+        lintRefused: true,
+        message:
+          `refusing to start: ${lintTotals(findings).summary}, with error-level findings on pending milestones - ` +
+          `${first}${gating.length > 3 ? "; ..." : ""}`,
+      };
+    }
+  }
+
+  const child = spawn(process.execPath, [ctx.cliPath, "run", ...(noLint ? ["--no-lint"] : [])], {
     cwd: ctx.config.projectRoot,
     detached: true,
     stdio: ["ignore", "ignore", "ignore"],

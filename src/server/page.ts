@@ -108,7 +108,11 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   <div id="runView">
   <div class="card verdict" id="verdict"></div>
   <div class="card" id="controls"></div>
+  <div class="card" id="lintRefusal" style="display:none"></div>
   <div class="stats" id="stats"></div>
+
+  <h2>Lint<span class="muted" style="text-transform:none;letter-spacing:0"> — the run's form, checked before a session spends time on it</span></h2>
+  <div class="card" id="lintCard"><span class="muted small">checking…</span></div>
 
   <h2>Milestones</h2>
   <div id="milestones"></div>
@@ -239,6 +243,55 @@ async function viewLog(name) {
 }
 function closeLog() { document.getElementById("logView").style.display = "none"; }
 
+/** The lint card body, one row per finding. Kept pure so a test can render it without a browser. */
+function lintCardHtml(L) {
+  const counts = L.errors + (L.errors === 1 ? " error, " : " errors, ") + L.warnings + (L.warnings === 1 ? " warning" : " warnings");
+  if (!L.findings.length)
+    return '<div class="row"><span class="pill done">clean</span><strong>' + esc(counts) + "</strong>" +
+      '<span class="muted small">every prompt, the protocol and the config pass the form checks</span></div>';
+  return '<div class="row"><span class="pill ' + (L.errors ? "blocked" : "incomplete") + '">' + (L.errors ? "dirty" : "warnings") + "</span>" +
+    "<strong>" + esc(counts) + "</strong>" +
+    '<span class="muted small">error-level findings on pending milestones refuse a start</span></div>' +
+    '<table class="att"><thead><tr><th>Where</th><th>Severity</th><th>Rule</th><th>Finding</th></tr></thead><tbody>' +
+    L.findings.map(f =>
+      "<tr><td>" + esc(f.milestone || "run") + '</td><td><span class="pill ' + (f.severity === "error" ? "blocked" : "incomplete") + '">' +
+      esc(f.severity) + "</span></td><td>" + esc(f.rule) + "</td><td>" + esc(f.message) +
+      '<div class="muted small">' + esc(f.file + (f.line ? ":" + f.line : "")) + "</div></td></tr>"
+    ).join("") + "</tbody></table>";
+}
+
+/* Fetched off the state stream on purpose: lint reads the prompt files, which the snapshot never
+   touches, so it refreshes only when the revision moves rather than on every tick. */
+let lintRev = null;
+async function refreshLint(rev) {
+  if (rev === lintRev) return;
+  lintRev = rev;
+  const card = document.getElementById("lintCard");
+  try {
+    const r = await fetch(api("/api/lint"), { headers: auth });
+    if (!r.ok) throw new Error((await r.json()).error || "status " + r.status);
+    card.innerHTML = lintCardHtml(await r.json());
+  } catch (e) {
+    lintRev = null;
+    card.innerHTML = '<span class="muted small">could not read the lint findings: ' + esc(e.message) + "</span>";
+  }
+}
+
+async function startRun(noLint) {
+  const box = document.getElementById("lintRefusal");
+  try {
+    const r = await fetch(api("/api/run/start"), { method: "POST", headers: auth, body: JSON.stringify(noLint ? { noLint: true } : {}) });
+    const a = await r.json();
+    toast(a.message || a.error || (r.ok ? "done" : "failed"));
+    if (a.lintRefused) {
+      box.style.display = "block";
+      box.innerHTML = '<div class="todo"><b>Start refused by lint</b>' + esc(a.message) + "</div>" +
+        '<div class="row" style="margin-top:.55rem"><button data-w class="danger" onclick="startRun(true)">Start anyway, without the lint gate</button>' +
+        '<span class="muted small">runs with --no-lint; the run log records the bypass</span></div>';
+    } else box.style.display = "none";
+  } catch (e) { toast("request failed: " + e.message); }
+}
+
 /** One sentence for "how is it going", and, when it needs you, exactly what to do. */
 function verdictOf(d) {
   const blocked = d.milestones.find(m => m.status === "blocked");
@@ -327,6 +380,7 @@ function render(d) {
   }
   document.getElementById("run").textContent = d.run;
   document.getElementById("reportLink").href = api("/api/report");
+  refreshLint(d.rev);
 
   const v = verdictOf(d);
   document.getElementById("verdict").className = "card verdict " + v.cls;
@@ -340,7 +394,7 @@ function render(d) {
     (running
       ? '<button data-w onclick="post(\'/api/run/stop\')">Stop after this session</button>' +
         '<button data-w class="danger" onclick="killAgent()">Kill this session and retry</button>'
-      : d.canStart ? '<button data-w class="primary" onclick="post(\'/api/run/start\')">Start the run</button>' : "") +
+      : d.canStart ? '<button data-w class="primary" onclick="startRun()">Start the run</button>' : "") +
     (d.attendConfigured ? '<button data-w onclick="post(\'/api/attend\',{})">Unstick the environment</button>' : "") +
     (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + JSON.stringify(d.pulse.transcript) + ')">watch the live transcript</button>' : "") +
     "</div>";

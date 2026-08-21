@@ -3,7 +3,7 @@ import { loadConfig } from "../config.js";
 import { layoutFor, samePath } from "../paths.js";
 import { listRuns, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
-  doAttend, doKill, doSteer, doUnblock, reportHtml, snapshot, startRun, stopRun, transcript,
+  doAttend, doKill, doSteer, doUnblock, lintFindings, reportHtml, snapshot, startRun, stopRun, transcript,
   type ActionResult, type ApiContext,
 } from "./api.js";
 import { BIND_HOST, TOKEN_COOKIE, hostAllowed, newToken, originAllowed, tokenFrom, tokenMatches } from "./security.js";
@@ -163,6 +163,9 @@ export function createPanel(options: ServerOptions) {
       return fn(ctx);
     };
 
+    if (req.method === "GET" && path === "/api/lint") {
+      return ctxOr((ctx) => json(res, 200, lintFindings(ctx)));
+    }
     if (req.method === "GET" && path === "/api/report") {
       return ctxOr((ctx) => send(res, 200, "text/html; charset=utf-8", reportHtml(ctx)));
     }
@@ -213,7 +216,7 @@ export function createPanel(options: ServerOptions) {
             break;
           }
           case "/api/run/start":
-            result = !canStart ? { ok: false, message: NO_SECOND_RUNNER } : startRun(ctx);
+            result = !canStart ? { ok: false, message: NO_SECOND_RUNNER } : startRun(ctx, bool("noLint"));
             break;
           case "/api/run/stop":
             result = stopRun(ctx);
