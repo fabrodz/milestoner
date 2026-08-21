@@ -76,6 +76,18 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   padding:.55rem .95rem;border-radius:.4rem;font-size:.88rem;opacity:0;transition:opacity .2s;
   pointer-events:none;max-width:90vw}
 #toast.on{opacity:1}
+
+/* the machine panel: one chip per run above the page, and a card per run on the hub */
+#runsBar{display:none;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem}
+.chip{font:inherit;font-size:.82rem;padding:.25rem .7rem;border:1px solid var(--line);border-radius:1rem;
+  background:var(--panel);color:var(--fg);cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+.chip:hover{border-color:var(--muted)}
+.chip.here{border-color:var(--fg);font-weight:600}
+.dot{width:.55rem;height:.55rem;border-radius:50%;background:var(--infra);display:inline-block}
+.dot.alive{background:var(--progress)}.dot.complete{background:var(--done)}
+.dot.slow{background:var(--incomplete)}.dot.hung,.dot.gone{background:var(--blocked)}
+.runcard{cursor:pointer}
+.runcard:hover{border-color:var(--muted)}
 </style>
 </head>
 <body>
@@ -85,6 +97,15 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <span class="muted small" id="conn" style="margin-left:auto"></span>
   </div>
 
+  <div id="runsBar"></div>
+
+  <div id="hubView" style="display:none">
+    <div class="card verdict" id="hubVerdict"></div>
+    <h2>Runs on this machine</h2>
+    <div id="hubRuns"></div>
+  </div>
+
+  <div id="runView">
   <div class="card verdict" id="verdict"></div>
   <div class="card" id="controls"></div>
   <div class="stats" id="stats"></div>
@@ -116,11 +137,23 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   <div class="card"><div id="interventions" class="small"></div></div>
 
   <p class="small muted" style="margin-top:1.5rem"><a id="reportLink" href="#">Open the full report, with the timeline</a></p>
+  </div>
 </main>
 <div id="toast"></div>
 <script>
-const TOKEN = new URLSearchParams(location.search).get("token") || "";
-const auth = { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" };
+const PARAMS = new URLSearchParams(location.search);
+const TOKEN = PARAMS.get("token") || "";
+/* On the machine panel every request names its run; a project panel has no root and sends none. */
+const ROOT = PARAMS.get("root") || "";
+const api = path => path + (path.includes("?") ? "&" : "?") + (ROOT ? "root=" + encodeURIComponent(ROOT) + "&" : "") + "token=" + encodeURIComponent(TOKEN);
+/* TOKEN is empty when /auth left a cookie instead; an empty Bearer would shadow the cookie. */
+const auth = TOKEN ? { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+
+function goRun(root) {
+  const u = new URL(location.href);
+  if (root) u.searchParams.set("root", root); else u.searchParams.delete("root");
+  location.href = u.href;
+}
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 
@@ -177,7 +210,7 @@ function toast(msg) {
 }
 async function post(path, body) {
   try {
-    const r = await fetch(path, { method: "POST", headers: auth, body: JSON.stringify(body || {}) });
+    const r = await fetch(api(path), { method: "POST", headers: auth, body: JSON.stringify(body || {}) });
     const d = await r.json();
     toast(d.message || d.error || (r.ok ? "done" : "failed"));
   } catch (e) { toast("request failed: " + e.message); }
@@ -199,7 +232,7 @@ async function viewLog(name) {
   box.style.display = "block";
   box.scrollIntoView({ behavior: "smooth", block: "nearest" });
   try {
-    const r = await fetch("/api/transcript?token=" + encodeURIComponent(TOKEN) + "&name=" + encodeURIComponent(name), { headers: auth });
+    const r = await fetch(api("/api/transcript") + "&name=" + encodeURIComponent(name), { headers: auth });
     body.textContent = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
     body.scrollTop = body.scrollHeight; // read to find out how it ended
   } catch (e) { body.textContent = "request failed: " + e.message; }
@@ -235,10 +268,65 @@ function verdictOf(d) {
     todo:null };
 }
 
+/* Case-blind and slash-blind, like the server compares project roots on Windows and macOS. */
+const sameRoot = root => String(root).replace(/\\/g, "/").toLowerCase() === ROOT.replace(/\\/g, "/").toLowerCase();
+const HEALTH_PILL = { alive:"in_progress", slow:"incomplete", hung:"blocked", gone:"blocked", complete:"done", unknown:"pending" };
+
+/* The machine panel sends d.runs; a project panel sends null and the bar stays hidden. */
+function renderRunsBar(d) {
+  const bar = document.getElementById("runsBar");
+  if (!d.runs) return void (bar.style.display = "none");
+  bar.style.display = "flex";
+  bar.innerHTML =
+    '<button class="chip' + (d.hub ? " here" : "") + '" onclick="goRun(\'\')">all runs</button>' +
+    d.runs.map(r =>
+      '<button class="chip' + (!d.hub && sameRoot(r.projectRoot) ? " here" : "") + '" data-root="' + esc(r.projectRoot) +
+      '" onclick="goRun(this.dataset.root)"><span class="dot ' + esc(r.health) + '"></span>' + esc(r.run) +
+      ' <span class="muted">' + r.done + "/" + r.total + "</span></button>"
+    ).join("");
+}
+
+function renderHub(d) {
+  const runs = d.runs || [];
+  const blocked = runs.reduce((n, r) => n + r.blocked, 0);
+  const down = runs.filter(r => r.health === "gone" || r.health === "hung").length;
+  const alive = runs.filter(r => r.health === "alive" || r.health === "slow").length;
+  const v = document.getElementById("hubVerdict");
+  v.className = "card verdict " + (blocked || down ? "bad" : alive ? "ok" : "warn");
+  v.innerHTML = runs.length
+    ? '<div class="what">' + runs.length + (runs.length === 1 ? " run" : " runs") + " on this machine: " +
+      alive + " running, " + runs.filter(r => r.health === "complete").length + " complete." + "</div>" +
+      '<div class="why">' + (blocked ? blocked + " milestone(s) blocked. " : "") +
+      (down ? down + " runner(s) hung or gone. " : "") + ((blocked || down) ? "Open the run below to act." : "Nothing needs you right now.") + "</div>"
+    : '<div class="what">No runs are registered on this machine.</div>' +
+      '<div class="why">Start one with <b>milestoner run</b> in a project; it will appear here on its own.</div>';
+
+  document.getElementById("hubRuns").innerHTML = runs.map(r =>
+    '<div class="card runcard" data-root="' + esc(r.projectRoot) + '" onclick="goRun(this.dataset.root)">' +
+    '<div class="row"><span class="dot ' + esc(r.health) + '"></span><strong>' + esc(r.run) + "</strong>" +
+    '<span class="pill ' + esc(HEALTH_PILL[r.health] || "pending") + '">' + esc(r.health) + "</span>" +
+    '<span class="muted small" style="margin-left:auto">' + r.done + " of " + r.total + " milestones" +
+    (r.blocked ? " · " + r.blocked + " blocked" : "") + "</span></div>" +
+    '<div class="muted small" style="margin-top:.3rem">' + esc(r.projectRoot) +
+    (r.milestoneId ? " · on " + esc(r.milestoneId) : "") +
+    (r.lastEventSeconds != null ? " · last event " + dur(r.lastEventSeconds) + " ago" : "") + "</div></div>"
+  ).join("");
+}
+
 function render(d) {
-  document.getElementById("run").textContent = d.run;
+  renderRunsBar(d);
+  document.getElementById("hubView").style.display = d.hub ? "block" : "none";
+  document.getElementById("runView").style.display = d.hub ? "none" : "block";
   document.getElementById("conn").textContent = "updated " + new Date().toTimeString().slice(0, 5);
-  document.getElementById("reportLink").href = "/api/report?token=" + encodeURIComponent(TOKEN);
+  if (d.hub) {
+    document.getElementById("run").textContent = "every run on this machine";
+    renderHub(d);
+    // One run needs no hub to choose from.
+    if ((d.runs || []).length === 1) goRun(d.runs[0].projectRoot);
+    return;
+  }
+  document.getElementById("run").textContent = d.run;
+  document.getElementById("reportLink").href = api("/api/report");
 
   const v = verdictOf(d);
   document.getElementById("verdict").className = "card verdict " + v.cls;
@@ -325,7 +413,7 @@ function render(d) {
   }
 }
 
-const es = new EventSource("/api/events?token=" + encodeURIComponent(TOKEN));
+const es = new EventSource(api("/api/events"));
 es.onmessage = e => render(JSON.parse(e.data));
 es.onerror = () => { document.getElementById("conn").textContent = "connection lost, retrying…"; };
 </script>

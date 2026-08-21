@@ -1,4 +1,5 @@
 import { listRuns, type RunHealth, type RunSummary } from "../registry.js";
+import { findLivePanel, panelUrl } from "../server/global.js";
 import { color, humanDuration } from "../util/log.js";
 
 const GLYPH: Record<RunHealth, string> = {
@@ -36,17 +37,25 @@ export interface RunsOptions {
  * The one command that does not need a project: it answers "what is running on this machine" from
  * anywhere, which is the whole reason the registry exists.
  */
-export function runs(options: RunsOptions): number {
+export async function runs(options: RunsOptions): Promise<number> {
   const listing = listRuns(options.registry);
   const needsYou = listing.runs.filter((r) => r.blocked > 0 || r.health === "gone");
+  const panel = await findLivePanel();
 
   if (options.json) {
-    console.log(JSON.stringify({ registry: listing.file, runs: listing.runs, pruned: listing.pruned }, null, 2));
+    console.log(
+      JSON.stringify(
+        { registry: listing.file, panel: panel ? panelUrl(panel) : null, runs: listing.runs, pruned: listing.pruned },
+        null,
+        2,
+      ),
+    );
     return needsYou.length > 0 ? 2 : 0;
   }
 
   console.log(`\n${color.bold("milestoner runs")}  ${listing.runs.length} registered`);
   console.log(color.dim(`  ${listing.file}`));
+  if (panel) console.log(`  ${color.dim("panel")} ${color.bold(panelUrl(panel))}`);
   console.log("");
 
   if (listing.runs.length === 0) {

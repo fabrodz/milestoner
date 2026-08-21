@@ -3,12 +3,11 @@ import type { AddressInfo } from "node:net";
 import type { Layout } from "../paths.js";
 import type { MilestonerConfig } from "../types.js";
 import { color, info, warn } from "../util/log.js";
-import { createPanel } from "./http.js";
+import { createPanel, type PanelScope } from "./http.js";
 import { BIND_HOST, newToken } from "./security.js";
 
 export interface PanelOptions {
-  config: MilestonerConfig;
-  layout: Layout;
+  scope: PanelScope;
   port: number;
   write: boolean;
   token?: string;
@@ -18,9 +17,17 @@ export interface PanelOptions {
   onBusy?: "fail" | "ephemeral";
 }
 
+/** The scope both project-bound callers build: `serve` and the panel attached to a run. */
+export function projectScope(config: MilestonerConfig, layout: Layout): PanelScope {
+  // argv[1], not import.meta.url: this file is one module inside the bundle, while argv[1] is
+  // whatever the user actually invoked - the built CLI, or the entry point under tsx in dev.
+  return { kind: "project", ctx: { config, layout, cliPath: process.argv[1] ?? "" } };
+}
+
 export interface PanelHandle {
   url: string;
   port: number;
+  token: string;
   write: boolean;
   server: Server;
   close(): Promise<void>;
@@ -53,9 +60,7 @@ export async function startPanel(options: PanelOptions): Promise<PanelStart> {
   const token = options.token ?? newToken();
   const build = (port: number) =>
     createPanel({
-      // argv[1], not import.meta.url: this file is one module inside the bundle, while argv[1] is
-      // whatever the user actually invoked - the built CLI, or the entry point under tsx in dev.
-      ctx: { config: options.config, layout: options.layout, cliPath: process.argv[1] ?? "" },
+      scope: options.scope,
       port,
       token,
       allowWrites: options.write,
@@ -78,6 +83,7 @@ export async function startPanel(options: PanelOptions): Promise<PanelStart> {
   const panel: PanelHandle = {
     url: `http://${BIND_HOST}:${port}/?token=${token}`,
     port,
+    token,
     write: options.write,
     server,
     close: () =>

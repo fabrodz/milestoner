@@ -43,9 +43,10 @@ let readOnlyBase = "";
 
 let attachedBase = "";
 
-const panel = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: true });
-const readOnly = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: false });
-const attached = createPanel({ ctx: { config, layout, cliPath: "" }, port: 0, token: TOKEN, allowWrites: true, allowStart: false });
+const scope = { kind: "project", ctx: { config, layout, cliPath: "" } } as const;
+const panel = createPanel({ scope, port: 0, token: TOKEN, allowWrites: true });
+const readOnly = createPanel({ scope, port: 0, token: TOKEN, allowWrites: false });
+const attached = createPanel({ scope, port: 0, token: TOKEN, allowWrites: true, allowStart: false });
 
 before(async () => {
   await new Promise<void>((r) => panel.listen(0, "127.0.0.1", r));
@@ -164,6 +165,117 @@ test("the page and the report are served as self-contained HTML", async () => {
     const body = await res.text();
     assert.match(body, /<!doctype html>/i);
     assert.ok(!/\b(src|href)\s*=\s*["']https?:/i.test(body), `${path} must not load anything external`);
+  }
+});
+
+test("a once-token opens a session as a cookie, once, and the URL that did it is dead", async () => {
+  const minted = await get("/api/once", {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(minted.status, 200);
+  const { once } = (await minted.json()) as { once: string };
+  assert.ok(once && once !== TOKEN, "the once-token must not be the key itself");
+
+  const exchanged = await get(`/auth?once=${once}`, { redirect: "manual" });
+  assert.equal(exchanged.status, 303);
+  const cookie = exchanged.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /milestoner_token=/);
+  assert.match(cookie, /HttpOnly/);
+
+  const viaCookie = await get("/api/state", { headers: { cookie: cookie.split(";")[0]! } });
+  assert.equal(viaCookie.status, 200, "the cookie is a full credential from then on");
+
+  assert.equal((await get(`/auth?once=${once}`, { redirect: "manual" })).status, 401, "a once-token spends itself");
+  assert.equal((await get("/auth?once=guessing", { redirect: "manual" })).status, 401);
+  assert.equal((await get("/auth", { redirect: "manual" })).status, 401);
+});
+
+test("minting a once-token still needs the real key", async () => {
+  const res = await get("/api/once", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  assert.equal(res.status, 401);
+});
+
+function machineProject(run: string): ReturnType<typeof layoutFor> {
+  const root = mkdtempSync(join(tmpdir(), "milestoner-machine-"));
+  const l = layoutFor(root);
+  ensureDir(l.logs);
+  const state: RunState = {
+    run,
+    createdAt: new Date(0).toISOString(),
+    runComplete: false,
+    rev: 1,
+    milestones: [
+      { id: "M01", title: "Only", prompt: "M01.md", status: "pending", attempts: 0, evidence: [], history: [] },
+    ],
+  };
+  writeFileSync(l.state, JSON.stringify(state));
+  writeFileSync(l.config, JSON.stringify({ run, agent: { command: "claude", args: [], modelArgs: [], model: null, env: {} }, infra: {} }));
+  return l;
+}
+
+test("a machine panel answers for every registered run, one root at a time", async () => {
+  const a = machineProject("machine-a");
+  const b = machineProject("machine-b");
+  const registryFile = join(mkdtempSync(join(tmpdir(), "milestoner-mreg-")), "runs.json");
+  const now = new Date().toISOString();
+  writeFileSync(
+    registryFile,
+    JSON.stringify({
+      runs: [
+        { pid: process.pid, run: "machine-a", projectRoot: a.projectRoot, startedAt: now, lastSeen: now },
+        { pid: process.pid, run: "machine-b", projectRoot: b.projectRoot, startedAt: now, lastSeen: now },
+      ],
+    }),
+  );
+
+  const machine = createPanel({
+    scope: { kind: "machine", registry: registryFile, cliPath: "" },
+    port: 0,
+    token: TOKEN,
+    allowWrites: true,
+  });
+  await new Promise<void>((r) => machine.listen(0, "127.0.0.1", r));
+  const mBase = `http://127.0.0.1:${(machine.address() as AddressInfo).port}`;
+  const mGet = (path: string, init?: RequestInit) =>
+    fetch(`${mBase}${path}`, { ...init, headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json", ...init?.headers } });
+
+  try {
+    const hub = (await (await mGet("/api/state")).json()) as { hub: boolean; runs: Array<{ run: string }> };
+    assert.equal(hub.hub, true, "no root means the view across runs");
+    assert.deepEqual(hub.runs.map((r) => r.run).sort(), ["machine-a", "machine-b"]);
+
+    const one = await mGet(`/api/state?root=${encodeURIComponent(a.projectRoot)}`);
+    assert.equal(one.status, 200);
+    const d = (await one.json()) as { run: string; hub: boolean; runs: unknown[]; canStart: boolean };
+    assert.equal(d.run, "machine-a");
+    assert.equal(d.hub, false);
+    assert.equal(d.runs.length, 2, "the run view still carries the listing, for the switcher");
+    assert.equal(d.canStart, true, "no runner owns the machine panel, so starting is offered");
+
+    assert.equal((await mGet("/api/state?root=" + encodeURIComponent("C:/nowhere/at-all"))).status, 404);
+
+    const steered = await mGet(`/api/steer?root=${encodeURIComponent(b.projectRoot)}`, {
+      method: "POST",
+      body: JSON.stringify({ text: "prefer the small fix" }),
+    });
+    assert.equal(steered.status, 200);
+    assert.match(readFileSync(b.steering, "utf8"), /prefer the small fix/, "the write lands in the project the root names");
+
+    const rootless = await mGet("/api/steer", { method: "POST", body: JSON.stringify({ text: "nope" }) });
+    assert.equal(rootless.status, 404, "a machine panel refuses a write that names no run");
+
+    // A clean exit deregisters (D-025); the panel must keep showing what it watched finish.
+    writeFileSync(registryFile, JSON.stringify({ runs: [] }));
+    const after = (await (await mGet("/api/state")).json()) as { runs: Array<{ run: string; health: string }> };
+    assert.deepEqual(after.runs.map((r) => r.run).sort(), ["machine-a", "machine-b"], "deregistered runs stay for the panel's lifetime");
+    assert.ok(after.runs.every((r) => r.health === "gone"), "with no pulse and no entry, the honest verdict is gone");
+    const still = await mGet(`/api/state?root=${encodeURIComponent(a.projectRoot)}`);
+    assert.equal(still.status, 200, "the per-run view of a finished run still resolves");
+  } finally {
+    machine.close();
+    machine.closeAllConnections();
   }
 });
 

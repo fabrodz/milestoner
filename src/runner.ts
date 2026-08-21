@@ -7,7 +7,8 @@ import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { deregisterRun, registerRun } from "./registry.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
 import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
-import { startRunPanel, type PanelHandle } from "./server/panel.js";
+import { ensureGlobalPanel, openPanel, panelUrl } from "./server/global.js";
+import { projectScope, startRunPanel, type PanelHandle } from "./server/panel.js";
 import { readSteering, type Steering } from "./steering.js";
 import { findMilestone, loadState, nextMilestone, updateState } from "./state.js";
 import type { AttemptRecord, KillMarker, Milestone, MilestonerConfig, RunState } from "./types.js";
@@ -29,6 +30,12 @@ export interface RunOptions {
   stopSignal?: AbortSignal;
   /** Bring the web panel up alongside the run. It closes with the run and never fails it. */
   serve?: { port: number; write: boolean; token?: string };
+  /**
+   * The machine panel (D-032): make sure the daemon is up, print its URL, and maybe open the
+   * browser. "auto" opens only when this run started the daemon - the first run opens the tab,
+   * the ones that join just print where it is.
+   */
+  globalPanel?: { cliPath: string; port: number; write: boolean; open: "auto" | "always" | "never" };
 }
 
 export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted";
@@ -151,13 +158,38 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
   let panel: PanelHandle | null = null;
 
+  // Re-checked on every loop pass, not only on start: a machine panel that died overnight comes
+  // back with the next milestone instead of staying down until someone launches a new run.
+  let panelTried = false;
+  let panelAnnounced = false;
+  const ensurePanel = async () => {
+    if (!options.globalPanel) return;
+    const wanted = options.globalPanel;
+    const first = !panelTried;
+    panelTried = true;
+    const ensured = await ensureGlobalPanel({ cliPath: wanted.cliPath, port: wanted.port, write: wanted.write });
+    if (!ensured) {
+      if (first) warn("the machine panel could not be started - the run continues without it");
+      return;
+    }
+    if (!panelAnnounced || ensured.spawned) {
+      info(`panel      ${color.bold(panelUrl(ensured.info))}${ensured.spawned ? "  (machine panel, stays up while runs are alive)" : ""}`);
+    }
+    panelAnnounced = true;
+    if (first && (wanted.open === "always" || (wanted.open === "auto" && ensured.spawned))) {
+      await openPanel(ensured.info);
+    }
+  };
+
   try {
     registerRun(registry, identity);
     if (options.serve) {
-      panel = await startRunPanel({ config, layout, ...options.serve });
+      panel = await startRunPanel({ scope: projectScope(config, layout), ...options.serve });
     }
+    await ensurePanel();
     for (;;) {
       if (stopping()) return "stopped";
+      await ensurePanel();
       const state = loadState(layout.state);
 
       if (state.runComplete) {

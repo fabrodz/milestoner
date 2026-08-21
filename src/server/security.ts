@@ -19,10 +19,21 @@ export function tokenMatches(expected: string, given: string | undefined): boole
   return timingSafeEqual(a, b);
 }
 
+export const TOKEN_COOKIE = "milestoner_token";
+
 export function tokenFrom(req: IncomingMessage, url: URL): string | undefined {
   const header = req.headers.authorization;
-  if (header?.startsWith("Bearer ")) return header.slice(7);
-  return url.searchParams.get("token") ?? undefined;
+  // An empty bearer falls through: the page always sends the header, cookie-authenticated or not.
+  if (header?.startsWith("Bearer ") && header.length > 7) return header.slice(7);
+  const query = url.searchParams.get("token");
+  if (query) return query;
+  // Set by /auth after a once-token exchange, so a browser opened by the CLI never carries the
+  // long-lived key in its URL. The cookie is scoped to loopback and never crosses the Host check.
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const eq = part.indexOf("=");
+    if (eq > 0 && part.slice(0, eq).trim() === TOKEN_COOKIE) return part.slice(eq + 1).trim();
+  }
+  return undefined;
 }
 
 /**

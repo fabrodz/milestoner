@@ -8,7 +8,10 @@ import { test } from "node:test";
 import { defaultConfig } from "./config.js";
 import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
+import { panelInfoPath } from "./server/global.js";
+import { createPanel } from "./server/http.js";
 import type { RunState } from "./types.js";
+import { writeJsonAtomic } from "./util/fs.js";
 
 // The runner registers itself in the machine registry; keep these runs out of the real one.
 process.env.MILESTONER_HOME = mkdtempSync(join(tmpdir(), "milestoner-home-"));
@@ -218,6 +221,39 @@ test("one interrupt with a panel attached still finishes and grades the running 
   assert.deepEqual(state.milestones[0]?.evidence, ["AC1: ran to the end"]);
   assert.equal(state.milestones[1]?.status, "pending", "no further session may be launched");
   await assert.rejects(fetch(url), "and the panel closed with the run");
+});
+
+test("a run that joins a live machine panel prints its URL instead of starting another", async () => {
+  const { root, layout } = scaffold();
+  const registry = join(process.env.MILESTONER_HOME!, "runs.json");
+  const machine = createPanel({ scope: { kind: "machine", registry, cliPath: "" }, port: 0, token: "machine-key", allowWrites: true });
+  await new Promise<void>((r) => machine.listen(0, "127.0.0.1", r));
+  const port = (machine.address() as AddressInfo).port;
+  writeJsonAtomic(panelInfoPath(), { pid: process.pid, port, token: "machine-key", startedAt: new Date().toISOString() });
+
+  const cap = captureLog();
+  try {
+    await run({
+      config: configFor(root),
+      layout,
+      signal: new AbortController().signal,
+      once: true,
+      globalPanel: { cliPath: "", port: 4400, write: true, open: "never" },
+    });
+  } finally {
+    cap.restore();
+    machine.close();
+    machine.closeAllConnections();
+  }
+
+  assert.ok(
+    cap.lines.some((l) => l.includes(`http://127.0.0.1:${port}/?token=machine-key`)),
+    `every run must remind where the machine panel is, got: ${cap.lines.join(" / ")}`,
+  );
+  assert.ok(
+    !cap.lines.some((l) => l.includes("machine panel, stays up")),
+    "joining is not spawning: the run found the panel already there",
+  );
 });
 
 test("a second interrupt with a panel attached still leaves the milestone in_progress", async () => {

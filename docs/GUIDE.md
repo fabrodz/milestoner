@@ -326,8 +326,10 @@ pulse
   liveness    alive - src/app/checkout/page.tsx touched 41s ago
 ```
 
-To watch it in a browser instead, start the run with the panel attached:
-[`milestoner run --serve`](#watching-it-in-a-browser---serve).
+To watch it in a browser: the machine panel came up with the run and its URL was printed at launch
+([the machine panel, by default](#watching-it-in-a-browser-the-machine-panel-by-default)); `milestoner runs`
+reprints it. To pin a panel to this run alone, see
+[`milestoner run --serve`](#watching-this-run-alone---serve).
 
 ### 7. Optionally, put a supervisor on it
 
@@ -533,7 +535,7 @@ cannot tell which run it belongs to; a protocol naming the run being scaffolded 
 
 ```sh
 milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
-               [--serve [--port <n>] [--write]]
+               [--no-panel] [--open | --no-open] [--serve [--port <n>] [--write]]
 ```
 
 | Flag | Meaning |
@@ -542,7 +544,9 @@ milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
 | `--max-attempts <n>` | Override `maxAttempts` for this invocation only. |
 | `--model <name>` | Appends `agent.modelArgs` (default `--model <name>`) to the agent command for this invocation. |
 | `--once` | Launch one session, grade it, then stop whatever the verdict. Exits `2` if that session reported blocked, so a script can tell the two apart. |
-| `--serve` | Bring the [web panel](#milestoner-serve) up with the run and print its URL. Takes `--port` (default `4400`) and `--write`. |
+| `--no-panel` | Do not bring up or join the [machine panel](#milestoner-serve). By default the first run starts it and every run prints its URL. |
+| `--open` / `--no-open` | Force the browser open on the machine panel, or never open it. The default opens it only on the run that started the daemon. |
+| `--serve` | Bring a per-run [web panel](#milestoner-serve) up with the run instead of the machine panel, and print its URL. Takes `--port` (default `4400`) and `--write`. |
 
 Run it from the project root or any subdirectory: milestoner walks up looking for
 `.milestoner/config.json`, the way git finds `.git`.
@@ -559,7 +563,19 @@ one signals that group and everything the session started. See
 Exit code: `0` complete or stopped, `2` blocked, `1` on error or after too many consecutive
 infrastructure failures.
 
-#### Watching it in a browser: `--serve`
+#### Watching it in a browser: the machine panel, by default
+
+Unless `--no-panel` (or `--serve`) is given, `milestoner run` makes sure the machine panel is up:
+the first run on the machine spawns `serve --all --auto-exit` as a detached daemon, later runs find
+it through `~/.milestoner/panel.json` and print its URL, and the runner re-checks on every loop
+pass so a panel that died comes back with the next milestone. The daemon exits on its own once no
+run has been alive for ten minutes, releasing its file on the way out. The run that starts the
+daemon also opens your browser, through the single-use `/auth` exchange that keeps the key out of
+browser history; `--open` forces that on any run and `--no-open` suppresses it. Details and the
+write-by-default reasoning are under [`milestoner serve`](#milestoner-serve) and in
+[D-033](DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
+
+#### Watching this run alone: `--serve`
 
 ```sh
 milestoner run --serve
@@ -580,10 +596,13 @@ all come from the panel being an accessory to the run rather than the point of t
 | Port already in use | Moves to a free port and says so: `port 4400 is already in use - the panel is on port 51823 instead`. A panel that cannot come up at all is a warning; neither ever fails the run. | Exits `1`: `port 4400 is already in use - pick another with --port`. |
 | Starting a runner | Refused. This panel already has one, and two runners on one `state.json` is the lost-update shape [D-022](DECISIONS.md#d-022---statejson-writes-are-serialised-across-processes-2026-08-19) exists to prevent. Everything else, including `kill`, works normally under `--write`. | Offered: there may be no runner to conflict with. |
 
-There is no `--open`. The panel URL carries the run's key, so opening it from the command line writes
-a live credential into the browser's history and into whatever that browser syncs; `report --open` is
-unaffected, because a report file's path holds no secret. Passing `--open` with `--serve` exits `1`
-and says so rather than ignoring it. The reasoning for all four points is
+There is no `--open` for the attached panel. Its URL carries the run's key, so opening it from the
+command line writes a live credential into the browser's history and into whatever that browser
+syncs; `report --open` is unaffected, because a report file's path holds no secret. Passing `--open`
+with `--serve` exits `1` and says so rather than ignoring it. The machine panel is different: it has
+a `/auth` exchange built for exactly this, which is why `--open` exists there
+([D-033](DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)).
+The reasoning for the four points above is
 [D-027](DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20).
 
 If you forward the port over SSH, use an explicit `--port` and know that a fallback to another port
@@ -673,6 +692,8 @@ milestoner runs [--json]
 
 Every run registered on this machine, printed from anywhere. It is the one command that does not need
 a project: `status` answers for the directory you are standing in, `runs` answers for the machine.
+When the [machine panel](#the-machine-panel---all) is live its URL is printed under the registry
+path (and carried as `panel` in `--json`), so the browser view is one copy-paste away.
 
 ```
 milestoner runs  2 registered
@@ -810,18 +831,44 @@ the attempt budget are finally visible after the fact.
 ### milestoner serve
 
 ```sh
-milestoner serve [--port <n>] [--write] [--token <value>]
+milestoner serve [--all] [--port <n>] [--write] [--token <value>]
 ```
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
+| `--all` | off | Serve every run registered on this machine instead of the current project. Works from any directory. |
 | `--port <n>` | `4400` | Port on the loopback interface. |
 | `--write` | off | Enable the controls. Without it every mutating route answers 403. |
 | `--token <value>` | generated | Fix the key instead of generating one. For scripts and tests; a generated key is better for daily use. |
 
 This is the panel on its own, against whatever is or is not running in that directory. To bring it
 up with a run instead, and have it close with the run, see
-[`milestoner run --serve`](#watching-it-in-a-browser---serve).
+[`milestoner run --serve`](#watching-this-run-alone---serve).
+
+#### The machine panel: `--all`
+
+`serve --all` is the view across runs the registry made possible
+([D-025](DECISIONS.md#d-025---a-machine-level-registry-of-runs-behind-milestoner-runs-2026-08-20)):
+a hub page listing every registered run with its health and progress, each opening into the same
+per-run view the project panel serves, with a switcher across the top. Every request names its run
+with a `root` parameter resolved against the registry; the controls are the same handlers with the
+same server-side guards, so starting a runner for a project whose runner is gone works, and
+starting one where a runner is alive is refused by the pulse check as always.
+
+This is also the panel `milestoner run` brings up by default. The first run spawns
+`serve --all --auto-exit` detached; the daemon claims `~/.milestoner/panel.json` under the machine
+lock (when several runs race, one daemon wins and the rest exit), stays while any run is alive,
+and exits after ten idle minutes, releasing the file. The auto-spawned daemon is write-enabled -
+kill, steer and unblock at 3am are what it is for - with every guard below unchanged. If you want
+a read-only machine panel instead, run your runs with `--no-panel` and keep a hand-started
+`serve --all` (no `--write`) up yourself. Reasoning:
+[D-033](DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
+
+`milestoner runs` prints the live panel's URL, so the morning after starts one command away.
+
+Opening it from the CLI never puts the key in your browser history: `--open` mints a single-use
+token (`POST /api/once`, two minutes, one use) and the browser exchanges it at `/auth` for an
+HttpOnly cookie before being redirected to a clean URL.
 
 A local web panel over the same run `status` describes, refreshed by server-sent events. It reads
 `state.json`, `pulse.json` and the two logs, and its write surface is exactly the CLI's: steer,
@@ -1685,10 +1732,10 @@ strength of that guarantee is the quality of your criteria. Review the tags.
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.
 - **One run per project directory.** Runs across the machine are listed by
-  [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, but there
-  is still no *panel* across them: `serve` and `status` only ever show the directory they were started
-  in. The panel does come up with the run now - [`milestoner run --serve`](#watching-it-in-a-browser---serve) -
-  which is one run's panel, not a view across them.
+  [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, and
+  the [machine panel](#the-machine-panel---all) is the view across them in a browser - one panel,
+  every registered run, brought up by the first `milestoner run`. `status` still answers only for
+  the directory it is started in.
 - **The supervisor is a loop, not a daemon.** If the Claude session hosting it dies, supervision stops
   until you restart it. A daemon is a later question, and only if the loop proves insufficient.
 

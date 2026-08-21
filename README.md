@@ -119,13 +119,13 @@ Then, in a Claude Code session at the project root: `/milestoner-plan` (plugin) 
 | Command | What it does |
 | --- | --- |
 | `milestoner init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.milestoner/`: config, state machine, protocol template, prompt skeletons. |
-| `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once] [--serve]` | Drain the run: one fresh agent session per milestone until complete or blocked. `--serve` brings the web panel up with it. |
+| `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once] [--no-panel] [--open \| --no-open] [--serve]` | Drain the run: one fresh agent session per milestone until complete or blocked. Brings the machine panel up by default; `--serve` attaches a per-run panel instead. |
 | `milestoner status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
 | `milestoner runs [--json]` | Every run registered on this machine, from anywhere: project, milestone, progress, liveness. |
 | `milestoner unblock <id> [--keep-attempts]` | Clear a block after fixing it; sets the milestone back to pending. |
 | `milestoner steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
-| `milestoner serve [--port <n>] [--write]` | Local web panel for the run. Loopback only, key in the URL. |
+| `milestoner serve [--all] [--port <n>] [--write]` | Local web panel. Loopback only, key in the URL. `--all` serves every run on the machine, from any directory. |
 | `milestoner skill install [<name>] [--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
@@ -218,14 +218,25 @@ decide.
 ## The web panel
 
 ```sh
-milestoner run --serve      # the panel comes up with the run and closes when it ends
-milestoner serve --write    # the panel on its own, against whatever is or is not running
+milestoner run              # the machine panel comes up with the first run and spans every run
+milestoner serve --all      # the same machine panel, by hand, from any directory
+milestoner run --serve      # a panel pinned to this run only, closed when the run ends
+milestoner serve --write    # the per-project panel on its own, against whatever is or is not running
 ```
 
-Both print a URL carrying a one-time key. The panel shows the same run `status` does, refreshed over
-server-sent events, and lets you act on it: set or clear steering, unblock a milestone, kill a hung
-session, run the environment adapter, start a runner or stop it. It is deliberately the *same*
-surface as the CLI, calling the same functions, which is what keeps one audit trail rather than two.
+Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
+refreshed over server-sent events, and lets you act on it: set or clear steering, unblock a
+milestone, kill a hung session, run the environment adapter, start a runner or stop it. It is
+deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
+audit trail rather than two.
+
+The machine panel is the default: the first `milestoner run` starts it as a detached daemon, every
+run that joins prints its URL, a hub page lists every run on the machine with a switcher between
+them, and the daemon exits on its own once nothing has been alive for ten minutes. The run that
+starts it also opens your browser - through a single-use link exchanged for a cookie at `/auth`, so
+the key never lands in browser history (`--open` forces this on any run, `--no-open` stops it,
+`--no-panel` opts the run out entirely). The reasoning is
+[D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
 
 The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
 four, and you want to read the diagnosis and the last transcript and steer from your phone without
@@ -234,16 +245,18 @@ finding a laptop.
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with
 `--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. A
-write-enabled panel is a remote code execution endpoint by construction. It binds `127.0.0.1` only
-and that is not configurable, every request needs the key from the URL, non-loopback `Host` headers
-and cross-origin writes are refused, and without `--write` every mutating route answers 403.
-**Treat the URL like a password: it is one.** There is no `--open` for this reason - handing that URL
-to a browser writes a live credential into its history.
+write-enabled panel is a remote code execution endpoint by construction - and the machine panel a
+run starts is write-enabled, because kill, steer and unblock at 3am are why it exists. It binds
+`127.0.0.1` only and that is not configurable, every request needs the key from the URL (or the
+cookie `/auth` set), non-loopback `Host` headers and cross-origin writes are refused, and without
+`--write` a hand-started panel's mutating routes answer 403.
+**Treat the URL like a password: it is one.** Never paste it anywhere that syncs.
 
 To reach it from another device, forward the port over SSH rather than exposing it. That recipe, the
-full security model and the differences between `--serve` and `serve` are in
+full security model and the differences between the panel forms are in
 [docs/GUIDE.md](docs/GUIDE.md#milestoner-serve), with the reasoning in
-[D-027](docs/DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20).
+[D-027](docs/DECISIONS.md#d-027---the-panel-comes-up-with-the-run-and-what-that-costs-2026-08-20) and
+[D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
 
 ## The run report
 

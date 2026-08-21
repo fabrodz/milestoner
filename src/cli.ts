@@ -7,7 +7,7 @@ import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
 import { report } from "./commands/report.js";
 import { runs } from "./commands/runs.js";
-import { serve } from "./commands/serve.js";
+import { serve, serveAll } from "./commands/serve.js";
 import { installSkill } from "./commands/skill.js";
 import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
@@ -24,9 +24,12 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
       Scaffold .milestoner/ (config, state machine, protocol, prompt skeletons).
 
   milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
-                 [--serve [--port <n>] [--write]]
+                 [--no-panel] [--open | --no-open] [--serve [--port <n>] [--write]]
       Drain the run: one fresh agent session per milestone until complete or blocked.
-      --serve brings the web panel up with the run and closes it when the run ends.
+      Unless --no-panel, the machine panel comes up with the first run on this machine,
+      spans every run, and stays while any run is alive; each run prints its URL, and
+      the run that starts it opens the browser (--open forces that, --no-open stops it).
+      --serve instead attaches a panel for this run only, closed when the run ends.
 
   milestoner status [--json]
       Milestones, attempts, evidence counts, and the pulse (is this run alive?).
@@ -44,9 +47,11 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
   milestoner report [--out <path>] [--open]
       Write a single self-contained HTML report of the run.
 
-  milestoner serve [--port <n>] [--write]
-      Local web panel for the run. Binds 127.0.0.1 only and prints a URL carrying a
-      one-time key. --write enables the controls; without it the panel only reads.
+  milestoner serve [--all] [--port <n>] [--write]
+      Local web panel. Binds 127.0.0.1 only and prints a URL carrying a one-time key.
+      --write enables the controls; without it the panel only reads. --all serves every
+      run registered on this machine - the same panel "run" brings up on its own - and
+      works from any directory.
 
   milestoner skill install [<name>] [--global] [--force] [--print]
       Install the bundled skills into .claude/skills/ (--global: ~/.claude/skills/).
@@ -134,6 +139,10 @@ async function main(): Promise<number> {
       write: { type: "boolean" },
       token: { type: "string" },
       serve: { type: "boolean" },
+      all: { type: "boolean" },
+      "auto-exit": { type: "boolean" },
+      "no-panel": { type: "boolean" },
+      "no-open": { type: "boolean" },
     },
   });
 
@@ -181,6 +190,13 @@ async function main(): Promise<number> {
   // directory that is not a project is the whole point of it.
   if (command === "runs") {
     return runs({ registry: registryPath(), json: Boolean(values.json) });
+  }
+
+  // Same reason: the machine panel spans projects, so it must not require standing in one.
+  if (command === "serve" && values.all) {
+    const port = panelPort(values.port);
+    if (port === null) return 1;
+    return serveAll({ port, write: Boolean(values.write), token: values.token, autoExit: Boolean(values["auto-exit"]) });
   }
 
   const project = requireProject();
@@ -255,6 +271,26 @@ async function main(): Promise<number> {
       serveOptions = { port, write: Boolean(values.write), token: values.token };
     }
 
+    let globalPanel: { cliPath: string; port: number; write: boolean; open: "auto" | "always" | "never" } | undefined;
+    if (values["no-panel"] || values.serve) {
+      // --serve pins a panel to this run; running the machine panel beside it would be two panels
+      // saying the same thing. --open belongs to the machine panel, whose /auth exchange keeps the
+      // key out of the browser (D-032) - the attached panel has no such door, see D-027 above.
+      if (values.open && values["no-panel"]) {
+        fail("--open opens the machine panel, which --no-panel turns off - drop one of the two");
+        return 1;
+      }
+    } else {
+      const port = panelPort(values.port);
+      if (port === null) return 1;
+      globalPanel = {
+        cliPath: process.argv[1] ?? "",
+        port,
+        write: true,
+        open: values["no-open"] ? "never" : values.open ? "always" : "auto",
+      };
+    }
+
     const stopController = new AbortController();
     const killController = new AbortController();
     let interrupts = 0;
@@ -287,6 +323,7 @@ async function main(): Promise<number> {
       signal: killController.signal,
       stopSignal: stopController.signal,
       serve: serveOptions,
+      globalPanel,
     });
     return outcome === "complete" || outcome === "stopped" ? 0 : outcome === "blocked" ? 2 : 1;
   }

@@ -74,15 +74,18 @@ files, 43.7 kB), and a `prepublishOnly` that typechecks, tests and builds.
 
 It is the only item here with an external audience, and the first one where a mistake is public.
 
-## 4. A panel that spans runs
+## 4. A panel that spans runs - done
 
-The registry landed in v0.5 (D-025) and the panel now comes up with the run (D-027), so what is left
-is the view across them. `serve` still answers for one project directory.
-
-The blocker is a decision, not code: D-020 scoped the panel's write surface to the project it was
-started in, and a cross-run panel means one process acting on projects it was not started in. D-027
-already had to rule on a smaller version of the same question and chose to keep `--write` while
-refusing the one control that conflicts. That is the precedent to argue from.
+Closed 2026-08-20. The decision came first, as this file asked: D-033 argues the cross-run write
+surface from D-027's precedent (same handlers, same server-side guards, resolved per request from
+a `root` checked against the registry). What shipped: `serve --all` serves every registered run
+with a hub and a per-run switcher; the first `milestoner run` spawns it as a detached daemon that
+claims `~/.milestoner/panel.json`, stays while any run is alive plus ten minutes, and cleans up
+after itself; every run prints the URL and `runs` reprints it; `--open` returns via a single-use
+`/auth` token exchanged for a cookie, so the key never lands in browser history and D-027's
+refusal stands for the attached panel. Still unexercised: the daemon across a reboot (a stale
+`panel.json` whose pid was recycled is handled by the answer-probe, but nobody has watched it
+happen), and the hub with more than a handful of runs.
 
 ## 5. Authoring flows in a UI, and the cheap experiment that would settle it
 
@@ -117,6 +120,5 @@ instead of taste.
 happens to the repository. Nothing below it is blocked by it, which is the only reason the rest can
 proceed at all.
 
-1 and 2 are done. 3 cannot happen before 0 is settled, because publishing from a repository whose
-history is still being decided is the wrong order. 4 needs its decision written before any screen.
-5 is still a question, not a task.
+1, 2 and 4 are done. 3 cannot happen before 0 is settled, because publishing from a repository whose
+history is still being decided is the wrong order. 5 is still a question, not a task.

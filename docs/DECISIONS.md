@@ -685,3 +685,68 @@ names); with none it installs everything, and `--print` requires a name now that
 plugin ships a fifth command, `/milestoner-plan`, which passes D-018's admission test the same way
 `/milestoner-init` does: in-session file work, not long-lived, not a decision reserved to a human
 or to the supervisor.
+
+## D-033 - The panel spans runs: one machine panel, brought up by the first run (2026-08-20)
+
+D-025 built the registry and stopped short: "the panel deliberately does not span runs yet". This
+closes that gap, and item 4 of `docs/NEXT.md` said what had to come first: the decision, because a
+cross-run panel is one process acting on projects it was not started in. The precedent argued from
+is D-027, which kept `--write` on the attached panel and refused only the one control that
+conflicts with a live runner. The same shape holds here: every control the machine panel offers
+already ends in a server-side guard (`/api/run/start` checks the target project's pulse and
+refuses while a runner is alive), so the panel does not rely on its page to stay honest, and no
+new write primitive is introduced - the machine panel calls the same handlers the project panel
+always called, just resolved per request from a `root` parameter checked against the registry.
+
+**A daemon owned by no run, found through `~/.milestoner/panel.json`.** The first `milestoner run`
+on the machine spawns `serve --all --auto-exit` detached - for the same reason `/api/run/start`
+spawns detached: the panel must not die with the run that happened to be first. The daemon binds,
+then claims `panel.json` under the machine lock from D-025; when several runs start at once, one
+daemon wins and the losers exit silently. A live pid does not defend an entry on its own - pids
+are reused, and unlike the registry there is no per-project pulse to corroborate this file - but
+the panel is an HTTP server, so the probe asks it: an entry whose pid is alive but whose port does
+not answer with its token is a recycled number, and the claim goes through. Every run prints the
+panel URL it found or started, and the runner re-checks on every loop pass, so a panel that died
+overnight comes back with the next milestone rather than staying down until a human notices.
+
+**It stays while runs are alive, plus ten minutes.** The daemon polls the registry (the cheap
+form: entries, pulses and pids, no state.json loads) and exits once nothing has been alive for the
+linger window, releasing `panel.json` ownership-checked like the state lock. Exiting the moment
+the last run ends was rejected because it kills the panel exactly when its start control is the
+point: between two runs, reading how the last one ended and relaunching it from the browser. The
+alternative rejected in the other direction - staying the registry's full 24-hour retention - is a
+daemon idling overnight to serve a page nobody has open; `milestoner runs` already answers the
+morning question, and now names the panel URL when one is live.
+
+**`--open` returns, with the key kept out of the browser.** D-027 refused `--open` because the URL
+is the credential and browser history syncs to other devices and a vendor. That reasoning stands,
+so the door is different: the CLI asks the panel to mint a single-use token (`POST /api/once`,
+authenticated with the real key), opens `/auth?once=...`, and the panel exchanges it for an
+HttpOnly cookie and redirects to a clean URL. What history keeps is a link that died on use; two
+minutes and one use is all a once-token has. By default the browser opens only on the run that
+spawned the daemon - the runs that join print the URL, because the tab is already open - and
+`--open` / `--no-open` force either way. The attached `run --serve` panel keeps D-027's refusal:
+it has no discovery file and no reason to grow this machinery when the machine panel is the
+default path now.
+
+**Read-write by default, unlike `serve`.** The attached panel needed `--write` because a human
+typed the command and could type one flag more. The machine panel exists for the 3am intervention
+- kill, steer, unblock are why it is up at all - and it is auto-spawned, so there is no command
+line on which to opt in at the moment it matters. Its writes are gated exactly as D-020/D-027
+gated them: loopback bind, Host allowlist, a generated key, Origin-checked mutations. A read-only
+machine panel remains one command away: `--no-panel` on the run, `milestoner serve --all` without
+`--write`.
+
+The hub view (no `root`) lists every registered run with its health and progress; the per-run view
+is the same page the project panel serves, with a switcher across the top fed by the same registry
+listing. A `root` that stops resolving mid-stream falls back to the hub rather than going silent,
+which is what a run expiring out of the registry looks like from an open tab.
+
+**The panel remembers what it watched, because D-025 deliberately forgets it.** A clean exit
+removes the run's registry entry, which is right for the file - a clean exit leaves nothing behind -
+and wrong for an open tab: the run would vanish from the hub at the exact moment its outcome is
+the thing worth reading, and the ten-minute linger would be minutes of an empty page. So the
+machine panel keeps an in-memory record of every run it has seen registered and goes on
+summarising the missing ones from each project's own `state.json`, as `complete` or `gone`,
+for as long as the panel process lives. The memory dies with the daemon, which is the point: it is
+a courtesy to whoever is watching, not a second registry, and D-025's semantics are untouched.

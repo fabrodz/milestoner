@@ -113,6 +113,51 @@ function runnerIsAlive(entry: RunEntry, pulse: Pulse | null): boolean {
   return isProcessAlive(entry.pid);
 }
 
+/**
+ * The cheap form of the question the panel daemon asks on every poll: is anything still moving?
+ * No state.json loads and no pruning - just entries, pulses and pids.
+ */
+export function hasLiveRunner(file: string): boolean {
+  return read(file).some((entry) => runnerIsAlive(entry, readPulse(layoutFor(entry.projectRoot).pulse)));
+}
+
+export interface SeenRun {
+  run: string;
+  projectRoot: string;
+  pid: number;
+  startedAt: string;
+  lastSeen: string;
+}
+
+/**
+ * A run the machine panel watched, now deregistered. A clean exit removes the registry entry
+ * (D-025), which is right for the file and wrong for an open tab: the run would vanish at the
+ * exact moment its outcome is the thing worth showing. The panel remembers what it served and
+ * summarises it from the project's own state for as long as the panel lives.
+ */
+export function summariseUnregistered(seen: SeenRun): RunSummary | null {
+  let state: RunState;
+  try {
+    state = loadState(layoutFor(seen.projectRoot).state);
+  } catch {
+    return null;
+  }
+  return {
+    run: state.run || seen.run,
+    projectRoot: seen.projectRoot,
+    pid: seen.pid,
+    startedAt: seen.startedAt,
+    lastSeen: seen.lastSeen,
+    runnerAlive: false,
+    health: state.runComplete ? "complete" : "gone",
+    milestoneId: nextMilestone(state)?.id ?? null,
+    attempt: null,
+    ...summarize(state),
+    runComplete: state.runComplete,
+    lastEventSeconds: null,
+  };
+}
+
 function summarise(entry: RunEntry, state: RunState, pulse: Pulse | null, alive: boolean, now: number): RunSummary {
   const counts = summarize(state);
   const lastEventMs = alive && pulse ? now - Date.parse(pulse.lastEventAt) : null;

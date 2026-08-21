@@ -15,12 +15,27 @@ All notable changes to this project are documented here. The format follows
   plugin, drift-guarded by a test.
 - The plugin ships a fifth slash command, `/milestoner-plan`, which runs the planner skill.
 - `milestoner init` now points at the planner skill for the authoring steps it cannot do itself.
+- The machine panel (D-033): `milestoner serve --all` serves every run the registry knows about,
+  from any directory - a hub across runs plus the familiar per-run view with a switcher. The first
+  `milestoner run` on the machine brings it up as a detached daemon that stays while any run is
+  alive (plus a ten-minute linger) and then exits and cleans up after itself; every run prints its
+  URL, discovery is `~/.milestoner/panel.json`, and `milestoner runs` names the URL when a panel
+  is live. `--no-panel` opts a run out.
+- `milestoner run --open` opens the machine panel in the browser without writing the key into
+  browser history: the CLI mints a single-use token and the panel exchanges it at `/auth` for an
+  HttpOnly cookie, so the URL history keeps is already dead. By default the browser opens only on
+  the run that started the daemon; `--no-open` stops even that. D-027's refusal of `--open` for
+  the attached `run --serve` panel stands.
 
 ### Changed
 
 - `milestoner skill install` takes an optional skill name (`supervisor`, `planner`, or the full
   names). With no name it installs every bundled skill, where it previously installed only the
   supervisor; `--print` now requires a name.
+- `milestoner run` now brings the machine panel up by default (read-write: kill, steer and unblock
+  at 3am are why it exists; the guards are the same loopback bind, Host allowlist, key and Origin
+  check as always). `run --serve` keeps its per-run attached panel unchanged and skips the machine
+  panel.
 
 ## [0.6.1] - 2026-08-21
 
