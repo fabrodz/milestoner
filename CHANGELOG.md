@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-21
+
+Documentation only; the engine is byte-identical to 0.6.0. The package's front page on npm is the
+README from its own tarball, so a README this size and this wrong about its own licence was worth a
+patch release rather than waiting for the next feature.
+
+### Fixed
+
+- The licence badge claimed Apache 2.0. The project is MIT, as `LICENSE`, `package.json` and the
+  published package all say, and it always has been. The CI badge pointed at an unrelated
+  repository's workflow.
+- README images used repository-relative paths. The published tarball carries four files and
+  `docs/assets/` is not among them, so those images rendered on GitHub and broke on the package
+  page. They are absolute now.
+
 ### Removed
 
 - `BRIEF.md`, the genesis document. Its architecture section was the only place recording that the
