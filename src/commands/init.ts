@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { defaultConfig, renderTemplate } from "../config.js";
+import { protocolRunName } from "../lint.js";
 import { layoutFor } from "../paths.js";
 import { MILESTONE_TEMPLATE } from "../templates/milestone.js";
 import { SUPERVISOR_LOG_HEADER } from "../supervisorLog.js";
@@ -17,9 +18,7 @@ export interface InitOptions {
   force: boolean;
 }
 
-export function protocolRunName(protocol: string): string | null {
-  return protocol.match(/^# Execution protocol - run "(.+)"/m)?.[1] ?? null;
-}
+export { protocolRunName };
 
 const MILESTONER_GITIGNORE = `logs/
 results/
