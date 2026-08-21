@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>An AI agent runner for software development, gated on evidence.</strong>
+  <strong>Run massive plans unattended for hours, gated on evidence.</strong>
 </p>
 
 <p align="center">
@@ -18,11 +18,8 @@ Supervised autonomous-run engine for coding agents. A milestone state machine th
 fresh headless agent session per milestone, grades what each session claims against written
 evidence, and refuses to spend a retry on a usage limit.
 
-The name is the thesis. A milestone only counts when something on disk proves it: a passing test, a
-diff, a commit. Milestoner runs one fresh session per milestone, grades what that session claims
-against the evidence it left behind, and moves the marker only when the two agree.
-
-Status: **v0.7**. Engine, the active supervisor and planner as installable Claude Code skills, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
+A milestone only counts when something on disk proves it: a passing test, a diff, a commit. The
+marker moves only when the session's claim and the evidence it left behind agree.
 
 ## Install
 

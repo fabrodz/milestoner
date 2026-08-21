@@ -1,7 +1,7 @@
 {
   "name": "milestoner",
   "version": "0.7.0",
-  "description": "Supervised autonomous-run engine for coding agents: milestone state machine, evidence gates, infra-failure discrimination.",
+  "description": "Run massive plans unattended for hours: an autonomous-run engine for coding agents, driven by a milestone state machine.",
   "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/fabrodz/milestoner.git" },
