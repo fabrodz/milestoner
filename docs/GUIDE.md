@@ -91,8 +91,9 @@ Do not use it when:
 
 There are two things you can install, and they do different jobs. The **CLI** is the engine: the
 `milestoner` binary that runs a run, grades each session and owns the state machine. Nothing works
-without it. The **plugin** is a Claude Code layer on top: it adds the supervisor skill and four slash
-commands to a Claude session, and every one of them shells out to the same `milestoner` binary. The
+without it. The **plugin** is a Claude Code layer on top: it adds the supervisor and planner skills
+and five slash commands to a Claude session, and every one of them shells out to the same
+`milestoner` binary. The
 plugin is not a self-contained install; it does not put `milestoner` on your PATH.
 
 **The CLI (required).**
@@ -110,8 +111,9 @@ cd milestoner && npm install && npm run build && npm link
 
 Either way `milestoner` ends up on your PATH. Confirm with `milestoner --help`.
 
-**The plugin (optional).** Adds `/milestoner-init`, `/milestoner-status`, `/milestoner-supervise` and
-`/milestoner-report`, plus the supervisor skill, inside Claude Code:
+**The plugin (optional).** Adds `/milestoner-init`, `/milestoner-plan`, `/milestoner-status`,
+`/milestoner-supervise` and `/milestoner-report`, plus the supervisor and planner skills, inside
+Claude Code:
 
 ```sh
 claude plugin marketplace add fabrodz/milestoner
@@ -196,6 +198,10 @@ inside a narrow, logged playbook. See [The supervisor](#the-supervisor).
 
 ## Quickstart: your first run
 
+Eight steps, from an existing project to a supervised run. Steps 2 to 4 are the authoring - the
+part that decides whether the run is worth grading. Do them by hand, or have the planner skill
+(step 3) walk them with you; either way the criteria are yours before anything runs.
+
 ### 1. Scaffold
 
 ```sh
@@ -225,8 +231,12 @@ Next:
      (source dirs, test-result files, tool logs). The transcript is never one.
   5. milestoner run
 
+Steps 1-4 are yours to author, but Claude can help: install the planner skill and ask for it.
+  milestoner skill install planner
+  Use the milestoner-planner skill to plan this run.
+
 To supervise a long run, install the supervisor skill and loop it:
-  milestoner skill install
+  milestoner skill install supervisor
   /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
@@ -242,7 +252,10 @@ conventions, what "the environment is reachable" means here. Ten minutes here sa
 ### 3. Write the milestone prompts
 
 `.milestoner/prompts/M01.md` and friends. This is the actual work specification and milestoner never
-generates it for you. See [Writing milestone prompts](#writing-milestone-prompts).
+generates it for you. See [Writing milestone prompts](#writing-milestone-prompts). If you would
+rather author it in conversation, the planner skill (`milestoner skill install planner`, or the
+plugin's `/milestoner-plan`) has Claude interview you and draft the prompts for your approval; the
+substance still comes from you.
 
 ### 4. Set the titles and the liveness list
 
@@ -322,7 +335,7 @@ If you installed the plugin, the supervisor skill came with it; skip this comman
 install, write the skill into the project first:
 
 ```sh
-milestoner skill install
+milestoner skill install supervisor
 ```
 
 Then in a Claude Code session at the project root:
@@ -330,6 +343,16 @@ Then in a Claude Code session at the project root:
 ```
 /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
+
+### 8. When it ends
+
+A run finishes in one of two states. Complete: every milestone `done`, each with its evidence lines
+in `state.json` and a git tag to roll back to. Or blocked: one milestone stopped with a written
+diagnosis - the symptom, what the session tried, and the single action it wants from you. Do that,
+then `milestoner unblock M03` and `milestoner run` again; the run resumes where it stopped.
+
+Either way, `milestoner report --open` writes the post-mortem: one self-contained HTML file with
+the timeline, every attempt, and every claim next to the evidence behind it.
 
 That is the whole loop. Everything below is detail.
 
@@ -851,17 +874,20 @@ front and understand that you have taken on that decision.
 ### milestoner skill install
 
 ```sh
-milestoner skill install [--global] [--force] [--print]
+milestoner skill install [<name>] [--global] [--force] [--print]
 ```
 
-Writes the supervisor skill to `.claude/skills/milestoner-supervisor/SKILL.md` in the project, or to
-`~/.claude/skills/` with `--global`. `--print` dumps the skill text to stdout without writing
-anything, which is how to read the playbook before installing it. It refuses to overwrite an existing
-file without `--force`.
+Writes the bundled skills to `.claude/skills/<name>/SKILL.md` in the project, or to
+`~/.claude/skills/` with `--global`. Two ship: `milestoner-supervisor` (alias `supervisor`), the
+bounded supervision playbook, and `milestoner-planner` (alias `planner`), which walks a Claude
+session through authoring the run's plan with you. With no name it installs both; name one to
+install just it. `--print <name>` dumps that skill's text to stdout without writing anything, which
+is how to read a playbook before installing it. It refuses to overwrite an existing file without
+`--force`.
 
-If you installed the plugin, this is redundant: the plugin ships the same skill from the same source,
-so the skill is already available in Claude Code and there is nothing to write. `skill install` is for
-CLI-only users, who have the engine but not the plugin's components.
+If you installed the plugin, this is redundant: the plugin ships the same skills from the same
+source, so they are already available in Claude Code and there is nothing to write. `skill install`
+is for CLI-only users, who have the engine but not the plugin's components.
 
 ### milestoner kill
 
@@ -1270,7 +1296,7 @@ playbook.
 ### Starting it
 
 ```sh
-milestoner skill install          # writes .claude/skills/milestoner-supervisor/SKILL.md
+milestoner skill install supervisor   # writes .claude/skills/milestoner-supervisor/SKILL.md
 ```
 
 Then, in a Claude Code session at the project root:
@@ -1506,7 +1532,7 @@ This is also the best way to learn what your prompts are worth before trusting t
 The full setup, and the one the product was built for:
 
 ```sh
-milestoner skill install
+milestoner skill install supervisor
 milestoner run           # terminal 1, or a detached shell
 ```
 
@@ -1554,10 +1580,10 @@ milestoner run --milestone M04 --max-attempts 6
 milestoner kill --reason "no test output for 40m, transcript still empty"
 ```
 
-**Read the playbook before installing the skill.**
+**Read a playbook before installing the skill.**
 
 ```sh
-milestoner skill install --print | less
+milestoner skill install supervisor --print | less
 ```
 
 **Swap the agent.** Only the config changes:

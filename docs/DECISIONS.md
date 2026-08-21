@@ -655,3 +655,33 @@ Rejected, and still rejected: a flow builder that generates prompts from boxes a
 argument for revisiting it, and the narrower version that edits ordering and titles while the prompt
 files stay hand-written text, are in `docs/NEXT.md`. Superseding this decision is what that would
 require, and it has not been superseded.
+
+## D-032 - A planner skill that interviews, and `skill install` learns names (2026-08-21)
+
+The bundle gains a second skill, `milestoner-planner`, and the question it had to answer first is
+whether it survives D-031. It does, because the boundary D-031 draws is about who supplies the
+substance, not who types the markdown. The engine still writes no prompts. The planner is an
+authoring assistant with the user in the loop at both ends: it interviews ("what would you check by
+hand to believe this is done?"), proposes the milestone breakdown as a table, and writes nothing to
+disk before the user approves it. Its hard rules forbid inventing an acceptance criterion the user
+has not confirmed - a criterion nobody meant is a criterion nobody checks - and its final checklist
+enforces what the `milestoner lint` experiment in `docs/NEXT.md` item 5 would: at least one
+criterion per milestone, each naming a written artifact, an exit section, one gate per milestone,
+prompts self-contained. What D-031 rejected - a builder generating specifications on its own -
+stays rejected.
+
+Boundaries the planner inherits rather than invents: it may edit `state.json` only for milestone
+titles, only while no runner is alive and the milestone is pending with zero attempts (D-006
+otherwise stands); it reads `status --json` before touching anything, and a run in flight stops it;
+and it never launches `milestoner run` itself - starting an unattended run spends the user's time
+and tokens, so the command is handed over, not executed. `src/templates/planner.test.ts` pins the
+approval-before-write sentence, the guard on `state.json`, and that the human-only commands are
+never spelled runnable.
+
+Distribution follows D-017 unchanged: one source in `src/templates/planner.ts`, shipped twice
+(generated into `skills/` for the plugin, written by the CLI), drift-guarded by a test.
+`milestoner skill install` now takes an optional name (`supervisor`, `planner`, or the full skill
+names); with none it installs everything, and `--print` requires a name now that there are two. The
+plugin ships a fifth command, `/milestoner-plan`, which passes D-018's admission test the same way
+`/milestoner-init` does: in-session file work, not long-lived, not a decision reserved to a human
+or to the supervisor.

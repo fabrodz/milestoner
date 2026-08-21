@@ -47,17 +47,17 @@ cd milestoner && npm install && npm run build && npm link
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
 
-**The plugin - optional.** A Claude Code plugin that adds the supervisor skill and four slash commands
-(`/milestoner-init`, `/milestoner-status`, `/milestoner-supervise`, `/milestoner-report`) inside a Claude
-session:
+**The plugin - optional.** A Claude Code plugin that adds the supervisor and planner skills and five
+slash commands (`/milestoner-init`, `/milestoner-plan`, `/milestoner-status`, `/milestoner-supervise`,
+`/milestoner-report`) inside a Claude session:
 
 ```sh
 claude plugin marketplace add fabrodz/milestoner
 claude plugin install milestoner@milestoner
 ```
 
-**The plugin does not put the `milestoner` binary on your PATH.** Its slash commands and its supervisor
-skill all shell out to that binary, so the plugin needs the CLI install above to do anything; it is a
+**The plugin does not put the `milestoner` binary on your PATH.** Its slash commands and its skills
+all shell out to that binary, so the plugin needs the CLI install above to do anything; it is a
 convenience surface over the engine, not a second copy of it. A first-time user should do the CLI
 install and add the plugin only to drive and supervise the run from inside Claude Code rather than a
 terminal.
@@ -91,12 +91,28 @@ Before leaving a run overnight:
 
 ## Use
 
+First time here? [The guide's quickstart](docs/GUIDE.md#quickstart-your-first-run) walks the whole
+first run - scaffold, plan, run, supervise, report - assuming nothing. The short version:
+
 ```sh
 milestoner init --run my-run --milestones 5
 # write .milestoner/protocol.md and the milestone prompts, then:
 milestoner run
 milestoner status
 ```
+
+The protocol and the milestone prompts are yours to author; that friction is deliberate (the
+evidence gate only means something when a person wrote the criteria). If you do not know where to
+start, the planner skill walks a Claude session through it with you: it interviews you, proposes a
+milestone breakdown for your approval, and only then writes the prompts, the protocol TODOs and the
+liveness config. Nothing is generated without your sign-off.
+
+```sh
+milestoner skill install planner     # not needed if you installed the plugin
+```
+
+Then, in a Claude Code session at the project root: `/milestoner-plan` (plugin) or
+"Use the milestoner-planner skill to plan this run."
 
 ### Commands
 
@@ -110,7 +126,7 @@ milestoner status
 | `milestoner steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `milestoner serve [--port <n>] [--write]` | Local web panel for the run. Loopback only, key in the URL. |
-| `milestoner skill install [--global] [--force] [--print]` | Install the supervisor skill into `.claude/skills/`. |
+| `milestoner skill install [<name>] [--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
@@ -150,7 +166,7 @@ The engine keeps a run correct. The supervisor keeps it *alive*: a Claude sessio
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
 ```sh
-milestoner skill install     # not needed if you installed the plugin
+milestoner skill install supervisor     # not needed if you installed the plugin
 ```
 
 Then, in a Claude Code session at the project root:

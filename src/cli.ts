@@ -48,8 +48,9 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
       Local web panel for the run. Binds 127.0.0.1 only and prints a URL carrying a
       one-time key. --write enables the controls; without it the panel only reads.
 
-  milestoner skill install [--global] [--force] [--print]
-      Install the supervisor skill into .claude/skills/ (--global: ~/.claude/skills/).
+  milestoner skill install [<name>] [--global] [--force] [--print]
+      Install the bundled skills into .claude/skills/ (--global: ~/.claude/skills/).
+      With no name, installs all of them: supervisor, planner. --print needs a name.
 
   milestoner kill [--reason <text>] [--rule <n>]
       Supervisor intervention: kill the hung agent session. The runner consumes the
@@ -169,6 +170,7 @@ async function main(): Promise<number> {
     }
     return installSkill({
       projectRoot: findProjectRoot() ?? resolve(process.cwd()),
+      name: positionals[2],
       global: Boolean(values.global),
       force: Boolean(values.force),
       print: Boolean(values.print),

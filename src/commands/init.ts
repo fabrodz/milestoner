@@ -115,8 +115,12 @@ Next:
      (source dirs, test-result files, tool logs). The transcript is never one.
   5. ${color.bold("milestoner run")}
 
+Steps 1-4 are yours to author, but Claude can help: install the planner skill and ask for it.
+  ${color.bold("milestoner skill install planner")}
+  ${color.bold("Use the milestoner-planner skill to plan this run.")}
+
 To supervise a long run, install the supervisor skill and loop it:
-  ${color.bold("milestoner skill install")}
+  ${color.bold("milestoner skill install supervisor")}
   ${color.bold("/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.")}
 `);
   ok("ready");

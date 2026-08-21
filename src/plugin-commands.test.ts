@@ -8,8 +8,9 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const commandsDir = join(repoRoot, "commands");
 
 // The commands the plugin ships. Every CLI command that was considered and rejected
-// (run, serve, unblock, steer, kill, attend, skill install) is recorded in docs/DECISIONS.md D-018.
-const SHIPPED = ["milestoner-init", "milestoner-status", "milestoner-supervise", "milestoner-report"];
+// (run, serve, unblock, steer, kill, attend, skill install) is recorded in docs/DECISIONS.md D-018;
+// /milestoner-plan was admitted under the same test in D-032.
+const SHIPPED = ["milestoner-init", "milestoner-status", "milestoner-supervise", "milestoner-report", "milestoner-plan"];
 
 function read(name: string): string {
   return readFileSync(join(commandsDir, `${name}.md`), "utf8");

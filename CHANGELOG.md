@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The planner skill, `milestoner-planner`: plans a run together with the user - it interviews,
+  proposes the milestone breakdown for approval, and only then writes the prompts, the protocol
+  TODOs and the liveness config. It never writes before approval and never invents an acceptance
+  criterion, so the boundary against generated specifications (D-031) stands; the argument is
+  D-032. Shipped like the supervisor skill: one source, installed by the CLI, carried by the
+  plugin, drift-guarded by a test.
+- The plugin ships a fifth slash command, `/milestoner-plan`, which runs the planner skill.
+- `milestoner init` now points at the planner skill for the authoring steps it cannot do itself.
+
+### Changed
+
+- `milestoner skill install` takes an optional skill name (`supervisor`, `planner`, or the full
+  names). With no name it installs every bundled skill, where it previously installed only the
+  supervisor; `--print` now requires a name.
+
 ## [0.6.1] - 2026-08-21
 
 Documentation only; the engine is byte-identical to 0.6.0. The package's front page on npm is the
