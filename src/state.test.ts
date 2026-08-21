@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { allDone, nextMilestone, normalizeState, summarize } from "./state.js";
+import { nextMilestone, normalizeState, summarize } from "./state.js";
 
 const legacy = {
   run: "reference-run-v1.1",
@@ -32,6 +32,5 @@ test("state with no milestones is rejected", () => {
 test("the next milestone is the first that is not done", () => {
   const state = normalizeState(legacy);
   assert.equal(nextMilestone(state)?.id, "V02");
-  assert.equal(allDone(state), false);
   assert.deepEqual(summarize(state), { done: 1, total: 2, blocked: 0 });
 });

@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { SKILL_NAME, SKILL_TEMPLATE } from "./skill.js";
-
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const lf = (text: string): string => text.replace(/\r\n/g, "\n");
 
@@ -29,12 +24,4 @@ test("the playbook keeps its bounded shape", () => {
     assert.match(SKILL_TEMPLATE, new RegExp(`\\*\\*${rule}\\.`), `rule ${rule} is missing`);
   }
   assert.match(SKILL_TEMPLATE, /first matching rule wins/i);
-});
-
-test("the plugin ships the same skill text the CLI writes", () => {
-  // Drift guard: skills/<name>/SKILL.md is generated from SKILL_TEMPLATE by
-  // `npm run gen:skill`. If someone edits one and not the other, this fails. It compares text,
-  // not bytes: a checkout's line endings are not drift.
-  const shipped = readFileSync(join(repoRoot, "skills", SKILL_NAME, "SKILL.md"), "utf8");
-  assert.equal(lf(shipped), lf(SKILL_TEMPLATE), "run `npm run gen:skill` to regenerate the shipped skill");
 });

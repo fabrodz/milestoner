@@ -24,15 +24,11 @@ The name is the thesis. A milestone only counts when something on disk proves it
 diff, a commit. Milestoner runs one fresh session per milestone, grades what that session claims
 against the evidence it left behind, and moves the marker only when the two agree.
 
-Status: **v0.6**. Engine, the active supervisor as an installable Claude Code skill and a Claude Code plugin, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
+Status: **v0.7**, unreleased. Engine, the active supervisor and planner as installable Claude Code skills, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run. `npm install -g milestoner` currently gets **0.6.1**; the machine panel and the planner skill land with 0.7.0.
 
 ## Install
 
-Two install paths, and they are not alternatives: the CLI is the engine, the plugin is a Claude Code
-layer on top of it.
-
-**The CLI - required.** The `milestoner` binary is the engine: it runs a run, grades each session and
-owns the state machine.
+The `milestoner` binary is the engine: it runs a run, grades each session and owns the state machine.
 
 ```sh
 npm install -g milestoner
@@ -47,20 +43,10 @@ cd milestoner && npm install && npm run build && npm link
 
 Requires Node 20+ and an agent CLI on PATH (Claude Code by default).
 
-**The plugin - optional.** A Claude Code plugin that adds the supervisor and planner skills and five
-slash commands (`/milestoner-init`, `/milestoner-plan`, `/milestoner-status`, `/milestoner-supervise`,
-`/milestoner-report`) inside a Claude session:
-
-```sh
-claude plugin marketplace add fabrodz/milestoner
-claude plugin install milestoner@milestoner
-```
-
-**The plugin does not put the `milestoner` binary on your PATH.** Its slash commands and its skills
-all shell out to that binary, so the plugin needs the CLI install above to do anything; it is a
-convenience surface over the engine, not a second copy of it. A first-time user should do the CLI
-install and add the plugin only to drive and supervise the run from inside Claude Code rather than a
-terminal.
+The supervisor and planner skills for Claude Code ship inside the package; `milestoner skill
+install` writes them into `.claude/skills/` (`-g` for `~/.claude/skills/`). There is no separate
+plugin or marketplace install: the skills shell out to the `milestoner` binary, so distributing
+them apart from it would install something with nothing to call.
 
 Runs on Windows, macOS and Linux; CI exercises all three. Everything platform-specific is inside
 the engine: killing a session and everything it spawned (`taskkill /T` or the session's own POSIX
@@ -108,10 +94,10 @@ milestone breakdown for your approval, and only then writes the prompts, the pro
 liveness config. Nothing is generated without your sign-off.
 
 ```sh
-milestoner skill install planner     # not needed if you installed the plugin
+milestoner skill install planner
 ```
 
-Then, in a Claude Code session at the project root: `/milestoner-plan` (plugin) or
+Then, in a Claude Code session at the project root:
 "Use the milestoner-planner skill to plan this run."
 
 ### Commands
@@ -126,7 +112,7 @@ Then, in a Claude Code session at the project root: `/milestoner-plan` (plugin) 
 | `milestoner steer ["<text>"] [--append] [--clear]` | Course-correct a run in flight; applies to the next session launched. |
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `milestoner serve [--all] [--port <n>] [--write]` | Local web panel. Loopback only, key in the URL. `--all` serves every run on the machine, from any directory. |
-| `milestoner skill install [<name>] [--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
+| `milestoner skill install [<name>] [-g\|--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
@@ -166,7 +152,7 @@ The engine keeps a run correct. The supervisor keeps it *alive*: a Claude sessio
 ten minutes, decides whether the run is advancing, and intervenes inside a bounded playbook.
 
 ```sh
-milestoner skill install supervisor     # not needed if you installed the plugin
+milestoner skill install supervisor
 ```
 
 Then, in a Claude Code session at the project root:
@@ -187,11 +173,10 @@ it incomplete, consumes an attempt and relaunches with fresh context. The kill i
 cannot be mistaken for an infrastructure death and silently refunded.
 
 **Environment adapter.** Some environments get stuck in ways no agent can fix from inside its own
-session: a GUI editor loses focus, a native modal blocks the main thread, a dev server wedges, a
-connected device drops off the bus. Playbook rule 3 runs `environment.attendCommand` against exactly
-that, and nothing else. The engine knows nothing about any of them; the adapter is one command line
-you write, and a headless project leaves it null so the rule cannot fire. Two examples ship in
-[examples/adapters/](examples/adapters/).
+session: a GUI editor loses focus, a native modal blocks the main thread, a connected device drops
+off the bus. Playbook rule 3 runs `environment.attendCommand` against exactly that, and nothing
+else; the adapter is one command line you write, and a headless project leaves it null so the rule
+cannot fire. Two examples ship in [examples/adapters/](examples/adapters/).
 
 The full playbook, rule by rule, is in [docs/GUIDE.md](docs/GUIDE.md#the-supervisor).
 
@@ -228,28 +213,18 @@ Every form prints a URL carrying a one-time key. The panel shows the same run `s
 refreshed over server-sent events, and lets you act on it: set or clear steering, unblock a
 milestone, kill a hung session, run the environment adapter, start a runner or stop it. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
-audit trail rather than two.
-
-The machine panel is the default: the first `milestoner run` starts it as a detached daemon, every
-run that joins prints its URL, a hub page lists every run on the machine with a switcher between
-them, and the daemon exits on its own once nothing has been alive for ten minutes. The run that
-starts it also opens your browser - through a single-use link exchanged for a cookie at `/auth`, so
-the key never lands in browser history (`--open` forces this on any run, `--no-open` stops it,
-`--no-panel` opts the run out entirely). The reasoning is
-[D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
-
-The use it earns its keep for is the one the CLI is worst at: it is 3am, the run is on milestone
-four, and you want to read the diagnosis and the last transcript and steer from your phone without
-finding a laptop.
+audit trail rather than two. The machine panel runs as a detached daemon the first run starts,
+lists every run on the machine with a switcher between them, and exits on its own ten minutes
+after the last run ends
+([D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)).
 
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with
 `--dangerously-skip-permissions`, and `attend` runs your `attendCommand` through a shell. A
 write-enabled panel is a remote code execution endpoint by construction - and the machine panel a
 run starts is write-enabled, because kill, steer and unblock at 3am are why it exists. It binds
-`127.0.0.1` only and that is not configurable, every request needs the key from the URL (or the
-cookie `/auth` set), non-loopback `Host` headers and cross-origin writes are refused, and without
-`--write` a hand-started panel's mutating routes answer 403.
+`127.0.0.1` only and that is not configurable, every request needs the key from the URL, and
+non-loopback `Host` headers and cross-origin writes are refused.
 **Treat the URL like a password: it is one.** Never paste it anywhere that syncs.
 
 To reach it from another device, forward the port over SSH rather than exposing it. That recipe, the
@@ -272,27 +247,6 @@ The timeline is the part `status` cannot give you: the gaps are as informative a
 usage-limit wait looks different from a slow session, and the infrastructure retries that were
 never charged against the attempt budget are visible after the fact.
 
-## Layout
-
-```
-.milestoner/
-  config.json          agent command, attempts, infra rules, liveness watch list
-  state.json           the state machine (engine-owned)
-  protocol.md          shared rules every session reads first
-  prompts/M01.md       hand-written milestone specs: objective, tasks, gates, exit
-  results/             archived per-attempt claims
-  logs/                session transcripts
-  STEERING.md          your mid-flight corrections (absent = none)
-  report.html          generated run report
-  run-log.md           append-only engine events
-  supervisor-log.md    append-only interventions
-  execution-log.md     the agent's own narrative log
-  decisions.md         autonomous decisions the agent made
-
-~/.milestoner/
-  runs.json            machine-level registry of runs, read by `milestoner runs`
-```
-
 ## Configuration
 
 `.milestoner/config.json`, written by `init` and edited by you:
@@ -308,16 +262,14 @@ never charged against the attempt budget are visible after the fact.
 }
 ```
 
-`args` placeholders: `{{kickoff}}`, `{{promptFile}}`, `{{milestoneId}}`, `{{projectRoot}}`,
-`{{milestonerDir}}`, `{{model}}`.
-
 **Set `liveness`.** It is the list of paths whose mtime proves work is happening. Without it,
 `status` can tell you a process exists but not that it is doing anything, which is the difference
 between a run that is thinking and a run that is wedged.
 
 Every key, including the `infra` block that decides what counts as an infrastructure failure rather
 than a milestone failure, is documented in
-[docs/GUIDE.md](docs/GUIDE.md#configuration-reference).
+[docs/GUIDE.md](docs/GUIDE.md#configuration-reference); what every file under `.milestoner/` is
+for is in [the guide's layout section](docs/GUIDE.md#the-milestoner-directory).
 
 ## Running a different agent
 
@@ -329,17 +281,13 @@ with the milestone prompt:
            "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] }
 ```
 
-Claude Code and Codex are both exercised in this repository's own runs. Anything works that accepts
-a prompt as an argument, can read and write files in the project, and exits when finished.
-
+Anything works that accepts a prompt as an argument, can read and write files in the project, and
+exits when finished; Claude Code and Codex are both exercised in this repository's own runs.
 `fallbackAgents` covers the 2am usage limit: when a session fails for a reason the infra rules
 recognise, the failing agent is benched until its announced reset and the next authenticated one
-takes over immediately, without sleeping and without consuming the attempt. It never triggers on a
-work failure, because an `incomplete` verdict is what the attempt budget is for.
-
-Full recipes for Claude Code, Codex, a local model through Ollama and the fallback pool are in
-[docs/GUIDE.md](docs/GUIDE.md#running-a-different-agent), including what a small local model
-actually does when handed a milestone.
+takes over, without sleeping and without consuming the attempt. Full recipes - Claude Code, Codex,
+a local model through Ollama, the fallback pool - are in
+[docs/GUIDE.md](docs/GUIDE.md#running-a-different-agent).
 
 ## Roadmap
 
@@ -348,8 +296,10 @@ actually does when handed a milestone.
   adapter as a config string. Done.
 - **v0.3** single-file HTML run report; steering file support. Done.
 - **v0.4** plugin packaging: manifest, the supervisor skill and four slash commands as plugin
-  components, and an in-repo single-plugin marketplace. Done. A second agent behind the config
-  string is done too: see [Running a different agent](#running-a-different-agent).
+  components, and an in-repo single-plugin marketplace. Done, and retired in v0.7: a plugin that
+  cannot work without the npm install is not a second channel, it is a second copy of the first
+  one (D-034). A second agent behind the config string is done too: see
+  [Running a different agent](#running-a-different-agent).
 - **v0.5** the debt v0.4 exposed, plus one addition: a green test suite on Windows, `kill` ending
   the whole session on macOS and Linux rather than one process, a machine-level registry behind
   [`milestoner runs`](#commands), and the panel coming up with the run behind
@@ -357,6 +307,9 @@ actually does when handed a milestone.
 - **v0.6** three bugs the v0.5 run found by running: a state lock that a contender could break in
   the instant after it was taken, a crashed session charged an attempt it did not deserve, and
   `init` handing a new run the previous run's protocol. First version published to npm. Done.
+- **v0.7** the planner skill, the machine panel (one panel spanning every run, brought up by the
+  first one), one distribution channel (the plugin retired, D-034), `skill install -g`, and a
+  publish workflow triggered by version tags. On `main`, unreleased.
 
 Validated end to end, by building itself. v0.4 was a four-milestone milestoner run and v0.5 to v0.6
 was a seven-milestone one, every milestone a fresh Claude Code session graded against the evidence it

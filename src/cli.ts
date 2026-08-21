@@ -47,13 +47,13 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
   milestoner report [--out <path>] [--open]
       Write a single self-contained HTML report of the run.
 
-  milestoner serve [--all] [--port <n>] [--write]
+  milestoner serve [--all] [--port <n>] [--write] [--token <key>]
       Local web panel. Binds 127.0.0.1 only and prints a URL carrying a one-time key.
       --write enables the controls; without it the panel only reads. --all serves every
       run registered on this machine - the same panel "run" brings up on its own - and
       works from any directory.
 
-  milestoner skill install [<name>] [--global] [--force] [--print]
+  milestoner skill install [<name>] [-g|--global] [--force] [--print]
       Install the bundled skills into .claude/skills/ (--global: ~/.claude/skills/).
       With no name, installs all of them: supervisor, planner. --print needs a name.
 
@@ -126,7 +126,7 @@ async function main(): Promise<number> {
       once: { type: "boolean" },
       json: { type: "boolean" },
       "keep-attempts": { type: "boolean" },
-      global: { type: "boolean" },
+      global: { type: "boolean", short: "g" },
       print: { type: "boolean" },
       reason: { type: "string" },
       rule: { type: "string" },

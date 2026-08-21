@@ -3,10 +3,11 @@
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
 
-Applies to **v0.6**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
+Applies to **v0.7**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
 (`skill install`, `kill`, `attend`), mid-flight steering (`steer`), the HTML run report (`report`),
 the local web panel (`serve`, or `run --serve`), the machine-level run registry (`runs`), agent
-fallback, and the Claude Code plugin. Where a behaviour is planned for a later version it says so.
+fallback, and the two Claude Code skills (`skill install`). Where a behaviour is planned for a
+later version it says so.
 
 - [What milestoner actually does](#what-milestoner-actually-does)
 - [When to use it, and when not to](#when-to-use-it-and-when-not-to)
@@ -29,7 +30,7 @@ fallback, and the Claude Code plugin. Where a behaviour is planned for a later v
 - [Recipes](#recipes)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [Limits of v0.6](#limits-of-v06)
+- [Limits of v0.7](#limits-of-v07)
 
 ## What milestoner actually does
 
@@ -89,14 +90,8 @@ Do not use it when:
 
 ## Install and requirements
 
-There are two things you can install, and they do different jobs. The **CLI** is the engine: the
-`milestoner` binary that runs a run, grades each session and owns the state machine. Nothing works
-without it. The **plugin** is a Claude Code layer on top: it adds the supervisor and planner skills
-and five slash commands to a Claude session, and every one of them shells out to the same
-`milestoner` binary. The
-plugin is not a self-contained install; it does not put `milestoner` on your PATH.
-
-**The CLI (required).**
+The **CLI** is the engine: the `milestoner` binary that runs a run, grades each session and owns
+the state machine.
 
 ```sh
 npm install -g milestoner
@@ -111,20 +106,9 @@ cd milestoner && npm install && npm run build && npm link
 
 Either way `milestoner` ends up on your PATH. Confirm with `milestoner --help`.
 
-**The plugin (optional).** Adds `/milestoner-init`, `/milestoner-plan`, `/milestoner-status`,
-`/milestoner-supervise` and `/milestoner-report`, plus the supervisor and planner skills, inside
-Claude Code:
-
-```sh
-claude plugin marketplace add fabrodz/milestoner
-claude plugin install milestoner@milestoner
-```
-
-The marketplace lives in this same repository (a single-plugin marketplace), so the one `add`
-command points at the repo and the `install` pulls the plugin from it. Because the plugin's commands
-and skill all call the `milestoner` binary, install the CLI first; the plugin on its own has nothing to
-call. A first-time user needs only the CLI. Add the plugin when you would rather drive and supervise
-the run from inside a Claude session than from a terminal.
+The two Claude Code skills (supervisor and planner) ship inside the package and are written by
+[`milestoner skill install`](#milestoner-skill-install); there is no separate plugin or
+marketplace install.
 
 Requirements:
 
@@ -253,9 +237,8 @@ conventions, what "the environment is reachable" means here. Ten minutes here sa
 
 `.milestoner/prompts/M01.md` and friends. This is the actual work specification and milestoner never
 generates it for you. See [Writing milestone prompts](#writing-milestone-prompts). If you would
-rather author it in conversation, the planner skill (`milestoner skill install planner`, or the
-plugin's `/milestoner-plan`) has Claude interview you and draft the prompts for your approval; the
-substance still comes from you.
+rather author it in conversation, the planner skill (`milestoner skill install planner`) has
+Claude interview you and draft the prompts for your approval; the substance still comes from you.
 
 ### 4. Set the titles and the liveness list
 
@@ -333,8 +316,7 @@ reprints it. To pin a panel to this run alone, see
 
 ### 7. Optionally, put a supervisor on it
 
-If you installed the plugin, the supervisor skill came with it; skip this command. On a CLI-only
-install, write the skill into the project first:
+Write the skill into the project first:
 
 ```sh
 milestoner skill install supervisor
@@ -921,20 +903,16 @@ front and understand that you have taken on that decision.
 ### milestoner skill install
 
 ```sh
-milestoner skill install [<name>] [--global] [--force] [--print]
+milestoner skill install [<name>] [-g|--global] [--force] [--print]
 ```
 
 Writes the bundled skills to `.claude/skills/<name>/SKILL.md` in the project, or to
-`~/.claude/skills/` with `--global`. Two ship: `milestoner-supervisor` (alias `supervisor`), the
-bounded supervision playbook, and `milestoner-planner` (alias `planner`), which walks a Claude
+`~/.claude/skills/` with `-g`/`--global`. Two ship: `milestoner-supervisor` (alias `supervisor`),
+the bounded supervision playbook, and `milestoner-planner` (alias `planner`), which walks a Claude
 session through authoring the run's plan with you. With no name it installs both; name one to
 install just it. `--print <name>` dumps that skill's text to stdout without writing anything, which
 is how to read a playbook before installing it. It refuses to overwrite an existing file without
 `--force`.
-
-If you installed the plugin, this is redundant: the plugin ships the same skills from the same
-source, so they are already available in Claude Code and there is nothing to write. `skill install`
-is for CLI-only users, who have the engine but not the plugin's components.
 
 ### milestoner kill
 
@@ -1723,11 +1701,11 @@ it as a protocol violation and fix the prompt.
 **Does `done` mean the code is good?** It means the acceptance criteria have written evidence. The
 strength of that guarantee is the quality of your criteria. Review the tags.
 
-## Limits of v0.6
+## Limits of v0.7
 
-- **Plugin packaging.** Besides the CLI-written skill, the supervisor and four slash commands
-  install as a Claude Code plugin from an in-repo marketplace; see the install section of
-  [../README.md](../README.md). The CLI is still the engine and the required install.
+- **One install channel.** npm is the only distribution; the Claude Code skills are written by
+  `milestoner skill install` from the installed package. The plugin/marketplace channel v0.4
+  introduced was retired because it could not work without the npm install anyway (D-034).
 - **Two agents exercised.** Claude Code and Codex; see
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.

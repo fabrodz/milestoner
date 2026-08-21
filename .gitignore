@@ -6,3 +6,6 @@ dist/
 
 # Run state: the record of a run belongs to the machine that ran it, not to the repository.
 .milestoner/
+
+# Locally installed skills: `milestoner skill install` writes them for the machine, not the repo.
+.claude/

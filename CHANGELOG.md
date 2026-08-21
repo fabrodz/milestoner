@@ -11,10 +11,12 @@ All notable changes to this project are documented here. The format follows
   proposes the milestone breakdown for approval, and only then writes the prompts, the protocol
   TODOs and the liveness config. It never writes before approval and never invents an acceptance
   criterion, so the boundary against generated specifications (D-031) stands; the argument is
-  D-032. Shipped like the supervisor skill: one source, installed by the CLI, carried by the
-  plugin, drift-guarded by a test.
-- The plugin ships a fifth slash command, `/milestoner-plan`, which runs the planner skill.
+  D-032. Shipped like the supervisor skill: one source in `src/templates/`, written by
+  `milestoner skill install`.
 - `milestoner init` now points at the planner skill for the authoring steps it cannot do itself.
+- `milestoner skill install -g` as the short form of `--global`.
+- A `publish.yml` workflow: pushing a `v<semver>` tag publishes to npm, after checking the tag
+  against `package.json` and letting `prepublishOnly` run the typecheck, tests and build.
 - The machine panel (D-033): `milestoner serve --all` serves every run the registry knows about,
   from any directory - a hub across runs plus the familiar per-run view with a switcher. The first
   `milestoner run` on the machine brings it up as a detached daemon that stays while any run is
@@ -36,6 +38,14 @@ All notable changes to this project are documented here. The format follows
   at 3am are why it exists; the guards are the same loopback bind, Host allowlist, key and Origin
   check as always). `run --serve` keeps its per-run attached panel unchanged and skips the machine
   panel.
+
+### Removed
+
+- The Claude Code plugin and its in-repo marketplace (D-034). The plugin could not do anything
+  without the npm-installed binary its commands and skills shell out to, so it was a second copy
+  of the npm channel, not a second channel. `milestoner skill install` is now the one way to get
+  the skills, and with them gone go `commands/`, the generated `skills/` mirror, the manifest
+  sync/check scripts, and the manifests CI job.
 
 ## [0.6.1] - 2026-08-21
 

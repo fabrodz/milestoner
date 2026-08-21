@@ -22,6 +22,8 @@ sit behind the same agent-config seam.
 
 ## D-002 - Distribution: npm first, Claude Code plugin later (2026-08-18)
 
+The plugin half is superseded by [D-034](#d-034---the-plugin-channel-is-retired-the-cli-writes-the-skills-and-that-is-the-one-channel-2026-08-21): the channel shipped in v0.4 and was retired in v0.7.
+
 `npx milestoner init|run|status|unblock` in v0.1. The supervisor ships as a Claude Code skill in v0.2
 and the whole thing gets plugin packaging in v0.4.
 
@@ -234,6 +236,8 @@ layout.
 
 ## D-018 - Four slash commands ship; run, serve, and the human-only commands do not (2026-08-19)
 
+Superseded by [D-034](#d-034---the-plugin-channel-is-retired-the-cli-writes-the-skills-and-that-is-the-one-channel-2026-08-21): the commands left with the plugin. The admission test and the model-boundary rules live on in the skill templates and their tests.
+
 The plugin ships four commands under `commands/`: `/milestoner-init`, `/milestoner-status`,
 `/milestoner-supervise` and `/milestoner-report`. The test comes from what belongs *inside* a session:
 a command earns its place when it is worth running without leaving the session, is not a long-lived
@@ -266,6 +270,8 @@ runnable invocations. `src/plugin-commands.test.ts` enforces both, alongside the
 frontmatter of every shipped command.
 
 ## D-019 - The marketplace is a single-plugin manifest in this repository (2026-08-19)
+
+Superseded by [D-034](#d-034---the-plugin-channel-is-retired-the-cli-writes-the-skills-and-that-is-the-one-channel-2026-08-21) along with the plugin it distributed.
 
 The plugin is distributed from a `.claude-plugin/marketplace.json` that lives beside `plugin.json`
 in this repository, with one entry whose `source` is `"./"`. A user runs `claude plugin marketplace
@@ -750,3 +756,30 @@ machine panel keeps an in-memory record of every run it has seen registered and 
 summarising the missing ones from each project's own `state.json`, as `complete` or `gone`,
 for as long as the panel process lives. The memory dies with the daemon, which is the point: it is
 a courtesy to whoever is watching, not a second registry, and D-025's semantics are untouched.
+
+## D-034 - The plugin channel is retired; the CLI writes the skills, and that is the one channel (2026-08-21)
+
+v0.4 made the repository a Claude Code plugin beside the npm CLI: manifests under
+`.claude-plugin/`, five slash commands under `commands/`, the skills mirrored into `skills/` by a
+generator, a version sync script, a drift-guard test per copy, and a CI job for the manifests
+(D-002, D-018, D-019). All of it is removed. `milestoner skill install` (now with `-g` as the
+short `--global`) is the only way the skills reach a machine.
+
+The observation that ends it: the plugin could not do anything by itself. Every slash command and
+both skills shell out to the `milestoner` binary, which only the npm install provides, so
+"install the plugin" was never a real alternative first step - it was a second install a user
+could only perform correctly after the first one, and a second copy of every artifact the repo
+already ships. What the channel cost was real, though: two manifests that had to agree with
+package.json (a sync script, a check script, a test), a generated `skills/` tree that had to
+agree with `src/templates/` (a generator and a drift test per skill), a CI job, and an install
+section that had to explain why the optional path did not work alone.
+
+The slash commands go with it. `/milestoner-status` and friends were thin prose over CLI calls;
+the two things with real content, the supervisor playbook and the planner interview, are the
+skills, and they survive unchanged where they always actually lived: `src/templates/`, written by
+the CLI.
+
+Supersedes the plugin half of D-002 and all of D-018/D-019 (their reasoning about what a command
+may expose - no runnable `unblock`/`steer`, `state.json` only behind a guard - lives on in the
+skill templates and their tests). Reversal is cheap if a reason appears: the manifests are in git
+history, and nothing in the engine grew a dependency on their absence.

@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { PLANNER_SKILL_NAME, PLANNER_SKILL_TEMPLATE } from "./planner.js";
-
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const lf = (text: string): string => text.replace(/\r\n/g, "\n");
 
@@ -32,9 +27,4 @@ test("the planner names state.json only inside a guard and never spells the huma
   assert.match(PLANNER_SKILL_TEMPLATE, /Never edit `\.milestoner\/state\.json` except the milestone titles/);
   assert.doesNotMatch(PLANNER_SKILL_TEMPLATE, /milestoner unblock/);
   assert.doesNotMatch(PLANNER_SKILL_TEMPLATE, /milestoner steer/);
-});
-
-test("the plugin ships the same planner text the CLI writes", () => {
-  const shipped = readFileSync(join(repoRoot, "skills", PLANNER_SKILL_NAME, "SKILL.md"), "utf8");
-  assert.equal(lf(shipped), lf(PLANNER_SKILL_TEMPLATE), "run `npm run gen:skill` to regenerate the shipped skill");
 });

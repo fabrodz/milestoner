@@ -12,10 +12,7 @@
   "bin": { "milestoner": "./dist/cli.js" },
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
-    "gen:skill": "node --import tsx scripts/gen-skill.mjs",
-    "sync:version": "node scripts/sync-version.mjs",
-    "check:manifests": "node scripts/check-manifests.mjs",
-    "build": "npm run gen:skill && npm run sync:version && tsup",
+    "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/test.mjs",

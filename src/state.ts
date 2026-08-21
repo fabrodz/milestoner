@@ -75,10 +75,6 @@ export function nextMilestone(state: RunState): Milestone | undefined {
   return state.milestones.find((m) => m.status !== "done");
 }
 
-export function allDone(state: RunState): boolean {
-  return state.milestones.every((m) => m.status === "done");
-}
-
 export function summarize(state: RunState): { done: number; total: number; blocked: number } {
   return {
     done: state.milestones.filter((m) => m.status === "done").length,

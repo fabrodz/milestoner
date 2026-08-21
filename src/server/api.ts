@@ -147,4 +147,3 @@ export function stopRun(ctx: ApiContext): ActionResult {
   }
 }
 
-export const LOGS_DIR = (ctx: ApiContext): string => join(ctx.layout.logs);
