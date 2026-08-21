@@ -9,7 +9,7 @@
   "bugs": { "url": "https://github.com/fabrodz/milestoner/issues" },
   "type": "module",
   "engines": { "node": ">=20" },
-  "bin": { "milestoner": "./dist/cli.js" },
+  "bin": { "milestoner": "dist/cli.js" },
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsup",
