@@ -20,13 +20,26 @@ console.log("x".repeat(2000));
 writeFileSync(dir + "/result.json", readFileSync(verdictFile, "utf8").replace("__ID__", id));
 `;
 
+// A prompt the lint gate has no reason to refuse: the gate runs on every start, fixtures included.
+function cleanPrompt(run: string, id: string): string {
+  return [
+    `# ${id}`,
+    "## Objective",
+    "A fixture milestone that exists so the runner has something to execute.",
+    "## Acceptance criteria",
+    "- **AC1** - the fake agent ran (evidence: result.json)",
+    "## Exit",
+    `- Tagged ${run}-${id}.`,
+  ].join("\n\n");
+}
+
 function scaffold(verdict: unknown) {
   const root = mkdtempSync(join(tmpdir(), "milestoner-once-"));
   const layout = layoutFor(root);
   mkdirSync(layout.prompts, { recursive: true });
   writeFileSync(join(root, "agent.mjs"), AGENT);
   writeFileSync(join(root, "verdict.json"), JSON.stringify(verdict));
-  writeFileSync(join(layout.prompts, "M01.md"), "# M01");
+  writeFileSync(join(layout.prompts, "M01.md"), cleanPrompt("once-test", "M01"));
 
   const state: RunState = {
     run: "once-test",

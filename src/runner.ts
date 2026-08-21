@@ -1,7 +1,9 @@
 import { appendFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
+import { collectLintInput, lintTotals, renderFindings } from "./commands/lint.js";
 import { buildAgentArgs } from "./config.js";
+import { lintRun } from "./lint.js";
 import { registryPath, type Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { deregisterRun, registerRun } from "./registry.js";
@@ -24,6 +26,8 @@ export interface RunOptions {
   /** Stop after the first milestone attempt instead of draining the run. */
   once?: boolean;
   milestoneId?: string;
+  /** Skip the startup lint gate. The lint summary line is still written to run-log.md. */
+  noLint?: boolean;
   /** Hard stop: kill the running session now, leave the milestone in_progress. */
   signal: AbortSignal;
   /** Graceful stop: let the current session finish and be graded, then launch nothing more. */
@@ -38,7 +42,7 @@ export interface RunOptions {
   globalPanel?: { cliPath: string; port: number; write: boolean; open: "auto" | "always" | "never" };
 }
 
-export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted";
+export type RunExit = "complete" | "blocked" | "stopped" | "infra-exhausted" | "lint-refused";
 
 function fileStamp(d = new Date()): string {
   // Milliseconds included: two sessions of one milestone in the same second would otherwise
@@ -49,6 +53,31 @@ function fileStamp(d = new Date()): string {
 function logEvent(layout: Layout, milestoneId: string, event: string, detail: string): void {
   ensureDir(layout.dir);
   appendFileSync(layout.runLog, `${iso()} | ${milestoneId} | ${event} | ${detail}\n`, "utf8");
+}
+
+/**
+ * The startup lint gate (D-035): error findings on milestones this run may still execute refuse
+ * the start; findings on done or blocked milestones never stop a resume, and warnings never block.
+ * The summary line lands in run-log.md on every start, clean, gated or bypassed.
+ */
+function lintGate(config: MilestonerConfig, layout: Layout, bypass: boolean): boolean {
+  const state = loadState(layout.state);
+  const findings = lintRun(collectLintInput(config, layout, state));
+  const { errors, summary } = lintTotals(findings);
+  logEvent(layout, "-", "lint", bypass ? `${summary} (bypassed with --no-lint)` : summary);
+
+  const pending = new Set(state.milestones.filter((m) => m.status === "pending").map((m) => m.id));
+  const gating = findings.filter((f) => f.severity === "error" && f.milestone !== null && pending.has(f.milestone));
+  if (gating.length === 0 || bypass) {
+    if (errors > 0 && bypass) warn(`lint: ${summary} - starting anyway (--no-lint)`);
+    return true;
+  }
+
+  fail(`refusing to start: ${summary}, with error-level findings on pending milestones`);
+  renderFindings(state.run, state.milestones, findings);
+  console.log(`\n${color.red(summary)}\n`);
+  console.log(`fix the prompts (\`milestoner lint\` re-checks them), or start anyway with \`milestoner run --no-lint\`.\n`);
+  return false;
 }
 
 export function buildKickoff(
@@ -119,6 +148,9 @@ export async function run(options: RunOptions): Promise<RunExit> {
   const anySignal = options.stopSignal ? AbortSignal.any([signal, options.stopSignal]) : signal;
   const maxAttempts = options.maxAttempts ?? config.maxAttempts;
   if (options.model) config.agent.model = options.model;
+
+  // Before any session, any state change and any panel: a run that fails the gate never started.
+  if (!lintGate(config, layout, options.noLint === true)) return "lint-refused";
 
   ensureDir(layout.logs);
   ensureDir(layout.results);

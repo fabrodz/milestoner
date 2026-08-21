@@ -30,8 +30,11 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
       exit 0.
 
   milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once]
-                 [--no-panel] [--open | --no-open] [--serve [--port <n>] [--write]]
+                 [--no-lint] [--no-panel] [--open | --no-open]
+                 [--serve [--port <n>] [--write]]
       Drain the run: one fresh agent session per milestone until complete or blocked.
+      Lints the run first and refuses to start on error-level findings on pending
+      milestones; --no-lint skips the gate (the findings are still logged).
       Unless --no-panel, the machine panel comes up with the first run on this machine,
       spans every run, and stays while any run is alive; each run prints its URL, and
       the run that starts it opens the browser (--open forces that, --no-open stops it).
@@ -147,6 +150,7 @@ async function main(): Promise<number> {
       serve: { type: "boolean" },
       all: { type: "boolean" },
       "auto-exit": { type: "boolean" },
+      "no-lint": { type: "boolean" },
       "no-panel": { type: "boolean" },
       "no-open": { type: "boolean" },
     },
@@ -330,6 +334,7 @@ async function main(): Promise<number> {
       model: values.model,
       once: Boolean(values.once),
       milestoneId: values.milestone,
+      noLint: Boolean(values["no-lint"]),
       signal: killController.signal,
       stopSignal: stopController.signal,
       serve: serveOptions,

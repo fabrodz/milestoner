@@ -29,13 +29,25 @@ setTimeout(() => {
 const plain = (s: string) => s.replaceAll(/\x1b\[\d+m/g, "");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// A prompt the lint gate has no reason to refuse: the gate runs on every start, fixtures included.
+function cleanPrompt(run: string, id: string): string {
+  return [
+    `# ${id}`,
+    "## Objective",
+    "A fixture milestone that exists so the runner has something to execute.",
+    "## Acceptance criteria",
+    "- **AC1** - the fake agent ran (evidence: result.json)",
+    "## Exit",
+    `- Tagged ${run}-${id}.`,
+  ].join("\n\n");
+}
+
 function scaffold(): { root: string; layout: ReturnType<typeof layoutFor> } {
   const root = mkdtempSync(join(tmpdir(), "milestoner-serve-"));
   const layout = layoutFor(root);
   mkdirSync(layout.prompts, { recursive: true });
   writeFileSync(join(root, "agent.mjs"), AGENT);
-  writeFileSync(join(layout.prompts, "M01.md"), "# M01");
-  writeFileSync(join(layout.prompts, "M02.md"), "# M02");
+  for (const id of ["M01", "M02"]) writeFileSync(join(layout.prompts, `${id}.md`), cleanPrompt("serve-test", id));
 
   const state: RunState = {
     run: "serve-test",

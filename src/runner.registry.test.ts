@@ -22,12 +22,25 @@ copyFileSync(registry, snapshot);
 writeFileSync(dir + "/result.json", JSON.stringify({ milestone: id, status: "done", evidence: ["AC1: ran"] }));
 `;
 
+// A prompt the lint gate has no reason to refuse: the gate runs on every start, fixtures included.
+function cleanPrompt(run: string, id: string): string {
+  return [
+    `# ${id}`,
+    "## Objective",
+    "A fixture milestone that exists so the runner has something to execute.",
+    "## Acceptance criteria",
+    "- **AC1** - the fake agent ran (evidence: result.json)",
+    "## Exit",
+    `- Tagged ${run}-${id}.`,
+  ].join("\n\n");
+}
+
 test("the runner registers while it runs and deregisters in the same finally that clears the pulse", async () => {
   const root = mkdtempSync(join(tmpdir(), "milestoner-reg-"));
   const layout = layoutFor(root);
   mkdirSync(layout.prompts, { recursive: true });
   writeFileSync(join(root, "agent.mjs"), AGENT);
-  writeFileSync(join(layout.prompts, "M01.md"), "# M01");
+  writeFileSync(join(layout.prompts, "M01.md"), cleanPrompt("registry-test", "M01"));
 
   const state: RunState = {
     run: "registry-test",
