@@ -1,15 +1,17 @@
 <p align="center">
-  <img src="docs/assets/logo.jpg" alt="Milestoner" width="500">
+  <img src="https://raw.githubusercontent.com/fabrodz/milestoner/main/docs/assets/logo.jpg" alt="Milestoner" width="500">
 </p>
 
 <p align="center">
-  <strong>An AI agent loop for software development.</strong>
+  <strong>An AI agent runner for software development, gated on evidence.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/fabrodz/milestoner/actions"><img src="https://github.com/rtk-ai/rtk/workflows/Security%20Check/badge.svg" alt="CI"></a>
+  <a href="https://www.npmjs.com/package/milestoner"><img src="https://img.shields.io/npm/v/milestoner?color=cb3837&logo=npm" alt="npm"></a>
+  <a href="https://github.com/fabrodz/milestoner/actions/workflows/ci.yml"><img src="https://github.com/fabrodz/milestoner/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/fabrodz/milestoner/releases"><img src="https://img.shields.io/github/v/release/fabrodz/milestoner" alt="Release"></a>
-  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/node/v/milestoner" alt="Node version">
 </p>
 
 # Milestoner
@@ -124,7 +126,7 @@ overnight is the one worth being told about.
 ## How a run works
 
 <p align="center">
-  <img src="docs/assets/run-loop.svg" alt="The milestoner run loop: the engine launches one fresh agent session per milestone, the session writes result.json, the engine grades it into done, incomplete or blocked, while the supervisor watches" width="900">
+  <img src="https://raw.githubusercontent.com/fabrodz/milestoner/main/docs/assets/run-loop.svg" alt="The milestoner run loop: the engine launches one fresh agent session per milestone, the session writes result.json, the engine grades it into done, incomplete or blocked, while the supervisor watches" width="900">
 </p>
 
 1. **Fresh session per milestone.** Clean context every time. State lives in files, never in the
