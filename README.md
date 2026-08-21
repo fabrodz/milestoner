@@ -14,8 +14,6 @@
   <img src="https://img.shields.io/node/v/milestoner" alt="Node version">
 </p>
 
-# Milestoner
-
 Supervised autonomous-run engine for coding agents. A milestone state machine that launches one
 fresh headless agent session per milestone, grades what each session claims against written
 evidence, and refuses to spend a retry on a usage limit.
@@ -24,7 +22,7 @@ The name is the thesis. A milestone only counts when something on disk proves it
 diff, a commit. Milestoner runs one fresh session per milestone, grades what that session claims
 against the evidence it left behind, and moves the marker only when the two agree.
 
-Status: **v0.7**, unreleased. Engine, the active supervisor and planner as installable Claude Code skills, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run. `npm install -g milestoner` currently gets **0.6.1**; the machine panel and the planner skill land with 0.7.0.
+Status: **v0.7**. Engine, the active supervisor and planner as installable Claude Code skills, mid-flight steering, an HTML run report, a registry of the runs on your machine, and a web panel that comes up with the run.
 
 ## Install
 
@@ -308,8 +306,7 @@ a local model through Ollama, the fallback pool - are in
   the instant after it was taken, a crashed session charged an attempt it did not deserve, and
   `init` handing a new run the previous run's protocol. First version published to npm. Done.
 - **v0.7** the planner skill, the machine panel (one panel spanning every run, brought up by the
-  first one), one distribution channel (the plugin retired, D-034), `skill install -g`, and a
-  publish workflow triggered by version tags. On `main`, unreleased.
+  first one), one distribution channel (the plugin retired, D-034), and `skill install -g`. Done.
 
 Validated end to end, by building itself. v0.4 was a four-milestone milestoner run and v0.5 to v0.6
 was a seven-milestone one, every milestone a fresh Claude Code session graded against the evidence it

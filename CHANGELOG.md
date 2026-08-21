@@ -3,6 +3,19 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
+## [Unreleased]
+
+### Removed
+
+- `publish.yml`, one release after it arrived. Its first exercise ended at npm auth (the trusted
+  publisher was never configured) and 0.7.0 went out by hand; a publish is one command with
+  `prepublishOnly` already gating it, so the automation was overhead, not safety.
+
+### Fixed
+
+- `bin` drops its `./` prefix. npm 11 warns that the `./dist/cli.js` form is invalid and rewrites
+  the manifest while publishing; the plain relative path publishes clean, and npm 10 accepts both.
+
 ## [0.7.0] - 2026-08-21
 
 ### Added

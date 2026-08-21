@@ -671,7 +671,7 @@ authoring assistant with the user in the loop at both ends: it interviews ("what
 hand to believe this is done?"), proposes the milestone breakdown as a table, and writes nothing to
 disk before the user approves it. Its hard rules forbid inventing an acceptance criterion the user
 has not confirmed - a criterion nobody meant is a criterion nobody checks - and its final checklist
-enforces what the `milestoner lint` experiment in `docs/NEXT.md` item 5 would: at least one
+enforces what the `milestoner lint` experiment in `docs/NEXT.md` item 3 would: at least one
 criterion per milestone, each naming a written artifact, an exit section, one gate per milestone,
 prompts self-contained. What D-031 rejected - a builder generating specifications on its own -
 stays rejected.
