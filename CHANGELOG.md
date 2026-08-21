@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `milestoner lint`: checks the run's form - every milestone prompt, the protocol header and the
+  config - before a session spends real time on it. Errors (missing prompt file, scaffold residue,
+  missing objective or criteria, a criterion without an evidence note, an exit section without the
+  run's tag) exit `1`; warnings (orphaned prompt, protocol naming another run, empty liveness)
+  alone exit `0`. `--json` prints `{ run, errors, warnings, findings }` for scripts. The rules are
+  the pure `lintRun` core in `src/lint.ts`; the line between form and judgement is D-035.
+
 ### Removed
 
 - `publish.yml`, one release after it arrived. Its first exercise ended at npm auth (the trusted

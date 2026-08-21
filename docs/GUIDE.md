@@ -513,6 +513,68 @@ the new run would read the finished run's rules, tag instruction included, and n
 so. A protocol whose header no longer names a run at all is kept with a warning, because `init`
 cannot tell which run it belongs to; a protocol naming the run being scaffolded is kept silently.
 
+### milestoner lint
+
+```sh
+milestoner lint [--json]
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--json` | Print the findings machine-readable on stdout instead of the grouped listing. |
+
+Checks the run's form before a session spends real time on it: every milestone prompt, the
+protocol header and the config. It checks form, never substance - whether a criterion is
+*meaningful* stays with you and the planner interview
+([D-035](DECISIONS.md#d-035---milestoner-lint-checks-form-mechanically-and-judgement-stays-with-the-planner-2026-08-21)).
+
+Findings come at two severities. **Errors** mean a milestone cannot be graded: its prompt file is
+missing, scaffold placeholders were never filled in, the `## Objective` or `## Acceptance criteria`
+section is missing or empty, a criterion carries no `(evidence: ...)` note naming an artifact, or
+the `## Exit` section does not name the milestone's `<run>-<id>` tag. **Warnings** mean the run
+around the milestones is degraded without any one of them being ungradable: a prompt file no
+milestone in `state.json` references, a protocol header naming another run (or none), an empty
+`liveness` list.
+
+The listing groups findings per milestone, run-level ones first, one line per finding with its
+rule, message and file (with a line number where one applies), and closes with `N errors, M
+warnings`. A clean run prints an explicit all-clear.
+
+Exit code: `1` when at least one error-severity finding exists, `0` otherwise - warnings alone
+stay `0`. When there is no run to lint (no `.milestoner/`, or no `state.json`), it exits `1` with
+a message saying so.
+
+`--json` prints one object on stdout and nothing else:
+
+```json
+{
+  "run": "checkout-v2",
+  "errors": 1,
+  "warnings": 1,
+  "findings": [
+    {
+      "milestone": "M01",
+      "rule": "template-residue",
+      "severity": "error",
+      "message": "scaffold placeholder still present: \"1. ...\"",
+      "file": ".milestoner/prompts/M01.md",
+      "line": 18
+    },
+    {
+      "milestone": null,
+      "rule": "liveness-empty",
+      "severity": "warning",
+      "message": "no liveness paths configured, so nothing proves a session is doing anything",
+      "file": ".milestoner/config.json"
+    }
+  ]
+}
+```
+
+`milestone` is `null` for run-level findings; `line` appears only when a specific line is at
+fault. `errors` and `warnings` are counts over `findings`, so a script can gate on `errors`
+without re-deriving it.
+
 ### milestoner run
 
 ```sh

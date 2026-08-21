@@ -100,6 +100,7 @@ Then, in a Claude Code session at the project root:
 | Command | What it does |
 | --- | --- |
 | `milestoner init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.milestoner/`: config, state machine, protocol template, prompt skeletons. |
+| `milestoner lint [--json]` | Check the run's form before a session spends time on it: prompts, protocol, config. Errors exit `1`; warnings alone stay `0`. |
 | `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once] [--no-panel] [--open \| --no-open] [--serve]` | Drain the run: one fresh agent session per milestone until complete or blocked. Brings the machine panel up by default; `--serve` attaches a per-run panel instead. |
 | `milestoner status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
 | `milestoner runs [--json]` | Every run registered on this machine, from anywhere: project, milestone, progress, liveness. |
