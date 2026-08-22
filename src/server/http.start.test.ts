@@ -36,7 +36,7 @@ function quietly<T>(fn: () => T): T {
 /** A scaffolded run with two pending milestones, an argv-recording CLI and a recording adapter. */
 function scaffold(): { layout: ReturnType<typeof layoutFor>; cliPath: string; marker: string; attendMarker: string } {
   const root = mkdtempSync(join(tmpdir(), "milestoner-start-"));
-  assert.equal(quietly(() => init({ projectRoot: root, run: "start-api", count: 2, force: false })), 0);
+  assert.equal(quietly(() => init({ projectRoot: root, run: "start-api", count: 2, force: false })).code, 0);
   const layout = layoutFor(root);
 
   const marker = join(root, "spawned.txt");

@@ -108,6 +108,9 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <div class="card verdict" id="hubVerdict"></div>
     <h2>Runs on this machine</h2>
     <div id="hubRuns"></div>
+
+    <h2>New run<span class="muted" style="text-transform:none;letter-spacing:0"> — scaffold .milestoner/ in a directory on this machine</span></h2>
+    <div class="card" id="initCard"></div>
   </div>
 
   <div id="runView">
@@ -158,9 +161,15 @@ const api = path => path + (path.includes("?") ? "&" : "?") + (ROOT ? "root=" + 
 /* TOKEN is empty when /auth left a cookie instead; an empty Bearer would shadow the cookie. */
 const auth = TOKEN ? { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
 
+/* One run needs no hub to choose from, so the page opens it - unless the hub is what was asked for.
+   Without this, "all runs" on a one-project machine bounces straight back and the init form below
+   is unreachable. */
+let stayOnHub = PARAMS.get("hub") === "1";
+
 function goRun(root) {
   const u = new URL(location.href);
-  if (root) u.searchParams.set("root", root); else u.searchParams.delete("root");
+  if (root) { u.searchParams.set("root", root); u.searchParams.delete("hub"); }
+  else { u.searchParams.delete("root"); u.searchParams.set("hub", "1"); }
   location.href = u.href;
 }
 
@@ -314,6 +323,46 @@ function attendNow() {
   post("/api/attend", seconds > 0 ? { seconds } : {});
 }
 
+/** The hub's init form. The force box stays out of sight until a refusal asks for it. */
+function initCardHtml(d) {
+  return '<div class="row">' +
+    '<label class="opt" style="flex:1;min-width:20rem">Directory <input data-w id="initPath" type="text" style="flex:1" placeholder="an absolute path to a directory that already exists"></label>' +
+    '<label class="opt">Run name <input data-w id="initRun" type="text" style="width:10rem" placeholder="the directory name"></label>' +
+    '<label class="opt">Milestones <input data-w id="initCount" type="number" min="1" max="99" step="1" style="width:4.5rem" placeholder="3"></label>' +
+    '<button data-w class="primary" onclick="doInit()">Scaffold it</button>' +
+    "</div>" +
+    '<div id="initForce" style="display:none;margin-top:.55rem">' +
+    '<label class="opt"><input data-w id="initForceBox" type="checkbox">overwrite the config that is already there</label>' +
+    "</div>" +
+    '<div class="muted small" style="margin-top:.5rem">Writes config, state, the protocol template and the prompt skeletons, exactly as <b>milestoner init</b> does, and nothing else. The protocol and the prompts are still yours to write before a run means anything.</div>' +
+    (d.writable ? "" : '<div class="muted small" style="margin-top:.35rem">This panel can only read. Restart it with --write to enable this.</div>');
+}
+let lastInit = "";
+
+async function doInit() {
+  const path = field("initPath");
+  if (!path) return toast("a directory path is needed");
+  const body = { path };
+  if (field("initRun")) body.run = field("initRun");
+  if (field("initCount")) body.milestones = Number(field("initCount"));
+  const box = document.getElementById("initForceBox");
+  if (box && box.checked) body.force = true;
+  try {
+    const r = await fetch(api("/api/init"), { method: "POST", headers: auth, body: JSON.stringify(body) });
+    const a = await r.json();
+    toast(a.message || a.error || (r.ok ? "done" : "failed"));
+    const force = document.getElementById("initForce");
+    if (a.forceable) { if (force) force.style.display = "block"; return; }
+    if (!a.ok) return;
+    if (force) force.style.display = "none";
+    if (box) box.checked = false;
+    document.getElementById("initPath").value = "";
+    /* The listing is re-sent every tick, so the new project arrives on its own. Staying here is
+       deliberate: the next tick would otherwise open it and take the form away. */
+    stayOnHub = true;
+  } catch (e) { toast("request failed: " + e.message); }
+}
+
 async function startRun(noLint) {
   const box = document.getElementById("lintRefusal");
   const body = startBody();
@@ -390,8 +439,12 @@ function renderHub(d) {
       alive + " running, " + runs.filter(r => r.health === "complete").length + " complete." + "</div>" +
       '<div class="why">' + (blocked ? blocked + " milestone(s) blocked. " : "") +
       (down ? down + " runner(s) hung or gone. " : "") + ((blocked || down) ? "Open the run below to act." : "Nothing needs you right now.") + "</div>"
-    : '<div class="what">No runs are registered on this machine.</div>' +
-      '<div class="why">Start one with <b>milestoner run</b> in a project; it will appear here on its own.</div>';
+    : '<div class="what">No projects on this machine yet.</div>' +
+      '<div class="why">Scaffold one below, or run <b>milestoner init</b> in a directory yourself; either way it appears here.</div>';
+
+  // Rewritten only when it changed: this card carries inputs, and the hub is re-sent every tick.
+  const initHtml = initCardHtml(d);
+  if (initHtml !== lastInit) { lastInit = initHtml; document.getElementById("initCard").innerHTML = initHtml; }
 
   document.getElementById("hubRuns").innerHTML = runs.map(r =>
     '<div class="card runcard" data-root="' + esc(r.projectRoot) + '" onclick="goRun(this.dataset.root)">' +
@@ -413,8 +466,8 @@ function render(d) {
   if (d.hub) {
     document.getElementById("run").textContent = "every run on this machine";
     renderHub(d);
-    // One run needs no hub to choose from.
-    if ((d.runs || []).length === 1) goRun(d.runs[0].projectRoot);
+    document.querySelectorAll("[data-w]").forEach(b => { b.disabled = !d.writable; });
+    if (!stayOnHub && (d.runs || []).length === 1) goRun(d.runs[0].projectRoot);
     return;
   }
   document.getElementById("run").textContent = d.run;

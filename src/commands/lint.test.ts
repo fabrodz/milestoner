@@ -28,7 +28,7 @@ function capture(fn: () => number): { code: number; out: string } {
 
 function scaffold(run: string): string {
   const root = mkdtempSync(join(tmpdir(), "milestoner-lint-"));
-  const first = capture(() => init({ projectRoot: root, run, count: 2, force: false }));
+  const first = capture(() => init({ projectRoot: root, run, count: 2, force: false }).code);
   assert.equal(first.code, 0, "the scaffold must succeed");
   return root;
 }

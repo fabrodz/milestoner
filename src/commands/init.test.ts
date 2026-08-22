@@ -4,19 +4,19 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { layoutFor } from "../paths.js";
-import { init, protocolRunName } from "./init.js";
+import { init, protocolRunName, type InitResult } from "./init.js";
 
 // Colour depends on whether stdout is a tty, which is not the same when the file is run on its own.
 const plain = (s: string) => s.replaceAll(/\x1b\[\d+m/g, "");
 
-function capture(fn: () => number): { code: number; out: string } {
+function capture(fn: () => InitResult): InitResult & { out: string } {
   const lines: string[] = [];
   const log = console.log;
   const error = console.error;
   console.log = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
   console.error = (...args: unknown[]) => void lines.push(args.map(String).join(" "));
   try {
-    return { code: fn(), out: plain(lines.join("\n")) };
+    return { ...fn(), out: plain(lines.join("\n")) };
   } finally {
     console.log = log;
     console.error = error;
@@ -73,6 +73,25 @@ test("re-init over the same run's protocol keeps it byte for byte and says nothi
     !out.includes("names run") && !out.includes("does not name a run"),
     "a protocol that matches the run is not worth a warning",
   );
+});
+
+test("every outcome comes back as a message and a tag, for a caller that cannot read the console", () => {
+  const root = scaffold("checkout-v2");
+
+  const again = capture(() => init({ projectRoot: root, run: "checkout-v2", count: 2, force: false }));
+  assert.equal(again.code, 1);
+  assert.equal(again.refusal, "config-exists");
+  assert.match(again.message, /already exists - use --force/);
+
+  const foreign = capture(() => init({ projectRoot: root, run: "other-run", count: 2, force: true }));
+  assert.equal(foreign.code, 1);
+  assert.equal(foreign.refusal, "foreign-protocol", "force does not answer this one, so nothing may offer it");
+  assert.match(foreign.message, /names run "checkout-v2", not "other-run"/);
+
+  const fresh = capture(() => init({ projectRoot: mkdtempSync(join(tmpdir(), "milestoner-init-")), run: "fresh", count: 1, force: false }));
+  assert.equal(fresh.code, 0);
+  assert.equal(fresh.refusal, undefined);
+  assert.match(fresh.message, /initialized \.milestoner\/ for run "fresh"/);
 });
 
 test("a protocol that does not name a run is kept, with a warning that it cannot be checked", () => {

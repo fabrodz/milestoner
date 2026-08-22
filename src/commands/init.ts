@@ -18,6 +18,14 @@ export interface InitOptions {
   force: boolean;
 }
 
+export interface InitResult {
+  code: number;
+  /** What happened, in one line. The CLI has already printed it; a caller over HTTP has not. */
+  message: string;
+  /** Which refusal this was. Only `config-exists` is something `force` answers. */
+  refusal?: "config-exists" | "foreign-protocol";
+}
+
 export { protocolRunName };
 
 const MILESTONER_GITIGNORE = `logs/
@@ -28,13 +36,14 @@ kill.json
 report.html
 `;
 
-export function init(options: InitOptions): number {
+export function init(options: InitOptions): InitResult {
   const layout = layoutFor(options.projectRoot);
   const run = options.run ?? basename(options.projectRoot).toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
   if (existsSync(layout.config) && !options.force) {
-    warn(`${layout.config} already exists - use --force to overwrite the config`);
-    return 1;
+    const message = `${layout.config} already exists - use --force to overwrite the config`;
+    warn(message);
+    return { code: 1, message, refusal: "config-exists" };
   }
 
   // The protocol is hand-edited, so init never rewrites or deletes it. What it must not do is
@@ -42,13 +51,14 @@ export function init(options: InitOptions): number {
   if (existsSync(layout.protocol)) {
     const named = protocolRunName(readFileSync(layout.protocol, "utf8"));
     if (named !== null && named !== run) {
-      fail(`.milestoner/protocol.md names run "${named}", not "${run}" - a session would read the old run's rules`);
+      const message = `.milestoner/protocol.md names run "${named}", not "${run}" - a session would read the old run's rules`;
+      fail(message);
       console.log(`
   Nothing was scaffolded. Bring the protocol in line yourself - at least the run name in its
   header and the tag line in its Git section (tag \`${run}-<milestoneId>\`) - or delete the file
   to get a fresh template, then run init again.
 `);
-      return 1;
+      return { code: 1, message, refusal: "foreign-protocol" };
     }
     if (named === null) {
       warn(`.milestoner/protocol.md does not name a run, so init cannot tell whether it belongs to "${run}" - check it by hand`);
@@ -123,5 +133,5 @@ To supervise a long run, install the supervisor skill and loop it:
   ${color.bold("/loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.")}
 `);
   ok("ready");
-  return 0;
+  return { code: 0, message: `initialized .milestoner/ for run "${run}" in ${options.projectRoot}` };
 }

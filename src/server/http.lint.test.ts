@@ -39,7 +39,7 @@ function capture(fn: () => number): { code: number; out: string } {
 /** A run straight out of init: template residue everywhere, both milestones pending. */
 function scaffoldDirty(run: string): ReturnType<typeof layoutFor> {
   const root = mkdtempSync(join(tmpdir(), "milestoner-lintapi-"));
-  const scaffolded = capture(() => init({ projectRoot: root, run, count: 2, force: false }));
+  const scaffolded = capture(() => init({ projectRoot: root, run, count: 2, force: false }).code);
   assert.equal(scaffolded.code, 0, "the scaffold must succeed");
   return layoutFor(root);
 }

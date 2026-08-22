@@ -175,7 +175,7 @@ async function main(): Promise<number> {
       return 1;
     }
     const projectRoot = resolve(process.cwd());
-    const code = init({ projectRoot, run: values.run, count, force: Boolean(values.force) });
+    const { code } = init({ projectRoot, run: values.run, count, force: Boolean(values.force) });
     if (code === 0) recordProject(projectsPath(), projectRoot);
     return code;
   }

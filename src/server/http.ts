@@ -4,7 +4,7 @@ import { layoutFor, samePath } from "../paths.js";
 import { listProjects } from "../projects.js";
 import { listRuns, summariseKnownProject, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
-  doAttend, doKill, doSteer, doUnblock, lintFindings, reportHtml, snapshot, startRun, stopRun, transcript,
+  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, reportHtml, snapshot, startRun, stopRun, transcript,
   type ActionResult, type ApiContext,
 } from "./api.js";
 import { BIND_HOST, TOKEN_COOKIE, hostAllowed, newToken, originAllowed, tokenFrom, tokenMatches } from "./security.js";
@@ -203,6 +203,16 @@ export function createPanel(options: ServerOptions) {
       const body = await readBody(req);
       const str = (k: string) => (typeof body[k] === "string" ? (body[k] as string) : undefined);
       const bool = (k: string) => body[k] === true;
+
+      // Before ctxOr, and the one route that may name a directory the listing has never heard of:
+      // a project that does not exist yet cannot resolve to a context. See D-038.
+      if (path === "/api/init") {
+        if (scope.kind !== "machine") {
+          return json(res, 404, { error: "this panel answers for one project; init is on the machine panel" });
+        }
+        const result = initProject(body, scope.projects);
+        return json(res, result.ok ? 200 : 409, result);
+      }
 
       return ctxOr(async (ctx) => {
         let result: ActionResult;

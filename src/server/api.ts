@@ -1,13 +1,15 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { attend } from "../commands/attend.js";
+import { init } from "../commands/init.js";
 import { kill } from "../commands/kill.js";
 import { collectLintInput, gatingFindings, lintTotals } from "../commands/lint.js";
 import { steer } from "../commands/steer.js";
 import { unblock } from "../commands/unblock.js";
 import { lintRun, type LintFinding } from "../lint.js";
 import type { Layout } from "../paths.js";
+import { recordProject } from "../projects.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
@@ -106,6 +108,10 @@ export interface ActionResult {
   message: string;
   /** True when a start was refused by the lint gate, so the panel can offer the deliberate bypass. */
   lintRefused?: boolean;
+  /** True when an init was refused by something `force` answers, so the panel can offer it. */
+  forceable?: boolean;
+  /** The project root an init scaffolded, so the hub can open it. */
+  root?: string;
 }
 
 const outcome = (code: number, done: string, failed: string): ActionResult =>
@@ -207,6 +213,69 @@ export function startRun(ctx: ApiContext, options: StartOptions = {}): ActionRes
   });
   child.unref();
   return { ok: true, message: `runner started (pid ${child.pid})` };
+}
+
+/** Everything an init may carry, straight off the request body. */
+export interface InitRequest {
+  path?: unknown;
+  run?: unknown;
+  milestones?: unknown;
+  force?: unknown;
+}
+
+/** The bounds `cli.ts` puts on `--milestones`, so the two front ends refuse the same numbers. */
+const MIN_MILESTONES = 1;
+const MAX_MILESTONES = 99;
+
+/**
+ * Scaffold a project the panel names by path. Nothing here decides whether scaffolding is allowed:
+ * that is the auth layer's job, argued in D-038. This validates the body and hands the rest to the
+ * same `init()` the CLI calls, so the refusals - an existing config, a protocol naming another run
+ * (D-030) - are the CLI's refusals rather than a second set that can drift from them.
+ */
+export function initProject(body: InitRequest, projectsFile: string): ActionResult {
+  if (typeof body.path !== "string" || body.path.trim() === "") {
+    return { ok: false, message: "path is required: the absolute path of the directory to scaffold" };
+  }
+  const dir = body.path.trim();
+  if (!isAbsolute(dir)) return { ok: false, message: `path must be absolute, and "${dir}" is not` };
+
+  let isDirectory = false;
+  try {
+    isDirectory = statSync(dir).isDirectory();
+  } catch {
+    return { ok: false, message: `no such directory: ${dir} - create it first, this never makes one` };
+  }
+  if (!isDirectory) return { ok: false, message: `${dir} is not a directory` };
+
+  let run: string | undefined;
+  if (body.run !== undefined) {
+    if (typeof body.run !== "string" || body.run.trim() === "") {
+      return { ok: false, message: "run must be a non-empty name, or absent to take it from the directory" };
+    }
+    run = body.run.trim();
+  }
+
+  let count = 3;
+  if (body.milestones !== undefined) {
+    const n = body.milestones;
+    if (typeof n !== "number" || !Number.isInteger(n) || n < MIN_MILESTONES || n > MAX_MILESTONES) {
+      return { ok: false, message: `milestones must be an integer between ${MIN_MILESTONES} and ${MAX_MILESTONES}` };
+    }
+    count = n;
+  }
+
+  if (body.force !== undefined && typeof body.force !== "boolean") {
+    return { ok: false, message: "force must be true or false" };
+  }
+  const force = body.force === true;
+
+  const root = resolve(dir);
+  const result = init({ projectRoot: root, run, count, force });
+  if (result.code !== 0) return { ok: false, message: result.message, forceable: result.refusal === "config-exists" };
+
+  recordProject(projectsFile, root);
+  return { ok: true, message: result.message, root };
 }
 
 /** SIGINT, not SIGTERM: one interrupt is the runner's own "finish this session, then stop". */
