@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -82,8 +82,10 @@ function cli(cwd: string, home: string, args: string[]): Promise<number | null> 
 
 test("the CLI records the project it worked in, once per directory however often it runs", async () => {
   const home = mkdtempSync(join(tmpdir(), "milestoner-cli-home-"));
-  const root = mkdtempSync(join(tmpdir(), "milestoner-cli-"));
-  const other = mkdtempSync(join(tmpdir(), "milestoner-cli-other-"));
+  // realpath, because the recorded root is the child's cwd as the OS reports it: /var is a symlink
+  // to /private/var on macOS, and a Windows temp dir can be spelled with 8.3 short names.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "milestoner-cli-")));
+  const other = realpathSync(mkdtempSync(join(tmpdir(), "milestoner-cli-other-")));
   const projects = join(home, "projects.json");
 
   assert.equal(await cli(root, home, ["init", "--run", "recorded", "--milestones", "2"]), 0);
