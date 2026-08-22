@@ -147,6 +147,17 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <div class="todo" id="configError" style="display:none"></div>
   </div>
 
+  <h2>Protocol<span class="muted" style="text-transform:none;letter-spacing:0"> — .milestoner/protocol.md, the rules every session reads before its milestone</span></h2>
+  <div class="card" id="protocolCard">
+    <textarea id="protocolText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
+    <div class="row" style="margin-top:.55rem">
+      <button data-w class="primary" onclick="saveProtocol()">Save the protocol</button>
+      <button class="link" onclick="loadProtocolText('always')">Reload from disk</button>
+      <span class="muted small" id="protocolNote" style="margin-left:auto">A session that is already going read its files at launch, so an edit applies to the next one.</span>
+    </div>
+    <div class="todo" id="protocolError" style="display:none"></div>
+  </div>
+
   <div class="card" id="logView" style="display:none">
     <div class="row"><strong>Session transcript</strong><span class="muted small" id="logName"></span>
       <button style="margin-left:auto" onclick="closeLog()">Close</button></div>
@@ -358,6 +369,84 @@ async function saveModel(id) {
   } catch (e) { toast("could not save the model: " + e.message); }
 }
 
+/* The prompts and the protocol live beside the config in files the snapshot never carries, so they
+   are fetched the same way: on demand, never on the tick, and a box being typed into is left alone. */
+const promptOnDisk = {};
+function promptProblem(name, msg) {
+  const box = document.getElementById("promptError-" + name);
+  if (!box) return;
+  box.style.display = msg ? "block" : "none";
+  box.innerHTML = msg ? "<b>Not saved</b>" + esc(msg) : "";
+}
+async function loadPromptText(name, overwrite) {
+  const box = document.getElementById("promptText-" + name);
+  if (!box || (promptOnDisk[name] != null && !overwrite)) return;
+  try {
+    const r = await fetch(api("/api/prompt?name=" + encodeURIComponent(name)), { headers: auth });
+    if (!r.ok) throw new Error((await r.json()).error || "status " + r.status);
+    const text = await r.text();
+    if (overwrite === "always" || promptOnDisk[name] == null || box.value === promptOnDisk[name]) box.value = text;
+    promptOnDisk[name] = text;
+    promptProblem(name, "");
+  } catch (e) {
+    promptProblem(name, "could not read the prompt: " + e.message);
+  }
+}
+function togglePrompt(name) {
+  const box = document.getElementById("promptBox-" + name);
+  if (!box) return;
+  const open = box.style.display === "none";
+  box.style.display = open ? "block" : "none";
+  if (open) loadPromptText(name, false);
+}
+async function savePrompt(name) {
+  promptProblem(name, "");
+  try {
+    const r = await fetch(api("/api/prompt"), { method: "POST", headers: auth,
+      body: JSON.stringify({ name, content: document.getElementById("promptText-" + name).value }) });
+    const a = await r.json();
+    toast(a.message || a.error || (r.ok ? "done" : "failed"));
+    if (a.ok) {
+      lintRev = null; // the next tick refetches the lint card, so the findings this save fixed clear
+      await loadPromptText(name, "always");
+    } else promptProblem(name, a.message || a.error || "the panel refused it");
+  } catch (e) { promptProblem(name, "request failed: " + e.message); }
+}
+
+let protocolOnDisk = null;
+function protocolProblem(msg) {
+  const box = document.getElementById("protocolError");
+  box.style.display = msg ? "block" : "none";
+  box.innerHTML = msg ? "<b>Not saved</b>" + esc(msg) : "";
+}
+async function loadProtocolText(overwrite) {
+  if (protocolOnDisk !== null && !overwrite) return;
+  const box = document.getElementById("protocolText");
+  try {
+    const r = await fetch(api("/api/protocol"), { headers: auth });
+    if (!r.ok) throw new Error((await r.json()).error || "status " + r.status);
+    const text = await r.text();
+    if (overwrite === "always" || protocolOnDisk === null || box.value === protocolOnDisk) box.value = text;
+    protocolOnDisk = text;
+    protocolProblem("");
+  } catch (e) {
+    protocolProblem("could not read protocol.md: " + e.message);
+  }
+}
+async function saveProtocol() {
+  protocolProblem("");
+  try {
+    const r = await fetch(api("/api/protocol"), { method: "POST", headers: auth,
+      body: JSON.stringify({ content: document.getElementById("protocolText").value }) });
+    const a = await r.json();
+    toast(a.message || a.error || (r.ok ? "done" : "failed"));
+    if (a.ok) {
+      lintRev = null;
+      await loadProtocolText("always");
+    } else protocolProblem(a.message || a.error || "the panel refused it");
+  } catch (e) { protocolProblem("request failed: " + e.message); }
+}
+
 let lastControls = "";
 let lastMilestones = "";
 /** The same options milestoner run takes. Only the fields that were filled in are sent. */
@@ -542,6 +631,7 @@ function render(d) {
   document.getElementById("reportLink").href = api("/api/report");
   refreshLint(d.rev);
   loadConfigText(false);
+  loadProtocolText(false);
 
   const v = verdictOf(d);
   document.getElementById("verdict").className = "card verdict " + v.cls;
@@ -606,11 +696,20 @@ function render(d) {
       '" value="' + esc(m.model || "") + '"></label>' +
       '<button data-w class="link" data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
       '<span class="muted small">this milestone\'s entry in the config\'s model map; empty removes it</span></div>';
+    const ed = '<div style="margin-top:.45rem"><button class="link" data-name="' + esc(m.prompt) +
+      '" onclick="togglePrompt(this.dataset.name)">edit the prompt</button>' +
+      '<div id="promptBox-' + esc(m.prompt) + '" style="display:none;margin-top:.5rem">' +
+      '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>' +
+      '<div class="row" style="margin-top:.55rem">' +
+      '<button data-w class="primary" data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
+      '<button class="link" data-name="' + esc(m.prompt) + '" onclick="loadPromptText(this.dataset.name,\'always\')">Reload from disk</button>' +
+      '<span class="muted small" style="margin-left:auto">.milestoner/prompts/' + esc(m.prompt) + ' - a session already going got its kickoff at launch, so an edit applies to the next one</span>' +
+      '</div><div class="todo" id="promptError-' + esc(m.prompt) + '" style="display:none"></div></div></div>';
     return '<div class="card ms ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
       esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) +
       '<span class="muted small" style="margin-left:auto">' + esc(spent) +
       (m.finishedAt ? " · finished " : "") + (m.finishedAt ? ago(m.finishedAt) : "") + "</span></div>" +
-      dg + model + ev + att + un + "</div>";
+      dg + model + ed + ev + att + un + "</div>";
   }).join("");
   // Memoised for the same reason the controls card is: this list now carries an input per milestone,
   // and a tick that rebuilt it would throw away a model name half typed into one.

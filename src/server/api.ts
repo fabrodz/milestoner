@@ -15,7 +15,7 @@ import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
 import type { MilestonerConfig, RunState } from "../types.js";
-import { writeJsonAtomic } from "../util/fs.js";
+import { writeJsonAtomic, writeTextAtomic } from "../util/fs.js";
 
 export interface ApiContext {
   config: MilestonerConfig;
@@ -48,6 +48,7 @@ export function snapshot(ctx: ApiContext) {
     milestones: state.milestones.map((m) => ({
       id: m.id,
       title: m.title,
+      prompt: m.prompt,
       status: m.status,
       attempts: m.attempts,
       evidence: m.evidence,
@@ -101,6 +102,65 @@ export function transcript(ctx: ApiContext, name: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * A prompt file this run owns, or null. The name arrives over HTTP, so it gets the transcript()
+ * treatment - resolved inside the prompts directory, checked with relative - plus one stricter
+ * rule: only a name some milestone's `prompt` field carries verbatim counts. A traversal spelling
+ * is refused outright rather than quietly rewritten to the file it happens to end in.
+ */
+function ownedPromptFile(ctx: ApiContext, name: string): string | null {
+  if (!name.endsWith(".md") || basename(name) !== name) return null;
+  const state = loadState(ctx.layout.state);
+  if (!state.milestones.some((m) => m.prompt === name)) return null;
+  const file = resolve(ctx.layout.prompts, name);
+  return relative(ctx.layout.prompts, file).startsWith("..") ? null : file;
+}
+
+export function readPromptFile(ctx: ApiContext, name: string): string | null {
+  const file = ownedPromptFile(ctx, name);
+  if (!file) return null;
+  try {
+    return statSync(file).isFile() ? readFileSync(file, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Prompts and the protocol are hand-written prose by design (D-031/D-035), so no structure is
+ * checked before writing: the linter is the feedback, never a write gate. The shape checks here
+ * mirror writeConfig's - a name the run owns, a document that is text.
+ */
+export function writePrompt(ctx: ApiContext, name: unknown, content: unknown): ActionResult {
+  if (typeof name !== "string" || name.trim() === "") {
+    return { ok: false, message: "name is required: the prompt file as state names it, like M01.md" };
+  }
+  if (typeof content !== "string" || content.trim() === "") {
+    return { ok: false, message: "content is required: the whole prompt document, as text" };
+  }
+  const file = ownedPromptFile(ctx, name);
+  if (!file) return { ok: false, message: `no milestone in this run has "${name}" as its prompt file` };
+  writeTextAtomic(file, content);
+  return { ok: true, message: "prompt saved - a session already running got its kickoff at launch, so this applies to the next one" };
+}
+
+/** The protocol exactly as it is on disk, or null if it has gone missing under a long-lived panel. */
+export function readProtocolFile(ctx: ApiContext): string | null {
+  try {
+    return readFileSync(ctx.layout.protocol, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+export function writeProtocol(ctx: ApiContext, content: unknown): ActionResult {
+  if (typeof content !== "string" || content.trim() === "") {
+    return { ok: false, message: "content is required: the whole protocol.md document, as text" };
+  }
+  writeTextAtomic(ctx.layout.protocol, content);
+  return { ok: true, message: "protocol saved - a session already running read it at launch, so this applies to the next one" };
 }
 
 /** Exactly what `milestoner lint --json` prints: one shape, whichever front end asked. */

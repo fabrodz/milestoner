@@ -21,9 +21,13 @@ export function readJsonIfExists<T>(file: string): T | null {
 
 /** Write via a sibling temp file + rename: a killed runner never leaves a half-written state.json. */
 export function writeJsonAtomic(file: string, value: unknown): void {
+  writeTextAtomic(file, JSON.stringify(value, null, 2) + "\n");
+}
+
+export function writeTextAtomic(file: string, content: string): void {
   ensureDir(dirname(file));
   const tmp = join(dirname(file), `.${randomBytes(6).toString("hex")}.tmp`);
-  writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeFileSync(tmp, content, "utf8");
   renameSync(tmp, file);
 }
 

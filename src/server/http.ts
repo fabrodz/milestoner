@@ -4,8 +4,9 @@ import { layoutFor, samePath } from "../paths.js";
 import { listProjects } from "../projects.js";
 import { listRuns, summariseKnownProject, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
-  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, readConfigFile, reportHtml, snapshot, startRun,
-  stopRun, transcript, writeConfig, type ActionResult, type ApiContext,
+  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, readConfigFile, readPromptFile, readProtocolFile,
+  reportHtml, snapshot, startRun, stopRun, transcript, writeConfig, writePrompt, writeProtocol,
+  type ActionResult, type ApiContext,
 } from "./api.js";
 import { BIND_HOST, TOKEN_COOKIE, hostAllowed, newToken, originAllowed, tokenFrom, tokenMatches } from "./security.js";
 import { PAGE } from "./page.js";
@@ -185,6 +186,18 @@ export function createPanel(options: ServerOptions) {
         return body === null ? json(res, 404, { error: "config.json is not there any more" }) : send(res, 200, "text/plain; charset=utf-8", body);
       });
     }
+    if (req.method === "GET" && path === "/api/prompt") {
+      return ctxOr((ctx) => {
+        const body = readPromptFile(ctx, url.searchParams.get("name") ?? "");
+        return body === null ? json(res, 404, { error: "no such prompt in this run" }) : send(res, 200, "text/plain; charset=utf-8", body);
+      });
+    }
+    if (req.method === "GET" && path === "/api/protocol") {
+      return ctxOr((ctx) => {
+        const body = readProtocolFile(ctx);
+        return body === null ? json(res, 404, { error: "protocol.md is not there any more" }) : send(res, 200, "text/plain; charset=utf-8", body);
+      });
+    }
     if (req.method === "GET" && path === "/api/transcript") {
       return ctxOr((ctx) => {
         const body = transcript(ctx, url.searchParams.get("name") ?? "");
@@ -259,6 +272,12 @@ export function createPanel(options: ServerOptions) {
             break;
           case "/api/config":
             result = writeConfig(ctx, body.content);
+            break;
+          case "/api/prompt":
+            result = writePrompt(ctx, body.name, body.content);
+            break;
+          case "/api/protocol":
+            result = writeProtocol(ctx, body.content);
             break;
           default:
             return json(res, 404, { error: "no such endpoint" });
