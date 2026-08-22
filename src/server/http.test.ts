@@ -112,6 +112,10 @@ test("a transcript name cannot escape the logs directory", async () => {
     const res = await get(`/api/transcript?token=${TOKEN}&name=${encodeURIComponent(name)}`);
     assert.equal(res.status, 404, `${name} must not resolve`);
   }
+
+  // No name at all resolves to the logs directory, which used to read as EISDIR and answer 500.
+  assert.equal((await get(`/api/transcript?token=${TOKEN}`)).status, 404);
+  assert.equal((await get(`/api/transcript?token=${TOKEN}&name=`)).status, 404);
 });
 
 test("the state view carries what the panel renders, including the revision to poll on", async () => {

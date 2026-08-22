@@ -94,8 +94,13 @@ export function reportHtml(ctx: ApiContext): string {
  */
 export function transcript(ctx: ApiContext, name: string): string | null {
   const file = resolve(ctx.layout.logs, basename(name));
-  if (relative(ctx.layout.logs, file).startsWith("..") || !existsSync(file)) return null;
-  return readFileSync(file, "utf8").slice(-200_000);
+  if (relative(ctx.layout.logs, file).startsWith("..")) return null;
+  try {
+    // An empty name resolves to the logs directory itself, which read as a file is EISDIR, not a 404.
+    return statSync(file).isFile() ? readFileSync(file, "utf8").slice(-200_000) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Exactly what `milestoner lint --json` prints: one shape, whichever front end asked. */
