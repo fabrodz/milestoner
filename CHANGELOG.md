@@ -98,8 +98,23 @@ is bringing the panel up.
   run on a machine panel, the key only when the caller used one - so a page reached through the
   cookie `--open` sets never gains a key in its history. The file on disk passes no such link and so
   carries none: one renderer, and only the served consumer knows a panel exists.
+- Every card on the panel says what it is for, in one visible line under its heading: the verdict
+  banner spells out what alive, slow, hung and gone mean, the lint card that error-level findings on
+  pending milestones refuse a start, steering that a correction is read by the next session launched
+  and not by the one running, the interventions card that its lines are outside actions on the run,
+  the engine log which file it is reading, and the report link what a self-contained report is good
+  for. Every consequential control carries a tooltip naming what it does and what it costs - kill
+  spends an attempt and brings the runner straight back, "start anyway" skips the gate and leaves
+  the findings unfixed, stop costs nothing. The subtitles are visible text rather than tooltips
+  because a tooltip does not exist on a touch screen.
 
 ### Fixed
+
+- An empty supervisor log no longer renders as two interventions. `supervisor-log.md` opens with a
+  title and a backtick-quoted format line, written by `init` before anything has ever happened, and
+  the panel's INTERVENTIONS card and `status --json`'s `recentInterventions` both tailed the file
+  raw and served them. Reading the log is now one shared function that drops its own header, used by
+  the panel, `status` and both reports, and a run nobody has intervened in says so.
 
 - The milestone card a session is working on shows that session. The card body rendered only graded
   attempt history, so while attempt 1 ran the page contradicted itself: the verdict banner said

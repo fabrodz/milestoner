@@ -4,6 +4,7 @@ import { relative, resolve } from "node:path";
 import type { Layout } from "../paths.js";
 import { buildReport } from "../report.js";
 import { loadState } from "../state.js";
+import { readInterventions } from "../supervisorLog.js";
 import type { MilestonerConfig } from "../types.js";
 import { ensureDir } from "../util/fs.js";
 import { dirname } from "node:path";
@@ -33,7 +34,7 @@ export function report(options: ReportOptions): number {
     state,
     maxAttempts: options.config.maxAttempts,
     runLog: readLines(options.layout.runLog, 200),
-    supervisorLog: readLines(options.layout.supervisorLog, 100),
+    supervisorLog: readInterventions(options.layout.supervisorLog, 100),
     generatedAt: new Date(),
   });
 

@@ -218,7 +218,9 @@ the milestone prompts and the protocol, edit the run's config, add a milestone t
 milestone its own model, set or clear steering, start a runner with the same options `run` takes on
 the command line, stop it, kill a hung session, unblock a milestone, run the environment adapter. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
-audit trail rather than two.
+audit trail rather than two. Every card carries one line saying what it is for and every
+consequential control a tooltip saying what it costs, because the panel is read at 3am by someone
+who is not going to open the guide first.
 [The guide walks a whole run through it](docs/GUIDE.md#the-panel-only-workflow-start-to-finish),
 from an empty directory to the report - the milestone prompts and the protocol included, each in a
 save-and-reload editor with the lint card naming what is still skeleton; what stays outside the

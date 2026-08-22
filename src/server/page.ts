@@ -115,30 +115,31 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
 
   <div id="runView">
   <div class="card verdict" id="verdict"></div>
+  <p class="muted small" id="verdictHelp" style="margin:-.5rem 0 1rem">How is it going, in one sentence. Alive, slow and hung are the age of the newest liveness signal, a watched path's mtime and never the transcript: under 15 minutes alive, under 25 slow, past that hung. Gone means the runner process itself has stopped.</p>
   <div class="card" id="controls"></div>
   <div class="card" id="lintRefusal" style="display:none"></div>
   <div class="stats" id="stats"></div>
 
-  <h2>Lint<span class="muted" style="text-transform:none;letter-spacing:0"> — the run's form, checked before a session spends time on it</span></h2>
+  <h2>Lint<span class="muted" style="text-transform:none;letter-spacing:0"> — form findings on the prompts, the protocol and the config; error-level ones on pending milestones refuse a start</span></h2>
   <div class="card" id="lintCard"><span class="muted small">checking…</span></div>
 
-  <h2>Milestones</h2>
+  <h2>Milestones<span class="muted" style="text-transform:none;letter-spacing:0"> — one card per milestone: what it is for, the attempts it has spent, the evidence its sessions left, and the prompt they read</span></h2>
   <div id="milestones"></div>
   <div class="card">
     <div class="row">
       <label class="opt" style="flex:1;min-width:16rem">Title <input data-w id="addTitle" type="text" style="flex:1" placeholder="a scaffold placeholder when left empty"></label>
-      <button data-w onclick="addMilestone()">Add a milestone</button>
+      <button data-w onclick="addMilestone()" title="Appends one pending milestone and its prompt skeleton. It costs nothing now; it costs a session once a runner reaches it.">Add a milestone</button>
     </div>
     <span class="muted small">Appends one pending milestone after the last, with its prompt skeleton in .milestoner/prompts/. A runner that is alive picks it up when its turn comes; write the prompt before then.</span>
   </div>
 
-  <h2>Steering<span class="muted" style="text-transform:none;letter-spacing:0"> — a correction every session launched from now on will see</span></h2>
+  <h2>Steering<span class="muted" style="text-transform:none;letter-spacing:0"> — a correction read by the next session launched, not by the one running</span></h2>
   <div class="card">
     <textarea id="steerText" placeholder="It overrides the milestone prompt. It does not allow dropping an acceptance criterion: a steer that makes the milestone impossible comes back as blocked."></textarea>
     <div class="row" style="margin-top:.55rem">
-      <button data-w onclick="steer(false)">Replace</button>
-      <button data-w onclick="steer(true)">Add a line</button>
-      <button data-w onclick="post('/api/steer',{clear:true})">Clear</button>
+      <button data-w onclick="steer(false)" title="Replaces whatever is in force. The session running now never sees it; every one launched after does, until you clear it.">Replace</button>
+      <button data-w onclick="steer(true)" title="Adds this line to the steering already in force, leaving the rest of it alone.">Add a line</button>
+      <button data-w onclick="post('/api/steer',{clear:true})" title="Empties the steering file. From the next session on, the milestone prompts stand alone again.">Clear</button>
       <span class="muted small" id="steerNow" style="margin-left:auto"></span>
     </div>
   </div>
@@ -147,7 +148,7 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   <div class="card" id="configCard">
     <textarea id="configText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
-      <button data-w class="primary" onclick="saveConfig()">Save the config</button>
+      <button data-w class="primary" onclick="saveConfig()" title="Writes config.json after the loader validates it. A runner already going keeps the copy it loaded at startup, so this applies to the next one.">Save the config</button>
       <button class="link" onclick="loadConfigText('always')">Reload from disk</button>
       <span class="muted small" id="configNote" style="margin-left:auto">A runner that is already going loaded its config when it started, so an edit applies to the next one.</span>
     </div>
@@ -158,7 +159,7 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   <div class="card" id="protocolCard">
     <textarea id="protocolText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
-      <button data-w class="primary" onclick="saveProtocol()">Save the protocol</button>
+      <button data-w class="primary" onclick="saveProtocol()" title="Overwrites .milestoner/protocol.md. A session already going read the file at launch, so this applies to the next one.">Save the protocol</button>
       <button class="link" onclick="loadProtocolText('always')">Reload from disk</button>
       <span class="muted small" id="protocolNote" style="margin-left:auto">A session that is already going read its files at launch, so an edit applies to the next one.</span>
     </div>
@@ -171,13 +172,14 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <pre id="logBody" style="margin-top:.6rem"></pre>
   </div>
 
-  <h2>What the engine did</h2>
+  <h2>What the engine did<span class="muted" style="text-transform:none;letter-spacing:0"> — every event the runner recorded in .milestoner/run-log.md, newest first: sessions launched, how each was graded, and the failures charged to infrastructure rather than to the agent</span></h2>
   <div class="card"><table class="att" id="activity"></table></div>
 
-  <h2>Interventions</h2>
+  <h2>Interventions<span class="muted" style="text-transform:none;letter-spacing:0"> — outside actions on the run: a hung session killed by a supervisor rule or from this panel, the environment adapter run, each with its rule and its result</span></h2>
   <div class="card"><div id="interventions" class="small"></div></div>
 
-  <p class="small muted" style="margin-top:1.5rem"><a id="reportLink" href="#">Open the full report, with the timeline</a></p>
+  <p class="small muted" style="margin-top:1.5rem"><a id="reportLink" href="#">Open the full report, with the timeline</a><br>
+    One self-contained HTML file, no scripts and no external assets: the stat tiles, a wall-clock timeline of every session that ran, and each milestone's evidence and diagnosis. It survives being sent to someone.</p>
   </div>
 </main>
 <div id="toast"></div>
@@ -301,6 +303,23 @@ function lintCardHtml(L) {
       esc(f.severity) + "</span></td><td>" + esc(f.rule) + "</td><td>" + esc(f.message) +
       '<div class="muted small">' + esc(f.file + (f.line ? ":" + f.line : "")) + "</div></td></tr>"
     ).join("") + "</tbody></table>";
+}
+
+/* supervisor-log.md opens with a title and a format line quoted in a backtick, which are scaffold
+   rather than interventions. \u0060 is that backtick, spelt as an escape because the page
+   is itself a template literal and cannot carry the character. */
+const LOG_HEADER = /^\s*$|^#|^\u0060/;
+
+/** The interventions card body, one row per supervisor line. Pure like lintCardHtml, so a test can
+    render it without a browser. The header filter is defence in depth behind the snapshot's own: a
+    run nobody has intervened in must say so rather than show its file's scaffold as two actions. */
+function interventionsHtml(lines) {
+  const rows = (lines || []).filter(l => !LOG_HEADER.test(l));
+  if (!rows.length)
+    return '<span class="muted">No interventions: nothing outside the run has had to step in, which is what a healthy run looks like.</span>';
+  return rows.map(l => { const parts = l.split(" | ");
+    return '<div style="margin-bottom:.3rem">' + ago(parts[0]) + ' <strong>' + esc(parts[1] || "") + "</strong> " +
+           esc(parts.slice(2).join(" - ")) + "</div>"; }).join("");
 }
 
 /* Fetched off the state stream on purpose: lint reads the prompt files, which the snapshot never
@@ -460,12 +479,12 @@ let lastMilestones = "";
 function startOptionsHtml(d) {
   return '<div id="startOpts" style="display:none;margin-top:.7rem">' +
     '<div class="row">' +
-    '<label class="opt">Milestone <select data-w id="optMilestone"><option value="">every pending milestone, in order</option>' +
+    '<label class="opt" title="Run this one milestone and stop, instead of draining every pending one in order.">Milestone <select data-w id="optMilestone"><option value="">every pending milestone, in order</option>' +
     d.milestones.map(m => '<option value="' + esc(m.id) + '">' + esc(m.id + " · " + m.title) + "</option>").join("") +
     "</select></label>" +
-    '<label class="opt"><input data-w id="optOnce" type="checkbox">one session, then stop</label>' +
-    '<label class="opt">Attempts <input data-w id="optAttempts" type="number" min="1" step="1" style="width:5rem" placeholder="' + esc(d.maxAttempts) + '"></label>' +
-    '<label class="opt">Model <input data-w id="optModel" type="text" style="width:11rem" placeholder="the agent default"></label>' +
+    '<label class="opt" title="Stops the runner after one agent session, graded as usual. The milestone may well need another."><input data-w id="optOnce" type="checkbox">one session, then stop</label>' +
+    '<label class="opt" title="How many attempts a milestone gets before the engine marks it blocked. Empty uses maxAttempts from the config.">Attempts <input data-w id="optAttempts" type="number" min="1" step="1" style="width:5rem" placeholder="' + esc(d.maxAttempts) + '"></label>' +
+    '<label class="opt" title="The model every session of this runner launches with, overriding the agent\'s own default and the config\'s model map.">Model <input data-w id="optModel" type="text" style="width:11rem" placeholder="the agent default"></label>' +
     "</div></div>";
 }
 function toggleStartOptions() {
@@ -500,7 +519,7 @@ function initCardHtml(d) {
     '<label class="opt" style="flex:1;min-width:20rem">Directory <input data-w id="initPath" type="text" style="flex:1" placeholder="an absolute path to a directory that already exists"></label>' +
     '<label class="opt">Run name <input data-w id="initRun" type="text" style="width:10rem" placeholder="the directory name"></label>' +
     '<label class="opt">Milestones <input data-w id="initCount" type="number" min="1" max="99" step="1" style="width:4.5rem" placeholder="3"></label>' +
-    '<button data-w class="primary" onclick="doInit()">Scaffold it</button>' +
+    '<button data-w class="primary" onclick="doInit()" title="Writes .milestoner/ into that directory: config, state, the protocol template and the prompt skeletons. It refuses a directory that already has a config unless you tick the overwrite box.">Scaffold it</button>' +
     "</div>" +
     '<div id="initForce" style="display:none;margin-top:.55rem">' +
     '<label class="opt"><input data-w id="initForceBox" type="checkbox">overwrite the config that is already there</label>' +
@@ -545,7 +564,8 @@ async function startRun(noLint) {
     if (a.lintRefused) {
       box.style.display = "block";
       box.innerHTML = '<div class="todo"><b>Start refused by lint</b>' + esc(a.message) + "</div>" +
-        '<div class="row" style="margin-top:.55rem"><button data-w class="danger" onclick="startRun(true)">Start anyway, without the lint gate</button>' +
+        '<div class="row" style="margin-top:.55rem">' +
+        '<button data-w class="danger" onclick="startRun(true)" title="Starts with --no-lint: the gate above is skipped, the findings stay unfixed, and the session spends its hours on a run whose form nobody checked. The run log records the bypass.">Start anyway, without the lint gate</button>' +
         '<span class="muted small">runs with --no-lint; the run log records the bypass</span></div>';
     } else box.style.display = "none";
   } catch (e) { toast("request failed: " + e.message); }
@@ -616,8 +636,8 @@ function milestoneCardHtml(m, d) {
       ? '<p class="muted small" style="margin:.5rem 0 0">Not started yet.</p>'
       : "";
   const un = m.status === "blocked"
-    ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + '})">I fixed it, try again</button>' +
-      '<button data-w onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
+    ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" title="Sets this milestone back to pending and returns the attempts it spent, so the next runner gives it the full cap again." onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + '})">I fixed it, try again</button>' +
+      '<button data-w title="Sets it back to pending but keeps the attempts already spent, so it gets only what is left of the cap." onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
     : "";
   const spent = live
     ? "attempt " + (live.attempt ?? "?") + " of " + d.maxAttempts + " running"
@@ -625,14 +645,14 @@ function milestoneCardHtml(m, d) {
   const model = '<div class="row" style="margin-top:.6rem"><label class="opt">Model ' +
     '<input data-w type="text" style="width:11rem" placeholder="the agent default" id="model-' + esc(m.id) +
     '" value="' + esc(m.model || "") + '"></label>' +
-    '<button data-w class="link" data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
+    '<button data-w class="link" title="Writes this milestone\'s entry in the config\'s model map. It applies from the next session launched, not to one already going." data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
     '<span class="muted small">this milestone\'s entry in the config\'s model map; empty removes it</span></div>';
   const ed = '<div style="margin-top:.45rem"><button class="link" data-name="' + esc(m.prompt) +
     '" onclick="togglePrompt(this.dataset.name)">edit the prompt</button>' +
     '<div id="promptBox-' + esc(m.prompt) + '" style="display:none;margin-top:.5rem">' +
     '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>' +
     '<div class="row" style="margin-top:.55rem">' +
-    '<button data-w class="primary" data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
+    '<button data-w class="primary" title="Overwrites this milestone\'s prompt file. A session already going got its kickoff at launch, so this applies to the next one." data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
     '<button class="link" data-name="' + esc(m.prompt) + '" onclick="loadPromptText(this.dataset.name,\'always\')">Reload from disk</button>' +
     '<span class="muted small" style="margin-left:auto">.milestoner/prompts/' + esc(m.prompt) + ' - a session already going got its kickoff at launch, so an edit applies to the next one</span>' +
     '</div><div class="todo" id="promptError-' + esc(m.prompt) + '" style="display:none"></div></div></div>';
@@ -720,12 +740,12 @@ function render(d) {
   const controls =
     '<div class="row">' +
     (running
-      ? '<button data-w onclick="post(\'/api/run/stop\')">Stop after this session</button>' +
-        '<button data-w class="danger" onclick="killAgent()">Kill this session and retry</button>'
-      : d.canStart ? '<button data-w class="primary" onclick="startRun()">Start the run</button>' +
-        '<button class="link" onclick="toggleStartOptions()">options</button>' : "") +
+      ? '<button data-w onclick="post(\'/api/run/stop\')" title="Lets the session that is running finish and be graded, then stops the runner. Nothing is lost and no attempt is charged.">Stop after this session</button>' +
+        '<button data-w class="danger" onclick="killAgent()" title="Ends the agent session now, losing whatever it had not written. It costs an attempt, and the runner relaunches the milestone with a fresh session.">Kill this session and retry</button>'
+      : d.canStart ? '<button data-w class="primary" onclick="startRun()" title="Launches a runner that drains every pending milestone in order, one fresh agent session each, until the run is complete or blocked.">Start the run</button>' +
+        '<button class="link" onclick="toggleStartOptions()" title="Narrow the start: one milestone, one session, a different attempts cap, a different model.">options</button>' : "") +
     (d.attendConfigured
-      ? '<button data-w onclick="attendNow()">Unstick the environment</button>' +
+      ? '<button data-w onclick="attendNow()" title="Runs environment.attendCommand from the config once, against the host rather than the run, and records it in the intervention log.">Unstick the environment</button>' +
         '<input data-w id="attendSeconds" type="number" min="1" step="1" style="width:6rem" placeholder="seconds" title="how long the adapter gets; the configured default when empty">'
       : "") +
     (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + JSON.stringify(d.pulse.transcript) + ')">watch the live transcript</button>' : "") +
@@ -762,11 +782,7 @@ function render(d) {
         "</strong></td><td>" + esc(r.what) + '</td><td class="muted">' + esc(r.why) + "</td></tr>").join("") + "</tbody>"
     : "<tbody><tr><td class='muted'>Nothing has happened yet.</td></tr></tbody>";
 
-  document.getElementById("interventions").innerHTML = d.supervisorLog.length
-    ? d.supervisorLog.map(l => { const parts = l.split(" | ");
-        return '<div style="margin-bottom:.3rem">' + ago(parts[0]) + ' <strong>' + esc(parts[1] || "") + "</strong> " +
-               esc(parts.slice(2).join(" - ")) + "</div>"; }).join("")
-    : '<span class="muted">Nobody has intervened in this run.</span>';
+  document.getElementById("interventions").innerHTML = interventionsHtml(d.supervisorLog);
 
   document.querySelectorAll("[data-w]").forEach(b => { b.disabled = !d.writable; });
   if (!d.writable && !document.getElementById("roNote")) {

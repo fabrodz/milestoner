@@ -1021,6 +1021,15 @@ unblock, kill, attend, add a milestone, start a runner, stop one after the curre
 functions the commands do, so there is one audit trail rather than two - a kill from the panel lands
 in `supervisor-log.md` like any other.
 
+Every card says what it is for in one line under its heading, and every consequential control
+carries a tooltip naming what it does and what it costs. The subtitles are visible text rather than
+tooltips because a tooltip does not exist on a touch screen; the tooltips are where the price goes.
+**Kill this session and retry** says it spends an attempt and that the runner comes straight back,
+**Start anyway, without the lint gate** that the gate is skipped and the findings stay unfixed,
+**Stop after this session** that it costs nothing. A card with nothing in it yet says so plainly: a
+run nobody has intervened in reads "no interventions", never the format line out of the top of
+`supervisor-log.md`.
+
 The panel also shows the run's lint findings, before anything is started: a lint card with the
 error and warning counts and every finding per milestone, fed by `GET /api/lint`, which returns
 exactly what [`milestoner lint --json`](#milestoner-lint) prints. The same rules gate starting a

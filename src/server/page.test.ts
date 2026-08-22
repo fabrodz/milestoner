@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { PAGE } from "./page.js";
 
+const grab = (head: string): string => {
+  const found = PAGE.match(new RegExp(head + "[\\s\\S]*?\\n\\}"));
+  assert.ok(found, `the page must carry ${head}`);
+  return found[0];
+};
+
 /** The card builder is pure on purpose, like lintCardHtml: rendering it here proves the markup
     without a browser. Its helpers travel with it. */
 function cardBuilder(): (m: unknown, d: unknown) => string {
-  const grab = (head: string): string => {
-    const found = PAGE.match(new RegExp(head + "[\\s\\S]*?\\n\\}"));
-    assert.ok(found, `the page must carry ${head}`);
-    return found[0];
-  };
   const src = [
     PAGE.match(/const esc = .*$/m)?.[0],
     grab("function dur\\(s\\) \\{"),
@@ -118,4 +119,124 @@ test("the attempts counter reads the graded count when nothing is live", () => {
 
 test("the run view renders every milestone card through the pure builder", () => {
   assert.ok(PAGE.includes("d.milestones.map(m => milestoneCardHtml(m, d)).join(\"\")"), "render must go through milestoneCardHtml");
+});
+
+/** interventionsHtml is pure for the same reason milestoneCardHtml is. */
+function interventionsBuilder(): (lines: string[] | null) => string {
+  const src = [
+    PAGE.match(/const esc = .*$/m)?.[0],
+    grab("function ago\\(iso\\) \\{"),
+    PAGE.match(/const LOG_HEADER = .*$/m)?.[0],
+    grab("function interventionsHtml\\(lines\\) \\{"),
+  ];
+  assert.ok(src.every(Boolean), "the page must carry interventionsHtml and its helpers");
+  return new Function(`${src.join("\n")}\nreturn interventionsHtml;`)() as (lines: string[] | null) => string;
+}
+
+/** The header `init` writes into supervisor-log.md before anything has ever intervened. */
+const LOG_HEADER_LINES = ["# Supervisor log", "`<time> | <rule> | <what> | <result>`"];
+
+test("a supervisor log holding only its own header renders no intervention at all", () => {
+  const html = interventionsBuilder();
+
+  for (const lines of [[], LOG_HEADER_LINES, null]) {
+    const out = html(lines);
+    assert.ok(out.includes("No interventions"), "the card says nothing stepped in");
+    assert.ok(out.includes("nothing outside the run has had to step in"), "and says why that is fine");
+    assert.ok(!out.includes("<time"), "an empty state carries no timestamp to hover");
+    for (const leak of ["Supervisor log", "&lt;rule&gt;", "&lt;what&gt;", "&lt;result&gt;"]) {
+      assert.ok(!out.includes(leak), `the template line never renders: ${leak}`);
+    }
+  }
+});
+
+test("a real intervention renders its time, its rule and its result", () => {
+  const html = interventionsBuilder();
+  const out = html([...LOG_HEADER_LINES, "2026-08-22T20:00:00.000Z | 4 | killed the session | attempt charged"]);
+
+  assert.ok(!out.includes("No interventions"), "one line is enough to fill the card");
+  assert.match(out, /<time title="2026-08-22T20:00:00.000Z"/, "the stamp stays on hover");
+  assert.ok(out.includes("<strong>4</strong>"), "the rule that fired leads the line");
+  assert.ok(out.includes("killed the session - attempt charged"), "what it did and what came of it");
+  assert.ok(!out.includes("Supervisor log"), "with the file's own header still filtered out");
+});
+
+/* Tooltips hide on touch, so every card's explanation must survive with the titles stripped. */
+const VISIBLE = PAGE.replace(/ title="[^"]*"/g, "");
+
+test("every card on the run view carries a visible one-line explanation", () => {
+  const explains: [string, string][] = [
+    ["verdict", "Alive, slow and hung are the age of the newest liveness signal"],
+    ["lint", "error-level ones on pending milestones refuse a start"],
+    ["milestones", "one card per milestone: what it is for, the attempts it has spent"],
+    ["steering", "a correction read by the next session launched, not by the one running"],
+    ["config", ".milestoner/config.json, checked by the loader before it is written"],
+    ["engine log", "every event the runner recorded in .milestoner/run-log.md, newest first"],
+    ["interventions", "outside actions on the run: a hung session killed by a supervisor rule or from this panel"],
+    ["report link", "One self-contained HTML file, no scripts and no external assets"],
+  ];
+  for (const [card, line] of explains) {
+    assert.ok(VISIBLE.includes(line), `the ${card} card must explain itself in visible text: ${line}`);
+  }
+});
+
+test("the empty states say something true instead of leaking a file's scaffold", () => {
+  const empties = [
+    "Nothing has happened yet.",
+    "Not started yet.",
+    "no steer in force",
+    "every prompt, the protocol and the config pass the form checks",
+    "No projects on this machine yet.",
+    "nothing outside the run has had to step in",
+  ];
+  for (const line of empties) assert.ok(PAGE.includes(line), `an empty state is missing: ${line}`);
+});
+
+const titleOn = (marker: string): string => {
+  const found = PAGE.match(new RegExp(marker + ' title="([^"]+)"'));
+  assert.ok(found, `${marker} must carry a title`);
+  return found[1]!;
+};
+
+test("the destructive controls say what they cost", () => {
+  const kill = titleOn('onclick="killAgent\\(\\)"');
+  assert.match(kill, /costs an attempt/, "kill names the attempt it spends");
+  assert.match(kill, /relaunches/, "and that the runner comes straight back");
+
+  const anyway = titleOn('onclick="startRun\\(true\\)"');
+  assert.match(anyway, /--no-lint/, "start-anyway names the flag it runs with");
+  assert.match(anyway, /gate above is skipped/, "and the gate it skips");
+
+  const stop = titleOn('onclick="post\\(..\\/api\\/run\\/stop..\\)"');
+  assert.match(stop, /finish and be graded/, "stop is the one that costs nothing");
+  assert.match(stop, /no attempt is charged/);
+});
+
+test("every consequential control carries a tooltip", () => {
+  const controls = [
+    'onclick="startRun\\(\\)"',
+    'onclick="attendNow\\(\\)"',
+    'onclick="saveConfig\\(\\)"',
+    'onclick="saveProtocol\\(\\)"',
+    'onclick="addMilestone\\(\\)"',
+    'onclick="doInit\\(\\)"',
+    'onclick="steer\\(false\\)"',
+    'onclick="steer\\(true\\)"',
+  ];
+  for (const c of controls) assert.ok(titleOn(c).length > 20, `${c} needs a title that says something`);
+
+  for (const opt of ["optMilestone", "optOnce", "optAttempts", "optModel"]) {
+    assert.match(PAGE, new RegExp('title="[^"]+">[^<]*<(select|input) data-w id="' + opt + '"'), `${opt} needs a title`);
+  }
+  const unblocks = [...PAGE.matchAll(/title="([^"]+)" onclick="post\(..\/api\/unblock/g)].map((m) => m[1]!);
+  assert.equal(unblocks.length, 2, "both unblock buttons carry one");
+  assert.ok(unblocks.some((t) => /returns the attempts it spent/.test(t)));
+  assert.ok(unblocks.some((t) => /keeps the attempts already spent/.test(t)));
+});
+
+test("the page's inline script is parseable javascript", () => {
+  const script = PAGE.match(/<script>([\s\S]*)<\/script>/);
+  assert.ok(script, "the page must carry its script");
+  // Never called: constructing it is the syntax check, and the body wants a browser to run in.
+  assert.doesNotThrow(() => new Function(script[1]!));
 });

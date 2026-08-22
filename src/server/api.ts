@@ -15,6 +15,7 @@ import { recordProject } from "../projects.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
+import { readInterventions } from "../supervisorLog.js";
 import type { MilestonerConfig, RunState } from "../types.js";
 import { writeJsonAtomic, writeTextAtomic } from "../util/fs.js";
 
@@ -72,7 +73,7 @@ export function snapshot(ctx: ApiContext) {
     attendConfigured: ctx.config.environment.attendCommand !== null,
     steering: existsSync(ctx.layout.steering) ? readFileSync(ctx.layout.steering, "utf8") : null,
     runLog: tail(ctx.layout.runLog, 40),
-    supervisorLog: tail(ctx.layout.supervisorLog, 20),
+    supervisorLog: readInterventions(ctx.layout.supervisorLog, 20),
     transcripts: state.milestones.flatMap((m) => m.history.map((h) => h.transcript)).slice(-25),
   };
 }
@@ -84,13 +85,11 @@ export function snapshot(ctx: ApiContext) {
  */
 export function reportHtml(ctx: ApiContext, panelHref?: string): string {
   const state = loadState(ctx.layout.state);
-  const lines = (file: string, max: number) =>
-    tail(file, max).filter((l) => !l.startsWith("#") && !l.startsWith("`"));
   return buildReport({
     state,
     maxAttempts: ctx.config.maxAttempts,
-    runLog: lines(ctx.layout.runLog, 200),
-    supervisorLog: lines(ctx.layout.supervisorLog, 100),
+    runLog: tail(ctx.layout.runLog, 200).filter((l) => !l.startsWith("#") && !l.startsWith("`")),
+    supervisorLog: readInterventions(ctx.layout.supervisorLog, 100),
     generatedAt: new Date(),
     panelHref,
   });

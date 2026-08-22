@@ -8,6 +8,7 @@ import { init } from "../commands/init.js";
 import { defaultConfig, loadConfig } from "../config.js";
 import { layoutFor, type Layout } from "../paths.js";
 import { listProjects } from "../projects.js";
+import { appendSupervisorLog, SUPERVISOR_LOG_HEADER } from "../supervisorLog.js";
 import type { AttemptRecord, MilestonerConfig, Pulse, RunState } from "../types.js";
 import { ensureDir } from "../util/fs.js";
 import {
@@ -153,6 +154,19 @@ test("the snapshot tails the logs and the transcripts rather than serving all of
 
   writeFileSync(layout.steering, "- prefer the small fix\n");
   assert.match(snapshot(ctx).steering ?? "", /prefer the small fix/);
+});
+
+test("the supervisor log's own header is never served as an intervention", () => {
+  const { layout, ctx } = scaffold();
+  writeFileSync(layout.supervisorLog, SUPERVISOR_LOG_HEADER);
+
+  assert.deepEqual(snapshot(ctx).supervisorLog, [], "a run nobody has intervened in reports none");
+  assert.ok(!reportHtml(ctx).includes("&lt;rule&gt;"), "and the report says the same");
+
+  appendSupervisorLog(layout, "4", "killed the session", "attempt charged");
+  const lines = snapshot(ctx).supervisorLog;
+  assert.equal(lines.length, 1, "the header stays filtered once a real line arrives");
+  assert.match(lines[0]!, /killed the session \| attempt charged$/);
 });
 
 test("a live pulse is answered with the two pids the panel colours on", () => {

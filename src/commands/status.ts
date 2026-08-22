@@ -3,6 +3,7 @@ import { relative } from "node:path";
 import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse, verdictFor } from "../pulse.js";
 import { loadState, summarize } from "../state.js";
+import { readInterventions } from "../supervisorLog.js";
 import type { Milestone, MilestonerConfig } from "../types.js";
 import { color, humanDuration } from "../util/log.js";
 
@@ -71,7 +72,7 @@ export function status(options: StatusOptions): number {
           livenessConfigured: config.liveness.length > 0,
           attendConfigured: config.environment.attendCommand !== null,
           recentEvents: tailLines(layout.runLog, 8),
-          recentInterventions: tailLines(layout.supervisorLog, 5),
+          recentInterventions: readInterventions(layout.supervisorLog, 5),
         },
         null,
         2,
