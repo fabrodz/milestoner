@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- The machine panel lists every project on the machine, not only the ones whose runner is alive or
+  started while the panel was up. Every command that works inside a project records its directory in
+  `~/.milestoner/projects.json` (`init` included), and the hub summarises the ones the registry has
+  never heard of from their own `state.json`, reported `unknown` rather than `gone` because nothing
+  died there. They resolve for every control, so a run can be started, steered or unblocked from the
+  browser after a reboot. Writing the file is best-effort, a corrupt one is treated as empty, and an
+  entry whose directory is gone is skipped and left in place.
 - A model per milestone: `models` in `.milestoner/config.json` maps a milestone id to the model its
   session runs on (`{"M03": "opus"}`), so a plan can spend a cheap model on the mechanical
   milestones and a stronger one on the hard ones. It is resolved at each session launch, not once

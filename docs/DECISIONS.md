@@ -849,3 +849,39 @@ D-035's terms - the run around the milestones is degraded, no single milestone i
 Rejected: a `model` field on each milestone in `state.json` (the engine's file, and a plan spread
 over six places); and validating names against a known list (it would need updating with every
 provider release, and would reject a model that exists).
+
+## D-037 - A projects file, so the panel knows a project no runner is announcing (2026-08-22)
+
+The machine panel's listing came from two places: the registry, which holds live runners plus a day
+of corpses (D-025), and the panel process's own memory of runs it watched (D-033). Both are keyed on
+a runner having existed recently. After a reboot, a project whose run is finished, or never started,
+is invisible to the panel until someone types `milestoner run` in a terminal - which is the exact
+dependency the panel is meant to remove. `~/.milestoner/projects.json` records where the CLI has
+worked: one entry per directory, most recent last, written by `init` and by every command that
+resolves a project.
+
+**A remembered list, not a scan.** Walking the disk for `.milestoner/` directories was rejected in
+D-025 and is still rejected: it is slow, it reads places the user did not point us at, and it finds
+directories nobody has touched in a year. The CLI already knows the answer at the moment it matters,
+because it just resolved the project root to do real work. Recording it costs one write.
+
+**Nothing is ever pruned.** An entry whose directory is gone, or which no longer holds a readable
+run, is skipped by the panel in silence - the same tolerance `listRuns` has - but it stays in the
+file. The registry prunes because an entry there is a claim about a process, and a false claim is
+worse than none; an entry here is a claim about a path, and a path that is unreachable today is an
+unmounted share or a laptop's external disk tomorrow. Forgetting it would be irreversible and
+silent, where keeping it costs a line of JSON. Deleting the file is the way to forget, and the next
+command in a project puts that project back.
+
+**`unknown`, not `gone`.** A project the file alone knows about is summarised from its own
+`state.json` like a deregistered run, but an unfinished one reports `unknown`. `gone` means a runner
+died, and the hub counts those into "runner(s) hung or gone" and turns its verdict red. A machine
+with four idle projects would have reported four emergencies every morning.
+
+**Best-effort, like the registry.** Recording is serialised with the machine lock and swallowed on
+failure. A convenience across projects must never become a precondition for one, so a read-only home
+directory costs the panel a listing and the command nothing.
+
+Rejected: scanning the disk (above); pruning dead entries on read (above); and putting the paths in
+`runs.json`, which would give one file two retention rules and make "is this run alive" and "have I
+worked here" the same question, which they are not.

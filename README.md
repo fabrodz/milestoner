@@ -219,6 +219,10 @@ audit trail rather than two. The machine panel runs as a detached daemon the fir
 lists every run on the machine with a switcher between them, and exits on its own ten minutes
 after the last run ends
 ([D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)).
+It lists more than the live ones: the CLI records every project it works in to
+`~/.milestoner/projects.json`, so a project whose run is finished, or never started, is there to be
+opened and started after a reboot
+([D-037](docs/DECISIONS.md#d-037---a-projects-file-so-the-panel-knows-a-project-no-runner-is-announcing-2026-08-22)).
 
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with

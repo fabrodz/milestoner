@@ -396,9 +396,10 @@ That is the whole loop. Everything below is detail.
 2026-08-19T02:31:10.442Z | rule 4 | kill agent pid 24512 on M03: no signal for 31m | killed
 ```
 
-There is one file outside the project: `~/.milestoner/runs.json`, the registry every runner on the
-machine adds itself to, which is what [`milestoner runs`](#milestoner-runs) reads. Nothing in a
-project depends on it, and it is not yours to edit.
+Two files live outside the project, both under `~/.milestoner/`: `runs.json`, the registry every
+runner on the machine adds itself to, which is what [`milestoner runs`](#milestoner-runs) reads, and
+`projects.json`, the list of directories the CLI has worked in, which is how the machine panel finds
+a project with nothing running. Nothing in a project depends on either, and neither is yours to edit.
 
 ## Writing the protocol
 
@@ -816,6 +817,20 @@ variable. One path on every platform; XDG directories are deliberately not honou
 directory is read-only or on a share that is not mounted, the run starts anyway and simply does not
 appear here. It is a convenience across projects, never a precondition for one.
 
+**The projects file** is `~/.milestoner/projects.json`, beside the registry and under
+`MILESTONER_HOME` in the same way. Every command that works inside a project records its directory
+there, `init` included: one entry per path, the most recent visit last. The registry answers "what
+is running now" and forgets a run a day after its runner died; this file answers "where have I ever
+run milestoner", and forgets nothing. That is what lets [the machine panel](#the-machine-panel---all)
+list a project after a reboot, with no runner alive and nothing registered.
+
+Writing it is best-effort for the same reason registration is, and nothing reads it except the
+panel: `milestoner runs` lists runs, not directories, and is unchanged. An entry whose directory has
+been deleted, or that no longer holds a readable run, is skipped by the panel in silence and left in
+the file - a path that is unreachable today is an unmounted share tomorrow. Deleting the file costs
+nothing beyond the panel's memory of where you have worked; the next command in a project puts that
+project back.
+
 `--json` prints the same listing with `registry`, `runs` and `pruned` arrays, for a script or a
 status bar.
 
@@ -925,9 +940,16 @@ up with a run instead, and have it close with the run, see
 ([D-025](DECISIONS.md#d-025---a-machine-level-registry-of-runs-behind-milestoner-runs-2026-08-20)):
 a hub page listing every registered run with its health and progress, each opening into the same
 per-run view the project panel serves, with a switcher across the top. Every request names its run
-with a `root` parameter resolved against the registry; the controls are the same handlers with the
+with a `root` parameter resolved against that listing; the controls are the same handlers with the
 same server-side guards, so starting a runner for a project whose runner is gone works, and
 starting one where a runner is alive is refused by the pulse check as always.
+
+The listing is not only the registry. A project in [the projects file](#milestoner-runs) that is
+in neither the registry nor this panel's own memory is listed too, summarised from its `state.json`
+and reported `unknown` rather than `gone`: no runner died there, it is simply idle. That is the
+difference between a panel that can only show you a run someone started from a terminal while it was
+up, and one that can start the next run itself after a reboot. Such a project resolves for every
+control, so steering, unblocking and starting a run all work on it.
 
 This is also the panel `milestoner run` brings up by default. The first run spawns
 `serve --all --auto-exit` detached; the daemon claims `~/.milestoner/panel.json` under the machine
