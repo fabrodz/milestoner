@@ -92,6 +92,12 @@ is bringing the panel up.
   mutation; an edit applies to the next session launched, as steering does, and the editors say so.
 - Direct tests for the `api.ts` handlers, which the panel's whole write surface goes through and
   which until now were only exercised indirectly over HTTP.
+- The report served by the panel carries a link back to the view it came from, and one line saying
+  what it is: the run's archival snapshot, the same self-contained file `milestoner report` writes,
+  where the panel is the live view. The link carries exactly what the report's own URL carried - the
+  run on a machine panel, the key only when the caller used one - so a page reached through the
+  cookie `--open` sets never gains a key in its history. The file on disk passes no such link and so
+  carries none: one renderer, and only the served consumer knows a panel exists.
 
 ### Fixed
 
@@ -107,6 +113,17 @@ is bringing the panel up.
   yet reads "in progress since <started>, no session graded yet" rather than "0 sessions" and "no
   evidence recorded" - worded from state alone, because a static report cannot vouch for a live
   session.
+- The timeline says what its bars are worth. A bar's length answered nothing before: there was no
+  axis, no scale and no label. Each track now carries its sessions' durations on the right, the
+  timeline carries a five-tick time axis under it, and a scale line names the extent it spans
+  ("Scale: 2026-08-22 19:36 to 2026-08-22 20:07, 31m end to end"). A session whose record has no
+  usable end is drawn as an open-ended bar reading "no end recorded" rather than being given a
+  length; the wall-clock tile reads "-" rather than a figure when no session has run at all.
+- The report's headline no longer says "in progress" for a run that never launched. A scaffolded run
+  with zero sessions reads "not started yet" and its timeline says there is nothing to place on the
+  clock. The four states - not started, in progress, blocked at `<id>`, run complete - come from
+  `summarize`, the same verdicts `status` and the panel read, rather than from a second reading of
+  the milestone list.
 - The hub is reachable on a machine with exactly one project. It opens that run on arrival, as
   before, but "all runs" now says so in the URL and stays on the hub instead of bouncing straight
   back into the only run - which left the hub, and now the new-run form on it, unreachable.

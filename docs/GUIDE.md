@@ -938,9 +938,14 @@ milestoner report [--out <path>] [--open]
 One self-contained HTML file, no scripts and no external assets, so it opens offline and survives
 being emailed to someone who has never heard of milestoner. It contains:
 
+- **A headline** naming the run's state: not started yet, in progress, blocked at `<id>`, or run
+  complete. A run that was scaffolded and never launched says so rather than claiming progress.
 - **Stat tiles**: milestones done, sessions run, total session time, wall clock, infrastructure
   retries, evidence lines.
-- **A wall-clock timeline**, one track per milestone, one bar per session, coloured by outcome.
+- **A wall-clock timeline**, one track per milestone, one bar per session, coloured by outcome, with
+  each track's session durations on the right, a time axis under the tracks and a scale line naming
+  the extent the whole timeline spans. A session whose record carries no end is drawn open-ended and
+  reads "no end recorded"; it is never given a length it does not have.
 - **A card per milestone** with its evidence, its diagnosis if it is blocked, and the attempt table
   with exit codes, transcripts and the steering each attempt saw.
 - **The interventions** from `supervisor-log.md` and the engine events from `run-log.md`.
@@ -953,6 +958,11 @@ Run it any time, including mid-run: it reads `state.json` and the logs, and writ
 The timeline is what `status` cannot give you. The gaps carry the information: a usage-limit wait
 looks nothing like a slow session, and the infrastructure retries that were never charged against
 the attempt budget are finally visible after the fact.
+
+The panel serves this same report live, at the link on the foot of its page. That copy carries two
+things the file does not: a **back to the panel** link, and one line saying what the report is for
+beside the panel - the archival snapshot you keep or send on, where the panel is the live view. The
+file gets neither, because a file that travels must not link to a server that is not there.
 
 ### milestoner serve
 
@@ -1089,7 +1099,8 @@ If a run is already going anywhere on this machine, its daemon is already servin
 13. **Read what happened.** Every row of a milestone's attempt table has a **transcript** link, and
     **Open the full report, with the timeline** at the foot of the page is
     [`milestoner report`](#milestoner-report) served live: the tiles, the wall-clock timeline, the
-    evidence per milestone and the interventions.
+    evidence per milestone and the interventions. It opens in the same tab and carries **back to
+    the panel** at the top, so reading the post-mortem is not a one-way trip out of the page.
 
 What still needs a terminal: bringing the panel up the first time. Everything else on this list is
 a control on the page, calling the same function the command calls, so a kill from the browser

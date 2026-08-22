@@ -261,7 +261,11 @@ scripts, no external assets, so it opens offline and survives being sent to some
 
 The timeline is the part `status` cannot give you: the gaps are as informative as the bars. A
 usage-limit wait looks different from a slow session, and the infrastructure retries that were
-never charged against the attempt budget are visible after the fact.
+never charged against the attempt budget are visible after the fact. Every bar carries its duration
+and the timeline carries its axis and its extent, so a length is readable rather than suggestive.
+
+The panel serves the same report at the foot of its page, with a link back to it. That copy is the
+only one that knows a panel exists; the file version links nowhere, which is what lets it travel.
 
 ## Configuration
 

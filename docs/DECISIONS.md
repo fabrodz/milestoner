@@ -933,3 +933,32 @@ Rejected: reimplementing the scaffold in the server to get structured errors (tw
 of them untested against the CLI's); a path allowlist (above); creating the directory when it is
 missing (a typo becomes a tree); and defaulting `force` to true so the form always works (it would
 overwrite a hand-edited config on a double click).
+
+## D-039 - One report renderer, and only the served copy knows a panel exists (2026-08-22)
+
+[D-015](#d-015---the-report-is-one-self-contained-html-file-generated-on-demand-2026-08-19) made the
+report a single self-contained file, and [D-020](#d-020---the-local-web-panel-superseding-the-rejection-in-d-015-2026-08-19)
+gave the panel a live view that serves that same renderer at `GET /api/report`. Served, it was a
+dead end: the link on the panel opens in the same tab and the report had no way back. The fix has to
+survive both consumers at once, because there is one renderer and the file must keep travelling.
+
+**The difference is one input, supplied by the server.** `buildReport` takes an optional
+`panelHref`. `reportHtml` passes the panel view the request came from; `milestoner report` passes
+nothing, so the file on disk renders no link and no note about a panel, and the existing test that
+it carries no external asset is joined by one asserting it carries no anchor at all. Rejected: a
+boolean "served" flag with the URL assembled inside `report.ts`, which would put the panel's routing
+in the renderer that must not depend on a panel; and a second renderer for the served case, which is
+two files to keep honest for one link.
+
+**The link carries exactly what the report's own URL carried, and nothing more.** `root` when a
+machine panel named one, `token` when the caller used one. A report reached through the cookie that
+[D-033](#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)'s
+once-token exchange sets links to `/`, so the key is never written into a page that did not arrive
+with it, and the cookie authenticates the way back. Embedding the key unconditionally was rejected
+for the reason D-033 refused `--open` in the first place: the URL is the credential, and browser
+history syncs.
+
+**The served copy also says what it is.** One line under the headline: the run's archival snapshot,
+the same file `milestoner report` writes, made to be kept or sent on, where the panel is the live
+view. The panel/report split is a real question for anyone who reaches one from the other, and
+answering it in the artifact is cheaper than answering it in the guide alone.
