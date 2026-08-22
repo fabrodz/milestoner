@@ -547,8 +547,8 @@ missing, scaffold placeholders were never filled in, the `## Objective` or `## A
 section is missing or empty, a criterion carries no `(evidence: ...)` note naming an artifact, or
 the `## Exit` section does not name the milestone's `<run>-<id>` tag. **Warnings** mean the run
 around the milestones is degraded without any one of them being ungradable: a prompt file no
-milestone in `state.json` references, a protocol header naming another run (or none), an empty
-`liveness` list.
+milestone in `state.json` references, a `models` key naming no milestone, a protocol header naming
+another run (or none), an empty `liveness` list.
 
 The listing groups findings per milestone, run-level ones first, one line per finding with its
 rule, message and file (with a line number where one applies), and closes with `N errors, M
@@ -1094,6 +1094,7 @@ touches project code. Fails with an explanation when no adapter is configured. S
     "model": null,
     "env": {}
   },
+  "models": {},
   "infra": {
     "deathSeconds": 90,
     "tinyTranscriptBytes": 500,
@@ -1118,6 +1119,7 @@ touches project code. Fails with an explanation when no adapter is configured. S
 | `agent.modelArgs` | `["--model", "{{model}}"]` | Appended only when a model is set, in config or via `--model`. |
 | `agent.model` | `null` | Pin a model for the whole run. |
 | `agent.env` | `{}` | Extra environment variables for the session process. |
+| `models` | `{}` | Model per milestone id, e.g. `{"M03": "opus"}`. Overrides `agent.model` for that milestone only. |
 | `infra.deathSeconds` | `90` | A session shorter than this **and** with no `result.json` is a candidate infrastructure failure. |
 | `infra.tinyTranscriptBytes` | `500` | Below this transcript size, a fast death is classified `instant-death`. |
 | `infra.crashTranscriptBytes` | `100` | Below this transcript size, a session with no `result.json` is classified `crash` at any duration. |
@@ -1133,6 +1135,27 @@ touches project code. Fails with an explanation when no adapter is configured. S
 `{{projectRoot}}`, `{{milestonerDir}}`, `{{model}}`. An unknown placeholder is left untouched so you can
 see it in the log. `{{kickoff}}` is the generated instruction that points the session at the protocol,
 the milestone prompt and the result contract; most setups only need that one.
+
+**A model per milestone.** `models` maps a milestone id to the model that milestone's session runs
+on, so a plan can spend a cheap model on the mechanical work and a stronger one on the milestones
+that need it:
+
+```json
+"agent": { "command": "claude", "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+           "modelArgs": ["--model", "{{model}}"], "model": "sonnet", "env": {} },
+"models": { "M03": "opus", "M06": "opus" }
+```
+
+That run launches M03 and M06 with `--model opus` and every other milestone with `--model sonnet`.
+The model is resolved at each session launch, so editing the map mid-run applies from the next
+session on. Three rules:
+
+- `milestoner run --model <name>`, and the panel's model field, override the whole map: a run
+  started that way uses that one model throughout.
+- The map applies to the primary agent only. A fallback agent keeps its own `model`, because model
+  names are not interchangeable across agents.
+- Names are free text, passed to your agent verbatim through `modelArgs`. The engine knows no model
+  by name and cannot tell you a name is wrong; a key naming no milestone is a `lint` warning.
 
 **Choosing liveness paths.** Pick things that change *while* work happens, and only then:
 
@@ -1255,7 +1278,9 @@ unavailable:
 ```
 
 Each entry inherits the defaults it does not mention, like `agent` does. `name` is what appears in
-the logs and the report; it defaults to the command.
+the logs and the report; it defaults to the command. Each entry also keeps its own `model`: neither
+`--model` nor the per-milestone [`models` map](#configuration-reference) reaches a fallback, because
+`opus` means nothing to Codex.
 
 **What triggers it.** Only an infrastructure verdict: a usage limit, an `agent-failure` pattern, or
 an instant death with a tiny transcript. The same three cases that already refuse to consume an

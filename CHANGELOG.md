@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- A model per milestone: `models` in `.milestoner/config.json` maps a milestone id to the model its
+  session runs on (`{"M03": "opus"}`), so a plan can spend a cheap model on the mechanical
+  milestones and a stronger one on the hard ones. It is resolved at each session launch, not once
+  at startup, so an edit mid-run applies from the next session. `--model` overrides the whole map;
+  a fallback agent keeps its own `model`, because model names are not interchangeable across
+  agents.
+- `milestoner lint` warns (`orphan-model`) about a `models` key naming no milestone in `state.json`,
+  which is otherwise a model silently never used.
 - The panel starts a run with the same options the CLI takes. `POST /api/run/start` accepts
   `milestone`, `once`, `maxAttempts` and `model` beside `noLint` and translates each to its flag on
   the spawned runner; the start control grows a collapsed options row with a milestone picker built

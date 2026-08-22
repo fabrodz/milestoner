@@ -816,3 +816,36 @@ original sketch and both are semantic judgements wearing a mechanical costume - 
 (keyword overlap, section counts, prompt length) would reject good prompts and pass bad ones,
 and D-031's whole argument is that the substance of a prompt is a human's to supply and to check.
 The planner's checklist covers them conversationally, which is where they can be argued with.
+
+## D-036 - The model is a per-milestone choice, made when the run is planned (2026-08-22)
+
+`--model` pinned one model to a whole run, which is the wrong grain for the way a plan is actually
+written: the mechanical milestones (scaffolding, a config key, a doc pass) do not need what the hard
+ones need, and the difference is known at planning time, not at 3am. `models` in
+`.milestoner/config.json` maps a milestone id to the model its session runs on, defaulting to `{}`.
+
+**A flat map keyed by milestone id, not a field on the milestone.** `state.json` is the engine's, and
+the engine merges results into it while a session is alive; a model belongs to the plan, so it lives
+in the config, which is the file a human edits. The map is also the only shape that reads as one
+thing: `{"M03": "opus", "M06": "opus"}` is the whole decision on one line, where a `model` field
+spread across six milestone entries is not.
+
+**Resolved at each session launch, not once at startup.** The agent pool is built before the loop,
+so the previous `--model` handling could mutate `config.agent.model` once and be done. A per-milestone
+model cannot: the resolution moved into the launch, where the milestone is known. The side effect is
+that editing the map mid-run applies from the next session, which is the behaviour a long run wants.
+
+**Precedence, and the one place it stops.** The run-level override (`--model`, or the panel's start
+field) beats the map, which beats `agent.model`. All three concern the primary agent only: a fallback
+agent keeps its own `model`, because model names are not interchangeable across agents and `opus`
+means nothing to Codex. That is the same reason `fallbackAgents` entries carried their own `model`
+from the day the pool existed.
+
+**No validation against a list of names.** Model names are free text everywhere in this engine, as
+agent commands are: the engine knows no agent and no model by name. The one mechanical check worth
+making is that a key names a milestone this run has, which is a `lint` warning (`orphan-model`) in
+D-035's terms - the run around the milestones is degraded, no single milestone is ungradable.
+
+Rejected: a `model` field on each milestone in `state.json` (the engine's file, and a plan spread
+over six places); and validating names against a known list (it would need updating with every
+provider release, and would reject a model that exists).

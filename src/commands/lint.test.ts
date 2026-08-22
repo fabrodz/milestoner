@@ -109,6 +109,25 @@ test("warnings alone exit 0", () => {
   assert.match(out, /0 errors, 1 warning\b/);
 });
 
+test("orphan-model: a models key naming no milestone warns, a map that names one is quiet", () => {
+  const root = scaffold("checkout-v2");
+  fillIn(root, "checkout-v2");
+  const layout = layoutFor(root);
+  const config = JSON.parse(readFileSync(layout.config, "utf8")) as Record<string, unknown>;
+
+  config.models = { M02: "opus", M99: "opus" };
+  writeFileSync(layout.config, JSON.stringify(config));
+  const orphaned = lintAt(root);
+  assert.equal(orphaned.code, 0, "a model nobody uses is never worth refusing a start over");
+  assert.match(orphaned.out, /warning\s+orphan-model/);
+  assert.match(orphaned.out, /models\."M99"/);
+  assert.match(orphaned.out, /0 errors, 1 warning\b/);
+
+  config.models = { M02: "opus" };
+  writeFileSync(layout.config, JSON.stringify(config));
+  assert.match(lintAt(root).out, /all clear/);
+});
+
 test("--json emits { run, errors, warnings, findings } with counts that match the findings", () => {
   const root = scaffold("checkout-v2");
   const { code, out } = lintAt(root, true);
