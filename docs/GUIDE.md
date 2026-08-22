@@ -964,6 +964,29 @@ Stopping a run sends `SIGINT` to the runner, which is its own "finish this sessi
 Starting one spawns a detached `milestoner run`: closing the panel must not end an overnight run, and
 everything that manages a running runner already works on a separate process.
 
+#### Starting a run with options
+
+The "options" link beside the start button opens the same choices
+[`milestoner run`](#milestoner-run) takes on the command line. All four are optional, and only the
+fields you fill in are sent, so an untouched form starts exactly the run the button always started.
+
+| Field | Flag | Meaning |
+| --- | --- | --- |
+| Milestone | `--milestone <id>` | Run this milestone alone. The picker lists the run's own ids, so there is nothing to mistype. |
+| One session, then stop | `--once` | Stop after the next session instead of draining the run. |
+| Attempts | `--max-attempts <n>` | Override `maxAttempts` for this run of the runner. Positive integer. |
+| Model | `--model <name>` | Pass a model name through to the agent for this run. |
+
+The values are checked in the panel's process before anything is spawned, and a bad one comes back
+as a refusal naming the field: an unknown or empty milestone, an attempts value that is not a
+positive integer, an empty or non-string model. This is the same reason the lint gate runs here -
+the runner is spawned detached with its output discarded, so a flag it would reject fails where
+nobody can read it.
+
+"Unstick the environment" takes an optional seconds value the same way, overriding
+`environment.attendSeconds` for that one run of the adapter; left empty, the configured default
+applies.
+
 #### What you are running
 
 This is the part to read before the flags. Everything the panel can do happens on the machine it

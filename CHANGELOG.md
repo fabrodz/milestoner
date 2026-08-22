@@ -3,6 +3,22 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- The panel starts a run with the same options the CLI takes. `POST /api/run/start` accepts
+  `milestone`, `once`, `maxAttempts` and `model` beside `noLint` and translates each to its flag on
+  the spawned runner; the start control grows a collapsed options row with a milestone picker built
+  from the run's own ids, a "one session, then stop" box, an attempts field and a model field, all
+  optional, posting only what was filled in. "Unstick the environment" gains a seconds input that
+  overrides `environment.attendSeconds` for that one run of the adapter.
+- Start options are validated in the panel's process before anything is spawned: an unknown or
+  empty `milestone`, a `maxAttempts` that is not a positive integer, an empty or non-string `model`
+  and a non-boolean `once` are refused with a message naming the field and no runner started. The
+  runner is spawned detached with its output discarded, so a flag it would reject would otherwise
+  fail where nobody can see it.
+
 ## [0.8.0] - 2026-08-21
 
 ### Added
