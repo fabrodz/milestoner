@@ -38,6 +38,7 @@ function input(overrides: Partial<LintInput> = {}): LintInput {
     run: RUN,
     milestones: [milestone("M01")],
     promptFiles: ["M01.md"],
+    modelKeys: [],
     protocol: `# Execution protocol - run "${RUN}"\n\nThe rules.\n`,
     livenessCount: 1,
     ...overrides,
@@ -164,6 +165,20 @@ test("orphan-prompt: a prompt file no milestone references", () => {
 
 test("orphan-prompt: quiet when every file on disk is referenced", () => {
   assert.deepEqual(only(lintRun(input()), "orphan-prompt"), []);
+});
+
+test("orphan-model: a models key naming no milestone", () => {
+  const findings = only(lintRun(input({ modelKeys: ["M01", "M99"] })), "orphan-model");
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.severity, "warning");
+  assert.equal(findings[0]?.milestone, null);
+  assert.equal(findings[0]?.file, ".milestoner/config.json");
+  assert.match(findings[0]?.message ?? "", /models\."M99"/);
+});
+
+test("orphan-model: quiet when every key names a milestone, and when the map is empty", () => {
+  assert.deepEqual(only(lintRun(input({ modelKeys: ["M01"] })), "orphan-model"), []);
+  assert.deepEqual(only(lintRun(input()), "orphan-model"), []);
 });
 
 test("protocol-run-mismatch: the header names a different run", () => {

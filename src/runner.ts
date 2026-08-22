@@ -2,7 +2,7 @@ import { appendFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { benchAndRotate, createPool, currentAgent, hasFallbacks } from "./agents.js";
 import { collectLintInput, gatingFindings, lintTotals, renderFindings } from "./commands/lint.js";
-import { buildAgentArgs } from "./config.js";
+import { buildAgentArgs, resolveModel } from "./config.js";
 import { lintRun } from "./lint.js";
 import { registryPath, type Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
@@ -146,7 +146,6 @@ export async function run(options: RunOptions): Promise<RunExit> {
   const stopping = () => signal.aborted || options.stopSignal?.aborted === true;
   const anySignal = options.stopSignal ? AbortSignal.any([signal, options.stopSignal]) : signal;
   const maxAttempts = options.maxAttempts ?? config.maxAttempts;
-  if (options.model) config.agent.model = options.model;
 
   // Before any session, any state change and any panel: a run that fails the gate never started.
   if (!lintGate(config, layout, options.noLint === true)) return "lint-refused";
@@ -154,7 +153,6 @@ export async function run(options: RunOptions): Promise<RunExit> {
   ensureDir(layout.logs);
   ensureDir(layout.results);
 
-  // Built after the --model override so the primary slot carries it.
   const pool = createPool(config);
   if (hasFallbacks(pool)) {
     info(`agents: ${pool.slots.map((s) => s.name).join(" -> ")} (fallback on infrastructure failure)`);
@@ -289,14 +287,22 @@ export async function run(options: RunOptions): Promise<RunExit> {
       const promptFile = join(layout.prompts, next.prompt);
       const steering = readSteering(layout.steering);
       const active = currentAgent(pool);
-      const args = buildAgentArgs(active.agent, {
-        kickoff: buildKickoff(config, layout, next, steering),
-        promptFile,
-        milestoneId: next.id,
-        projectRoot: config.projectRoot,
-        milestonerDir: layout.dir,
-        model: active.agent.model ?? "",
-      });
+
+      // Resolved here rather than once at startup: the model can change with the milestone. The
+      // primary slot alone takes the override and the map; a fallback carries its own model.
+      const model = pool.index === 0 ? resolveModel(config, next.id, options.model) : active.agent.model;
+      const args = buildAgentArgs(
+        active.agent,
+        {
+          kickoff: buildKickoff(config, layout, next, steering),
+          promptFile,
+          milestoneId: next.id,
+          projectRoot: config.projectRoot,
+          milestonerDir: layout.dir,
+          model: model ?? "",
+        },
+        model,
+      );
 
       step(`${next.id} - ${next.title}  (attempt ${attempt}/${maxAttempts})`);
       info(`prompt     ${relative(config.projectRoot, promptFile)}`);

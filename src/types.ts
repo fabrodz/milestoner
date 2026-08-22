@@ -91,6 +91,13 @@ export interface MilestonerConfig {
    * rules recognise. Empty means the runner waits the limit out instead, which is the old behaviour.
    */
   fallbackAgents: AgentConfig[];
+  /**
+   * Model per milestone id, for the primary agent only: `{ "M03": "opus" }`. A cheap model for the
+   * mechanical milestones and a stronger one for the hard ones is a choice made when the run is
+   * planned. `--model` overrides the whole map; a fallback agent keeps its own `model`, because
+   * model names are not interchangeable across agents.
+   */
+  models: Record<string, string>;
   infra: InfraConfig;
   /** Paths (relative to projectRoot) whose mtime proves the run is alive. The transcript
    *  is never one: headless sessions flush it only at exit. */

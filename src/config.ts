@@ -15,6 +15,7 @@ export function defaultConfig(run: string, projectRoot: string): MilestonerConfi
       env: {},
     },
     fallbackAgents: [],
+    models: {},
     infra: {
       deathSeconds: 90,
       tinyTranscriptBytes: 500,
@@ -45,6 +46,7 @@ export function loadConfig(configPath: string, projectRoot: string): MilestonerC
     projectRoot,
     agent: { ...base.agent, ...raw.agent },
     fallbackAgents: (raw.fallbackAgents ?? []).map((a) => ({ ...base.agent, ...a })),
+    models: { ...base.models, ...raw.models },
     infra: { ...base.infra, ...raw.infra },
     liveness: raw.liveness ?? base.liveness,
     environment: { ...base.environment, ...raw.environment },
@@ -56,10 +58,17 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => vars[name] ?? match);
 }
 
-export function buildAgentArgs(agent: AgentConfig, vars: Record<string, string>): string[] {
+export function buildAgentArgs(agent: AgentConfig, vars: Record<string, string>, model?: string | null): string[] {
+  // `null` is a caller saying "no model", not "use the agent's own"; only an absent argument means that.
+  const chosen = model === undefined ? agent.model : model;
   const args = agent.args.map((a) => renderTemplate(a, vars));
-  if (agent.model) {
-    args.push(...agent.modelArgs.map((a) => renderTemplate(a, { ...vars, model: agent.model! })));
+  if (chosen) {
+    args.push(...agent.modelArgs.map((a) => renderTemplate(a, { ...vars, model: chosen })));
   }
   return args;
+}
+
+/** The run-level override beats the milestone's entry in `models`, which beats the agent's own. */
+export function resolveModel(config: MilestonerConfig, milestoneId: string, override?: string | null): string | null {
+  return override ?? config.models[milestoneId] ?? config.agent.model;
 }

@@ -39,6 +39,7 @@ export function collectLintInput(config: MilestonerConfig, layout: Layout, state
       text: readIfPresent(join(layout.prompts, m.prompt)),
     })),
     promptFiles: promptFilesIn(layout.prompts),
+    modelKeys: Object.keys(config.models),
     protocol: readIfPresent(layout.protocol),
     livenessCount: config.liveness.length,
   };

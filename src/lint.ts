@@ -26,6 +26,8 @@ export interface LintInput {
   milestones: LintMilestone[];
   /** Prompt file names present in .milestoner/prompts/. */
   promptFiles: string[];
+  /** Milestone ids the config's `models` map names. */
+  modelKeys: string[];
   /** protocol.md text, or null when it is not on disk. */
   protocol: string | null;
   /** Number of configured liveness paths. */
@@ -158,6 +160,13 @@ export function lintRun(input: LintInput): LintFinding[] {
   for (const name of input.promptFiles) {
     if (!referenced.has(name)) {
       warn("orphan-prompt", `${PROMPTS_DIR}/${name} is referenced by no milestone in state`, `${PROMPTS_DIR}/${name}`);
+    }
+  }
+
+  const ids = new Set(input.milestones.map((m) => m.id));
+  for (const key of input.modelKeys) {
+    if (!ids.has(key)) {
+      warn("orphan-model", `models."${key}" names no milestone, so that model is never used`, CONFIG_FILE);
     }
   }
 
