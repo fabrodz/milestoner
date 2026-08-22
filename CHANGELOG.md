@@ -13,6 +13,20 @@ is bringing the panel up.
 
 ### Added
 
+- A milestone can be added to an existing run, mid-run included. `milestoner add [--title <text>]`
+  appends one pending milestone - the next id after the highest in `state.json`, a prompt skeleton
+  in `.milestoner/prompts/` - under the state lock, and prints the id and the prompt path. Until
+  now the count chosen at `init` was final short of hand-editing `state.json`, a file the engine
+  owns.
+- The append is safe while a runner is alive: the runner picks its next milestone from a fresh
+  state load on every loop pass, so an added milestone is reached when its turn comes, with no
+  restart. Appending to a completed run clears `runComplete` - a run that gains a milestone is a
+  run again. A prompt file already sitting at the skeleton's name is kept, so the prompt can be
+  written before the slot is added.
+- The panel grew the same control: an **Add a milestone** card under the milestone list, posting
+  to `POST /api/milestone/add` (`{ title }` optional) behind `--write`, the key, the `Host`
+  allowlist and the `Origin` check like every mutation. The reply names the new id, and the card
+  appears on the next refresh; both front ends call the one engine primitive.
 - A run can be created from the panel. The hub grows a **New run** card - directory, optional run
   name, milestone count - posting to `POST /api/init`, which calls the same `init()` the CLI does,
   so the scaffold and its refusals are the command's. The new project is recorded in

@@ -515,8 +515,10 @@ milestoner init [--run <name>] [--milestones <n>] [--force]
 | `--milestones <n>` | `3` | How many milestone skeletons to create (1-99). |
 | `--force` | off | Overwrite an existing `config.json` and `state.json`. Prompts, protocol and logs are never overwritten. |
 
-Adding a milestone later is a manual edit: create `prompts/M05.md` and append an entry to
-`state.json`. That is intentional. `state.json` is a run's history, not a scratch file.
+The count chosen here is not final: [`milestoner add`](#milestoner-add) appends a milestone to the
+run later, mid-flight included. What stays off the table is editing `state.json` by hand - it is a
+run's history, not a scratch file, and the append goes through the same lock every other state
+write does.
 
 This is also the one thing the web panel can do without a terminal: the hub's **New run** card takes
 the same three values and calls the same function, refusals included. See
@@ -531,6 +533,35 @@ line in its Git section - or delete it for a fresh template. Without that check,
 the new run would read the finished run's rules, tag instruction included, and nothing would say
 so. A protocol whose header no longer names a run at all is kept with a warning, because `init`
 cannot tell which run it belongs to; a protocol naming the run being scaffolded is kept silently.
+
+### milestoner add
+
+```sh
+milestoner add [--title <text>]
+```
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--title <text>` | the scaffold placeholder | The new milestone's title in `state.json`. |
+
+Appends one pending milestone to the run: the next id after the highest one in `state.json`,
+zero attempts, and a prompt skeleton in `.milestoner/prompts/` - exactly what `init` would have
+scaffolded had the count been one higher. It prints the new id and the prompt path. One milestone
+per invocation; run it again for the next one.
+
+The append is safe while a runner is alive. The runner picks its next milestone from a fresh state
+load on every loop pass, so an added milestone is simply reached when its turn comes, with no
+restart. Appending to a completed run clears `runComplete`: a run that gains a milestone is a run
+again, and the next `milestoner run` drains it.
+
+A prompt file already sitting at the skeleton's name is kept, byte for byte - writing the prompt
+before adding the slot is a fine order to work in. Either way the prompt is still yours to write:
+until the skeleton is filled in, the title and the placeholder text are error-level lint findings,
+and the next runner start will refuse on them like on any unwritten milestone.
+
+The panel's equivalent is `POST /api/milestone/add` behind the same control - see
+[the panel-only workflow](#the-panel-only-workflow-start-to-finish). Removing or reordering
+milestones stays unsupported; the run's history is append-only.
 
 ### milestoner lint
 
@@ -976,7 +1007,7 @@ HttpOnly cookie before being redirected to a clean URL.
 
 A local web panel over the same run `status` describes, refreshed by server-sent events. It reads
 `state.json`, `pulse.json` and the two logs, and its write surface is exactly the CLI's: steer,
-unblock, kill, attend, start a runner, stop one after the current session. It calls the same
+unblock, kill, attend, add a milestone, start a runner, stop one after the current session. It calls the same
 functions the commands do, so there is one audit trail rather than two - a kill from the panel lands
 in `supervisor-log.md` like any other.
 
@@ -1040,17 +1071,22 @@ If a run is already going anywhere on this machine, its daemon is already servin
 8. **Steer it.** The **Steering** card: type the correction, then **Replace** or **Add a line**.
    Every session launched from that point sees it as an override on its milestone prompt.
    **Clear** puts the run back on the prompts alone.
-9. **Kill a hung session.** **Kill this session and retry** ends the agent session, not the runner:
-   the runner grades it incomplete, charges an attempt and relaunches with fresh context.
-   **Stop after this session** is the polite one - it interrupts the runner and lets the current
-   session finish.
-10. **Unstick the environment.** **Unstick the environment** runs `environment.attendCommand`, with
+9. **Grow the plan.** **Add a milestone** under the milestone list appends one pending milestone
+   after the last, with its prompt skeleton, through the same locked primitive
+   [`milestoner add`](#milestoner-add) uses; the title box is optional. The new card appears on the
+   next refresh. A runner that is alive picks the milestone up when its turn comes - write its
+   prompt in the card's editor before then.
+10. **Kill a hung session.** **Kill this session and retry** ends the agent session, not the runner:
+    the runner grades it incomplete, charges an attempt and relaunches with fresh context.
+    **Stop after this session** is the polite one - it interrupts the runner and lets the current
+    session finish.
+11. **Unstick the environment.** **Unstick the environment** runs `environment.attendCommand`, with
     the seconds box beside it overriding `environment.attendSeconds` for that one run of it. The
     button is there only when an adapter is configured.
-11. **Unblock a milestone.** A blocked milestone's card carries its diagnosis and two buttons:
+12. **Unblock a milestone.** A blocked milestone's card carries its diagnosis and two buttons:
     **I fixed it, try again**, which sets it back to pending with the attempts refunded, and
     **Try again, keep the attempts used**. Fixing what the diagnosis names is still yours.
-12. **Read what happened.** Every row of a milestone's attempt table has a **transcript** link, and
+13. **Read what happened.** Every row of a milestone's attempt table has a **transcript** link, and
     **Open the full report, with the timeline** at the foot of the page is
     [`milestoner report`](#milestoner-report) served live: the tiles, the wall-clock timeline, the
     evidence per milestone and the interventions.

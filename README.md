@@ -106,6 +106,7 @@ Then, in a Claude Code session at the project root:
 | Command | What it does |
 | --- | --- |
 | `milestoner init [--run <name>] [--milestones <n>] [--force]` | Scaffold `.milestoner/`: config, state machine, protocol template, prompt skeletons. |
+| `milestoner add [--title <text>]` | Append one pending milestone with its prompt skeleton, mid-run included; a live runner picks it up when its turn comes. |
 | `milestoner lint [--json]` | Check the run's form before a session spends time on it: prompts, protocol, config. Errors exit `1`; warnings alone stay `0`. |
 | `milestoner run [--milestone <id>] [--max-attempts <n>] [--model <name>] [--once] [--no-lint] [--no-panel] [--open \| --no-open] [--serve]` | Drain the run: one fresh agent session per milestone until complete or blocked. Lints first and refuses to start on error-level findings on pending milestones; `--no-lint` overrides. Brings the machine panel up by default; `--serve` attaches a per-run panel instead. |
 | `milestoner status [--json]` | Milestones, attempts, evidence counts, and the pulse. |
@@ -213,9 +214,9 @@ milestoner serve --write    # the per-project panel on its own, against whatever
 
 Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
 refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, write
-the milestone prompts and the protocol, edit the run's config, give a milestone its own model, set
-or clear steering, start a runner with the same options `run` takes on the command line, stop it,
-kill a hung session, unblock a milestone, run the environment adapter. It is
+the milestone prompts and the protocol, edit the run's config, add a milestone to the run, give a
+milestone its own model, set or clear steering, start a runner with the same options `run` takes on
+the command line, stop it, kill a hung session, unblock a milestone, run the environment adapter. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
 audit trail rather than two.
 [The guide walks a whole run through it](docs/GUIDE.md#the-panel-only-workflow-start-to-finish),
