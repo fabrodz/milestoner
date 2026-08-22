@@ -299,9 +299,11 @@ test("a machine panel answers for every registered run, one root at a time", asy
 
     const reported = await (await mGet(`/api/report?root=${encodeURIComponent(a.projectRoot)}`)).text();
     const href = /<a href="([^"]+)">&larr; back to the panel<\/a>/.exec(reported)?.[1] ?? "";
+    // The same serializer panelHref uses: URLSearchParams percent-encodes characters
+    // encodeURIComponent leaves alone (a Windows 8.3 temp path carries a "~").
     assert.equal(
       href,
-      `/?root=${encodeURIComponent(a.projectRoot).replaceAll("&", "&amp;")}`,
+      `/?${new URLSearchParams({ root: a.projectRoot })}`.replaceAll("&", "&amp;"),
       "on a machine panel the way back names the run the report is of",
     );
 
