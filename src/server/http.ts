@@ -216,7 +216,17 @@ export function createPanel(options: ServerOptions) {
             break;
           }
           case "/api/run/start":
-            result = !canStart ? { ok: false, message: NO_SECOND_RUNNER } : startRun(ctx, bool("noLint"));
+            // The option values go through raw: startRun validates them, mirroring what cli.ts
+            // enforces, so a bad one is refused here rather than by a runner nobody can hear.
+            result = !canStart
+              ? { ok: false, message: NO_SECOND_RUNNER }
+              : startRun(ctx, {
+                  noLint: bool("noLint"),
+                  milestone: body.milestone,
+                  once: body.once,
+                  maxAttempts: body.maxAttempts,
+                  model: body.model,
+                });
             break;
           case "/api/run/stop":
             result = stopRun(ctx);

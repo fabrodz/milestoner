@@ -11,7 +11,7 @@ import type { Layout } from "../paths.js";
 import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
-import type { MilestonerConfig } from "../types.js";
+import type { MilestonerConfig, RunState } from "../types.js";
 
 export interface ApiContext {
   config: MilestonerConfig;
@@ -129,19 +129,63 @@ export function doAttend(ctx: ApiContext, seconds: number | undefined): ActionRe
   return outcome(attend({ config: ctx.config, layout: ctx.layout, seconds, rule: "web" }), "environment adapter finished", "environment adapter failed");
 }
 
+/** Everything a start may carry, straight off the request body: the values are checked here. */
+export interface StartOptions {
+  noLint?: boolean;
+  milestone?: unknown;
+  once?: unknown;
+  maxAttempts?: unknown;
+  model?: unknown;
+}
+
+/**
+ * The options as CLI flags, or the first thing wrong with them. Validated in this process because
+ * the runner is spawned detached with stdio ignored: a flag it would reject fails into the void.
+ */
+function startFlags(state: RunState, options: StartOptions): { args: string[] } | { error: string } {
+  const args: string[] = [];
+
+  if (options.milestone !== undefined) {
+    const id = typeof options.milestone === "string" ? options.milestone.trim() : "";
+    if (!id) return { error: "milestone must be the id of a milestone in this run" };
+    if (!state.milestones.some((m) => m.id === id)) return { error: `milestone: no milestone with id "${id}"` };
+    args.push("--milestone", id);
+  }
+
+  if (options.once !== undefined && typeof options.once !== "boolean") return { error: "once must be true or false" };
+  if (options.once === true) args.push("--once");
+
+  if (options.maxAttempts !== undefined) {
+    const n = options.maxAttempts;
+    if (typeof n !== "number" || !Number.isInteger(n) || n < 1) return { error: "maxAttempts must be a positive integer" };
+    args.push("--max-attempts", String(n));
+  }
+
+  if (options.model !== undefined) {
+    const model = typeof options.model === "string" ? options.model.trim() : "";
+    if (!model) return { error: "model must be a non-empty string" };
+    args.push("--model", model);
+  }
+
+  return { args };
+}
+
 /**
  * The runner is spawned detached rather than hosted in this process: closing the panel must not end
  * an overnight run, and everything that manages a running runner - pulse.json, kill, the two-stage
  * interrupt - already works on a separate process.
  */
-export function startRun(ctx: ApiContext, noLint = false): ActionResult {
+export function startRun(ctx: ApiContext, options: StartOptions = {}): ActionResult {
   const pulse = readPulse(ctx.layout.pulse);
   if (pulse && isProcessAlive(pulse.pid)) return { ok: false, message: `a runner is already running (pid ${pulse.pid})` };
 
+  const state = loadState(ctx.layout.state);
+  const flags = startFlags(state, options);
+  if ("error" in flags) return { ok: false, message: flags.error };
+
   // Lint here, synchronously: the runner is spawned detached with stdio ignored, so its own gate
   // (D-035) would refuse into the void and the panel would report a runner that is already dead.
-  if (!noLint) {
-    const state = loadState(ctx.layout.state);
+  if (!options.noLint) {
     const findings = lintRun(collectLintInput(ctx.config, ctx.layout, state));
     const gating = gatingFindings(state, findings);
     if (gating.length > 0) {
@@ -156,7 +200,7 @@ export function startRun(ctx: ApiContext, noLint = false): ActionResult {
     }
   }
 
-  const child = spawn(process.execPath, [ctx.cliPath, "run", ...(noLint ? ["--no-lint"] : [])], {
+  const child = spawn(process.execPath, [ctx.cliPath, "run", ...flags.args, ...(options.noLint ? ["--no-lint"] : [])], {
     cwd: ctx.config.projectRoot,
     detached: true,
     stdio: ["ignore", "ignore", "ignore"],

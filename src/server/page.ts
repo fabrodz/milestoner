@@ -69,6 +69,11 @@ button.link{border:none;background:none;padding:0;color:var(--progress);text-dec
   font-size:.84rem;cursor:pointer}
 textarea{font:inherit;font-size:.9rem;width:100%;min-height:4rem;padding:.55rem .65rem;resize:vertical;
   border:1px solid var(--line);border-radius:.4rem;background:var(--bg);color:var(--fg)}
+input,select{font:inherit;font-size:.85rem;padding:.3rem .5rem;border:1px solid var(--line);border-radius:.4rem;
+  background:var(--bg);color:var(--fg)}
+input:disabled,select:disabled{opacity:.35}
+input[type=checkbox]{padding:0;accent-color:var(--progress)}
+label.opt{display:inline-flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--muted)}
 pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;overflow:auto;margin:0;
   padding:.7rem .8rem;background:color-mix(in srgb,var(--fg) 4%,transparent);border-radius:.35rem;max-height:26rem}
 time{cursor:help;border-bottom:1px dotted var(--line)}
@@ -277,10 +282,44 @@ async function refreshLint(rev) {
   }
 }
 
+let lastControls = "";
+/** The same options milestoner run takes. Only the fields that were filled in are sent. */
+function startOptionsHtml(d) {
+  return '<div id="startOpts" style="display:none;margin-top:.7rem">' +
+    '<div class="row">' +
+    '<label class="opt">Milestone <select data-w id="optMilestone"><option value="">every pending milestone, in order</option>' +
+    d.milestones.map(m => '<option value="' + esc(m.id) + '">' + esc(m.id + " · " + m.title) + "</option>").join("") +
+    "</select></label>" +
+    '<label class="opt"><input data-w id="optOnce" type="checkbox">one session, then stop</label>' +
+    '<label class="opt">Attempts <input data-w id="optAttempts" type="number" min="1" step="1" style="width:5rem" placeholder="' + esc(d.maxAttempts) + '"></label>' +
+    '<label class="opt">Model <input data-w id="optModel" type="text" style="width:11rem" placeholder="the agent default"></label>' +
+    "</div></div>";
+}
+function toggleStartOptions() {
+  const box = document.getElementById("startOpts");
+  if (box) box.style.display = box.style.display === "none" ? "block" : "none";
+}
+const field = id => { const el = document.getElementById(id); return el && el.value ? el.value.trim() : ""; };
+function startBody() {
+  const body = {};
+  if (field("optMilestone")) body.milestone = field("optMilestone");
+  const once = document.getElementById("optOnce");
+  if (once && once.checked) body.once = true;
+  if (field("optAttempts")) body.maxAttempts = Number(field("optAttempts"));
+  if (field("optModel")) body.model = field("optModel");
+  return body;
+}
+function attendNow() {
+  const seconds = Number(field("attendSeconds"));
+  post("/api/attend", seconds > 0 ? { seconds } : {});
+}
+
 async function startRun(noLint) {
   const box = document.getElementById("lintRefusal");
+  const body = startBody();
+  if (noLint) body.noLint = true;
   try {
-    const r = await fetch(api("/api/run/start"), { method: "POST", headers: auth, body: JSON.stringify(noLint ? { noLint: true } : {}) });
+    const r = await fetch(api("/api/run/start"), { method: "POST", headers: auth, body: JSON.stringify(body) });
     const a = await r.json();
     toast(a.message || a.error || (r.ok ? "done" : "failed"));
     if (a.lintRefused) {
@@ -389,15 +428,23 @@ function render(d) {
     (v.todo ? '<div class="todo"><b>What to do</b>' + esc(v.todo) + "</div>" : "");
 
   const running = d.pulse && d.pulse.runnerAlive;
-  document.getElementById("controls").innerHTML =
+  const controls =
     '<div class="row">' +
     (running
       ? '<button data-w onclick="post(\'/api/run/stop\')">Stop after this session</button>' +
         '<button data-w class="danger" onclick="killAgent()">Kill this session and retry</button>'
-      : d.canStart ? '<button data-w class="primary" onclick="startRun()">Start the run</button>' : "") +
-    (d.attendConfigured ? '<button data-w onclick="post(\'/api/attend\',{})">Unstick the environment</button>' : "") +
+      : d.canStart ? '<button data-w class="primary" onclick="startRun()">Start the run</button>' +
+        '<button class="link" onclick="toggleStartOptions()">options</button>' : "") +
+    (d.attendConfigured
+      ? '<button data-w onclick="attendNow()">Unstick the environment</button>' +
+        '<input data-w id="attendSeconds" type="number" min="1" step="1" style="width:6rem" placeholder="seconds" title="how long the adapter gets; the configured default when empty">'
+      : "") +
     (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + JSON.stringify(d.pulse.transcript) + ')">watch the live transcript</button>' : "") +
-    "</div>";
+    "</div>" +
+    (!running && d.canStart ? startOptionsHtml(d) : "");
+  // Rewritten only when it actually changed: this card carries inputs, and a tick that rebuilds it
+  // while a run is live would throw away what is being typed into them.
+  if (controls !== lastControls) { lastControls = controls; document.getElementById("controls").innerHTML = controls; }
 
   const sessions = d.milestones.reduce((n, m) => n + m.history.length, 0);
   const infra = d.milestones.reduce((n, m) => n + m.history.filter(h => h.outcome === "infra-failure").length, 0);
