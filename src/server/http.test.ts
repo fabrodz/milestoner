@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { request } from "node:http";
 import type { AddressInfo } from "node:net";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -231,7 +231,7 @@ test("a machine panel answers for every registered run, one root at a time", asy
   );
 
   const machine = createPanel({
-    scope: { kind: "machine", registry: registryFile, cliPath: "" },
+    scope: { kind: "machine", registry: registryFile, projects: join(mkdtempSync(join(tmpdir(), "milestoner-mproj-")), "projects.json"), cliPath: "" },
     port: 0,
     token: TOKEN,
     allowWrites: true,
@@ -273,6 +273,59 @@ test("a machine panel answers for every registered run, one root at a time", asy
     assert.ok(after.runs.every((r) => r.health === "gone"), "with no pulse and no entry, the honest verdict is gone");
     const still = await mGet(`/api/state?root=${encodeURIComponent(a.projectRoot)}`);
     assert.equal(still.status, 200, "the per-run view of a finished run still resolves");
+  } finally {
+    machine.close();
+    machine.closeAllConnections();
+  }
+});
+
+test("a project known only from the projects file is listed, and can be written to", async () => {
+  const filed = machineProject("filed-away");
+  const gone = machineProject("deleted-since");
+  const home = mkdtempSync(join(tmpdir(), "milestoner-mhome-"));
+  const registryFile = join(home, "runs.json");
+  const projectsFile = join(home, "projects.json");
+  writeFileSync(registryFile, JSON.stringify({ runs: [] }));
+  const now = new Date().toISOString();
+  writeFileSync(
+    projectsFile,
+    JSON.stringify({ projects: [{ root: filed.projectRoot, lastSeen: now }, { root: gone.projectRoot, lastSeen: now }] }),
+  );
+  rmSync(gone.projectRoot, { recursive: true, force: true });
+
+  const machine = createPanel({
+    scope: { kind: "machine", registry: registryFile, projects: projectsFile, cliPath: "" },
+    port: 0,
+    token: TOKEN,
+    allowWrites: true,
+  });
+  await new Promise<void>((r) => machine.listen(0, "127.0.0.1", r));
+  const mBase = `http://127.0.0.1:${(machine.address() as AddressInfo).port}`;
+  const mGet = (path: string, init?: RequestInit) =>
+    fetch(`${mBase}${path}`, { ...init, headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json", ...init?.headers } });
+
+  try {
+    const hub = (await (await mGet("/api/state")).json()) as { runs: Array<{ run: string; health: string }> };
+    assert.deepEqual(
+      hub.runs.map((r) => r.run),
+      ["filed-away"],
+      "no registry entry and no runner this panel watched: the file is the only thing that knows it exists",
+    );
+    assert.equal(hub.runs[0]?.health, "unknown", "nothing died here, so it must not read as a gone runner");
+
+    const one = await mGet(`/api/state?root=${encodeURIComponent(filed.projectRoot)}`);
+    assert.equal(one.status, 200, "contextFor must resolve a project the file alone put in the listing");
+
+    const steered = await mGet(`/api/steer?root=${encodeURIComponent(filed.projectRoot)}`, {
+      method: "POST",
+      body: JSON.stringify({ text: "steered through the projects file" }),
+    });
+    assert.equal(steered.status, 200);
+    assert.match(readFileSync(filed.steering, "utf8"), /steered through the projects file/);
+
+    writeFileSync(projectsFile, "{ not json at all");
+    const corrupt = (await (await mGet("/api/state")).json()) as { runs: unknown[] };
+    assert.deepEqual(corrupt.runs, [], "a corrupt file costs the listing those projects, not the panel");
   } finally {
     machine.close();
     machine.closeAllConnections();

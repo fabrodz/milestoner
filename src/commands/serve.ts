@@ -1,5 +1,5 @@
 import type { Layout } from "../paths.js";
-import { registryPath } from "../paths.js";
+import { projectsPath, registryPath } from "../paths.js";
 import { hasLiveRunner } from "../registry.js";
 import { claimPanel, findLivePanel, panelUrl, releasePanel, type PanelInfo } from "../server/global.js";
 import { announcePanel, projectScope, startPanel } from "../server/panel.js";
@@ -71,7 +71,7 @@ export const LINGER_MS = 10 * 60 * 1000;
 export async function serveAll(options: ServeAllOptions): Promise<number> {
   const registry = registryPath();
   const started = await startPanel({
-    scope: { kind: "machine", registry, cliPath: process.argv[1] ?? "" },
+    scope: { kind: "machine", registry, projects: projectsPath(), cliPath: process.argv[1] ?? "" },
     port: options.port,
     write: options.write,
     token: options.token,

@@ -238,7 +238,8 @@ test("one interrupt with a panel attached still finishes and grades the running 
 test("a run that joins a live machine panel prints its URL instead of starting another", async () => {
   const { root, layout } = scaffold();
   const registry = join(process.env.MILESTONER_HOME!, "runs.json");
-  const machine = createPanel({ scope: { kind: "machine", registry, cliPath: "" }, port: 0, token: "machine-key", allowWrites: true });
+  const projects = join(process.env.MILESTONER_HOME!, "projects.json");
+  const machine = createPanel({ scope: { kind: "machine", registry, projects, cliPath: "" }, port: 0, token: "machine-key", allowWrites: true });
   await new Promise<void>((r) => machine.listen(0, "127.0.0.1", r));
   const port = (machine.address() as AddressInfo).port;
   writeJsonAtomic(panelInfoPath(), { pid: process.pid, port, token: "machine-key", startedAt: new Date().toISOString() });

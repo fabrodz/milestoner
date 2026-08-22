@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { loadConfig } from "../config.js";
 import { layoutFor, samePath } from "../paths.js";
-import { listRuns, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
+import { listProjects } from "../projects.js";
+import { listRuns, summariseKnownProject, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
   doAttend, doKill, doSteer, doUnblock, lintFindings, reportHtml, snapshot, startRun, stopRun, transcript,
   type ActionResult, type ApiContext,
@@ -45,7 +46,7 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
  */
 export type PanelScope =
   | { kind: "project"; ctx: ApiContext }
-  | { kind: "machine"; registry: string; cliPath: string };
+  | { kind: "machine"; registry: string; projects: string; cliPath: string };
 
 export interface ServerOptions {
   scope: PanelScope;
@@ -56,6 +57,8 @@ export interface ServerOptions {
   /** When false the start-run control is gone: a runner already owns this directory. See D-027. */
   allowStart?: boolean;
 }
+
+const present = (s: RunSummary | null): s is RunSummary => s !== null;
 
 const NO_SECOND_RUNNER =
   "this panel came up with the run, and that runner owns it - a second one would be two runners on one state.json";
@@ -78,9 +81,16 @@ export function createPanel(options: ServerOptions) {
     }
     const finished = [...seenRuns.values()]
       .filter((s) => !live.some((r) => samePath(r.projectRoot, s.projectRoot)))
-      .map(summariseUnregistered)
-      .filter((s): s is RunSummary => s !== null);
-    return [...live, ...finished];
+      .map((s) => summariseUnregistered(s))
+      .filter(present);
+    const watched = [...live, ...finished];
+    // Everywhere the CLI has ever worked. After a reboot this file is the only thing that knows a
+    // project exists: its runner deregistered on exit and this process has watched nothing yet.
+    const known = listProjects(scope.projects)
+      .filter((p) => !watched.some((r) => samePath(r.projectRoot, p.root)))
+      .map((p) => summariseKnownProject(p.root, p.lastSeen))
+      .filter(present);
+    return [...watched, ...known];
   };
 
   /** null when the machine scope cannot resolve `root` to a registered project. */

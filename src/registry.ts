@@ -135,7 +135,7 @@ export interface SeenRun {
  * exact moment its outcome is the thing worth showing. The panel remembers what it served and
  * summarises it from the project's own state for as long as the panel lives.
  */
-export function summariseUnregistered(seen: SeenRun): RunSummary | null {
+export function summariseUnregistered(seen: SeenRun, whenUnfinished: RunHealth = "gone"): RunSummary | null {
   let state: RunState;
   try {
     state = loadState(layoutFor(seen.projectRoot).state);
@@ -149,13 +149,23 @@ export function summariseUnregistered(seen: SeenRun): RunSummary | null {
     startedAt: seen.startedAt,
     lastSeen: seen.lastSeen,
     runnerAlive: false,
-    health: state.runComplete ? "complete" : "gone",
+    health: state.runComplete ? "complete" : whenUnfinished,
     milestoneId: nextMilestone(state)?.id ?? null,
     attempt: null,
     ...summarize(state),
     runComplete: state.runComplete,
     lastEventSeconds: null,
   };
+}
+
+/**
+ * A project known only because the CLI worked in it once: no registry entry, no runner this panel
+ * ever watched, nothing but a path and whatever `state.json` says. Unfinished reads `unknown` rather
+ * than `gone`, because nothing died here - a machine whose every idle project claimed a dead runner
+ * would report an emergency on a quiet morning.
+ */
+export function summariseKnownProject(root: string, lastSeen = ""): RunSummary | null {
+  return summariseUnregistered({ run: "", projectRoot: root, pid: 0, startedAt: "", lastSeen }, "unknown");
 }
 
 function summarise(entry: RunEntry, state: RunState, pulse: Pulse | null, alive: boolean, now: number): RunSummary {

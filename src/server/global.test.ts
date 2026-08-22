@@ -21,8 +21,13 @@ function infoOf(pid: number, port: number): PanelInfo {
 
 /** A real machine panel on an ephemeral port, so the probe has something to answer it. */
 async function livePanel(): Promise<{ port: number; close: () => void }> {
-  const registry = join(mkdtempSync(join(tmpdir(), "milestoner-panel-reg-")), "runs.json");
-  const server = createPanel({ scope: { kind: "machine", registry, cliPath: "" }, port: 0, token: TOKEN, allowWrites: false });
+  const dir = mkdtempSync(join(tmpdir(), "milestoner-panel-reg-"));
+  const server = createPanel({
+    scope: { kind: "machine", registry: join(dir, "runs.json"), projects: join(dir, "projects.json"), cliPath: "" },
+    port: 0,
+    token: TOKEN,
+    allowWrites: false,
+  });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   return {
     port: (server.address() as AddressInfo).port,

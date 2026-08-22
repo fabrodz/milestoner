@@ -6,6 +6,8 @@ export const MILESTONER_DIR = ".milestoner";
 
 export const REGISTRY_FILE = "runs.json";
 
+export const PROJECTS_FILE = "projects.json";
+
 /**
  * Directory names this project has used before, newest first. Found only so the CLI can explain the
  * migration; never written. Every rename appends one rather than replacing it: a run parked on an
@@ -104,6 +106,11 @@ export function machineDir(): string {
 /** The registry of runs on this machine. */
 export function registryPath(): string {
   return join(machineDir(), REGISTRY_FILE);
+}
+
+/** Every project the CLI has worked in, which outlives both the runs and the machine's uptime. */
+export function projectsPath(): string {
+  return join(machineDir(), PROJECTS_FILE);
 }
 
 /** Compare two project roots as the filesystem would: Windows and macOS do not mind the case. */

@@ -14,7 +14,8 @@ import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
-import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor, registryPath } from "./paths.js";
+import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor, projectsPath, registryPath } from "./paths.js";
+import { recordProject } from "./projects.js";
 import { run } from "./runner.js";
 import { color, fail, warn } from "./util/log.js";
 
@@ -173,12 +174,10 @@ async function main(): Promise<number> {
       fail("--milestones must be an integer between 1 and 99");
       return 1;
     }
-    return init({
-      projectRoot: resolve(process.cwd()),
-      run: values.run,
-      count,
-      force: Boolean(values.force),
-    });
+    const projectRoot = resolve(process.cwd());
+    const code = init({ projectRoot, run: values.run, count, force: Boolean(values.force) });
+    if (code === 0) recordProject(projectsPath(), projectRoot);
+    return code;
   }
 
   if (command === "skill") {
@@ -211,6 +210,10 @@ async function main(): Promise<number> {
 
   const project = requireProject();
   if (!project) return 1;
+  // Every project-scoped command passes here, and every one of them is proof that a person works in
+  // this directory. Best-effort by construction, so a machine dir that cannot be written costs the
+  // panel a listing and this command nothing.
+  recordProject(projectsPath(), project.root);
   const config = loadConfig(project.layout.config, project.root);
 
   if (command === "status") {
