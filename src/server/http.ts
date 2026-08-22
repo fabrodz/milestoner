@@ -28,6 +28,21 @@ function send(res: ServerResponse, status: number, type: string, body: string): 
 
 const json = (res: ServerResponse, status: number, value: unknown) => send(res, status, "application/json", JSON.stringify(value));
 
+/**
+ * The panel view this request came from, for the report's back link. It carries over exactly what
+ * the report's own URL carried - the run and, when the caller used one, the key - so a page reached
+ * with a cookie never gains a key in its history, and one reached with a key does not lose it.
+ */
+function panelHref(url: URL): string {
+  const carried = new URLSearchParams();
+  for (const name of ["root", "token"]) {
+    const value = url.searchParams.get(name);
+    if (value) carried.set(name, value);
+  }
+  const query = carried.toString();
+  return query ? `/?${query}` : "/";
+}
+
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -178,7 +193,7 @@ export function createPanel(options: ServerOptions) {
       return ctxOr((ctx) => json(res, 200, lintFindings(ctx)));
     }
     if (req.method === "GET" && path === "/api/report") {
-      return ctxOr((ctx) => send(res, 200, "text/html; charset=utf-8", reportHtml(ctx)));
+      return ctxOr((ctx) => send(res, 200, "text/html; charset=utf-8", reportHtml(ctx, panelHref(url))));
     }
     if (req.method === "GET" && path === "/api/config") {
       return ctxOr((ctx) => {

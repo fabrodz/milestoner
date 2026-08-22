@@ -77,7 +77,12 @@ export function snapshot(ctx: ApiContext) {
   };
 }
 
-export function reportHtml(ctx: ApiContext): string {
+/**
+ * The same renderer `milestoner report` writes to disk. `panelHref` is the one difference between
+ * the two consumers: served from a panel the report links back to it, and the file version passes
+ * none so it never carries a link that needs a server to exist.
+ */
+export function reportHtml(ctx: ApiContext, panelHref?: string): string {
   const state = loadState(ctx.layout.state);
   const lines = (file: string, max: number) =>
     tail(file, max).filter((l) => !l.startsWith("#") && !l.startsWith("`"));
@@ -87,6 +92,7 @@ export function reportHtml(ctx: ApiContext): string {
     runLog: lines(ctx.layout.runLog, 200),
     supervisorLog: lines(ctx.layout.supervisorLog, 100),
     generatedAt: new Date(),
+    panelHref,
   });
 }
 

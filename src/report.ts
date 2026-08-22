@@ -1,3 +1,4 @@
+import { summarize } from "./state.js";
 import type { AttemptRecord, Milestone, RunState } from "./types.js";
 
 export interface ReportInput {
@@ -7,6 +8,11 @@ export interface ReportInput {
   runLog: string[];
   supervisorLog: string[];
   generatedAt: Date;
+  /**
+   * Where the panel that served this report lives. Set only by the server: the file `milestoner
+   * report` writes has no panel to go back to, so it renders no link and stays self-contained.
+   */
+  panelHref?: string;
 }
 
 const OUTCOME_LABEL: Record<AttemptRecord["outcome"], string> = {
@@ -37,32 +43,76 @@ function attemptsOf(state: RunState): AttemptRecord[] {
   return state.milestones.flatMap((m) => m.history);
 }
 
+function stamp(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+}
+
+function clock(ms: number): string {
+  return new Date(ms).toISOString().slice(11, 16);
+}
+
 interface Window {
   from: number;
   to: number;
 }
 
+/** One attempt placed on the clock. `end` is null when the record carries no usable end stamp. */
+interface Segment {
+  attempt: AttemptRecord;
+  start: number;
+  end: number | null;
+}
+
+function segmentsOf(milestone: Milestone): Segment[] {
+  const placed: Segment[] = [];
+  for (const attempt of milestone.history) {
+    const start = Date.parse(attempt.startedAt);
+    // Without a start there is nowhere on the clock to put the bar at all.
+    if (!Number.isFinite(start)) continue;
+    const end = Date.parse(attempt.endedAt);
+    placed.push({ attempt, start, end: Number.isFinite(end) ? end : null });
+  }
+  return placed;
+}
+
 function runWindow(state: RunState, now: Date): Window {
-  const stamps = attemptsOf(state).flatMap((a) => [Date.parse(a.startedAt), Date.parse(a.endedAt)]).filter(Number.isFinite);
+  const segments = state.milestones.flatMap(segmentsOf);
+  const stamps = segments.flatMap((s) => (s.end === null ? [s.start] : [s.start, s.end]));
   const from = stamps.length ? Math.min(...stamps) : Date.parse(state.createdAt) || now.getTime();
-  const to = stamps.length ? Math.max(...stamps) : now.getTime();
+  let to = stamps.length ? Math.max(...stamps) : now.getTime();
+  // A session with no end recorded has run at least until this report was generated, so the
+  // timeline has to reach that far or its bar would sit outside the track.
+  if (segments.some((s) => s.end === null)) to = Math.max(to, now.getTime());
   return { from, to: to > from ? to : from + 1000 };
 }
 
 function timelineRow(milestone: Milestone, window: Window): string {
   const span = window.to - window.from;
-  const segments = milestone.history
-    .map((a) => {
-      const start = Date.parse(a.startedAt);
-      const end = Date.parse(a.endedAt);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return "";
-      const left = ((start - window.from) / span) * 100;
-      const width = Math.max(((end - start) / span) * 100, 0.4);
-      const title = `attempt ${a.attempt}: ${OUTCOME_LABEL[a.outcome]}, ${duration(end - start)}`;
-      return `<span class="seg ${a.outcome}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%" title="${escapeHtml(title)}"></span>`;
+  const segments = segmentsOf(milestone);
+  const bars = segments
+    .map((s) => {
+      const width = s.end === null ? 0.6 : Math.max(((s.end - s.start) / span) * 100, 0.4);
+      const left = Math.min(Math.max(((s.start - window.from) / span) * 100, 0), Math.max(100 - width, 0));
+      const title =
+        s.end === null
+          ? `attempt ${s.attempt.attempt}: started ${clock(s.start)}, no end recorded`
+          : `attempt ${s.attempt.attempt}: ${OUTCOME_LABEL[s.attempt.outcome]}, ${duration(s.end - s.start)}`;
+      const cls = s.end === null ? "seg open" : `seg ${s.attempt.outcome}`;
+      return `<span class="${cls}" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%" title="${escapeHtml(title)}"></span>`;
     })
     .join("");
-  return `<div class="track-row"><span class="track-id">${escapeHtml(milestone.id)}</span><span class="track">${segments}</span></div>`;
+  const times = segments.map((s) => (s.end === null ? "no end recorded" : duration(s.end - s.start))).join(" &middot; ");
+  return `<div class="track-row"><span class="track-id">${escapeHtml(milestone.id)}</span><span class="track">${bars}</span><span class="track-time">${times}</span></div>`;
+}
+
+function axisRow(window: Window): string {
+  const ticks = 5;
+  const labels = Array.from({ length: ticks }, (_, i) => {
+    const at = window.from + ((window.to - window.from) * i) / (ticks - 1);
+    const cls = i === 0 ? "tick first" : i === ticks - 1 ? "tick last" : "tick";
+    return `<span class="${cls}" style="left:${((i / (ticks - 1)) * 100).toFixed(3)}%">${escapeHtml(clock(at))}</span>`;
+  }).join("");
+  return `<div class="track-row"><span class="track-id"></span><span class="axis">${labels}</span><span class="track-time"></span></div>`;
 }
 
 function attemptTable(milestone: Milestone): string {
@@ -139,27 +189,47 @@ function logBlock(title: string, lines: string[], empty: string): string {
 
 export function buildReport(input: ReportInput): string {
   const { state, generatedAt } = input;
-  const done = state.milestones.filter((m) => m.status === "done").length;
-  const blocked = state.milestones.filter((m) => m.status === "blocked");
+  const { done, total, blocked } = summarize(state);
+  const firstBlocked = state.milestones.find((m) => m.status === "blocked");
   const window = runWindow(state, generatedAt);
+  const placed = state.milestones.flatMap(segmentsOf);
   const attempts = attemptsOf(state);
   const worked = attempts.filter((a) => a.outcome !== "infra-failure");
   const sessionSeconds = worked.reduce((sum, a) => sum + a.seconds, 0);
+  // A run nothing has touched: every milestone still pending and no session ever graded. Saying
+  // "in progress" there is the one thing the headline must not do.
+  const started = state.milestones.some((m) => m.status !== "pending" || m.history.length > 0);
 
   const verdict = state.runComplete
     ? { label: "run complete", cls: "done" }
-    : blocked.length
-      ? { label: `blocked at ${blocked[0]?.id ?? "?"}`, cls: "blocked" }
-      : { label: "in progress", cls: "in_progress" };
+    : blocked
+      ? { label: `blocked at ${firstBlocked?.id ?? "?"}`, cls: "blocked" }
+      : started
+        ? { label: "in progress", cls: "in_progress" }
+        : { label: "not started yet", cls: "pending" };
 
   const stats = [
-    { k: "milestones", v: `${done}/${state.milestones.length}` },
+    { k: "milestones", v: `${done}/${total}` },
     { k: "sessions", v: String(attempts.length) },
     { k: "session time", v: duration(sessionSeconds * 1000) },
-    { k: "wall clock", v: duration(window.to - window.from) },
+    { k: "wall clock", v: placed.length ? duration(window.to - window.from) : "-" },
     { k: "infrastructure retries", v: String(attempts.length - worked.length) },
     { k: "evidence lines", v: String(state.milestones.reduce((n, m) => n + m.evidence.length, 0)) },
   ];
+
+  const timeline = placed.length
+    ? `<p class="meta">Every session that ran, placed on the run's wall clock. Gaps are waits: usage limits, retry delays, a runner that was not running.</p>
+    <div class="timeline" style="margin-top:.9rem">${state.milestones.map((m) => timelineRow(m, window)).join("")}${axisRow(window)}</div>
+    <p class="meta scale">Scale: ${escapeHtml(stamp(window.from))} to ${escapeHtml(stamp(window.to))}, ${escapeHtml(duration(window.to - window.from))} end to end. Each bar carries its own duration on the right.</p>
+    <div class="legend"><span class="l-done">done</span><span class="l-incomplete">incomplete</span><span class="l-blocked">blocked</span><span class="l-infra">infrastructure, attempt not charged</span></div>`
+    : `<p class="none">no session has run yet, so there is nothing to place on the clock</p>`;
+
+  const backLink = input.panelHref
+    ? `<p class="crumb"><a href="${escapeHtml(input.panelHref)}">&larr; back to the panel</a></p>`
+    : "";
+  const purpose = input.panelHref
+    ? `<br>The run's archival snapshot: the same self-contained file <span class="mono">milestoner report</span> writes, made to be kept or sent on. The panel is the live view.`
+    : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -207,8 +277,18 @@ h4 { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color:
 .timeline { display: flex; flex-direction: column; gap: .3rem; }
 .track-row { display: flex; align-items: center; gap: .6rem; }
 .track-id { width: 3.5rem; flex: none; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.track-time { width: 9rem; flex: none; text-align: right; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .track { position: relative; height: 1.1rem; flex: 1; background: color-mix(in srgb, var(--fg) 6%, transparent); border-radius: .25rem; }
+.axis { position: relative; height: 1.1rem; flex: 1; border-top: 1px solid var(--line); }
+.tick { position: absolute; top: .15rem; transform: translateX(-50%); font-size: .72rem; color: var(--muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tick.first { transform: none; } .tick.last { transform: translateX(-100%); }
+.scale { margin-top: .6rem; }
+.crumb { margin: 0 0 1.1rem; font-size: .85rem; }
+.crumb a { color: var(--progress); text-decoration: none; }
+.crumb a:hover { text-decoration: underline; }
 .seg { position: absolute; top: 0; height: 100%; border-radius: .2rem; background: var(--infra); min-width: 2px; }
+.seg.open { background: transparent; border: 1px dashed var(--progress); }
 .seg.done { background: var(--done); } .seg.blocked { background: var(--blocked); }
 .seg.incomplete { background: var(--incomplete); } .seg.infra-failure { background: var(--infra); opacity: .55; }
 .legend { display: flex; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: .78rem; margin-top: .8rem; }
@@ -228,10 +308,11 @@ footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; text-align: ce
 </head>
 <body>
 <main>
+  ${backLink}
   <h1>${escapeHtml(state.run)} <span class="pill ${verdict.cls}">${escapeHtml(verdict.label)}</span></h1>
   <p class="sub">started ${escapeHtml(state.createdAt.slice(0, 16).replace("T", " "))} &middot; report generated ${escapeHtml(
     generatedAt.toISOString().slice(0, 16).replace("T", " "),
-  )}</p>
+  )}${purpose}</p>
 
   <div class="stats">
     ${stats.map((s) => `<div class="stat"><div class="v">${escapeHtml(s.v)}</div><div class="k">${escapeHtml(s.k)}</div></div>`).join("")}
@@ -239,9 +320,7 @@ footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; text-align: ce
 
   <section class="card">
     <h3>Timeline</h3>
-    <p class="meta">Every session that ran, placed on the run's wall clock. Gaps are waits: usage limits, retry delays, a runner that was not running.</p>
-    <div class="timeline" style="margin-top:.9rem">${state.milestones.map((m) => timelineRow(m, window)).join("")}</div>
-    <div class="legend"><span class="l-done">done</span><span class="l-incomplete">incomplete</span><span class="l-blocked">blocked</span><span class="l-infra">infrastructure, attempt not charged</span></div>
+    ${timeline}
   </section>
 
   ${state.milestones.map((m) => milestoneCard(m, input.maxAttempts)).join("")}

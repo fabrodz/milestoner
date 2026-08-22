@@ -172,6 +172,33 @@ test("the page and the report are served as self-contained HTML", async () => {
   }
 });
 
+test("the served report links back to the panel it came from, and the link works", async () => {
+  const body = await (await get(`/api/report?token=${TOKEN}`)).text();
+  const href = /<a href="([^"]+)">&larr; back to the panel<\/a>/.exec(body)?.[1] ?? "";
+  assert.equal(href, `/?token=${TOKEN}`, "the link carries what the report's own URL carried");
+  assert.match(body, /archival snapshot/, "and one line says what the report is for beside the panel");
+
+  const back = await get(href);
+  assert.equal(back.status, 200, "following it lands on the panel, still authenticated");
+  assert.match(await back.text(), /id="reportLink"/, "which is the page the report link lives on");
+});
+
+test("a report reached with a cookie sends the browser back without putting the key in its history", async () => {
+  const minted = await get("/api/once", {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: "{}",
+  });
+  const { once } = (await minted.json()) as { once: string };
+  const cookie = (await get(`/auth?once=${once}`, { redirect: "manual" })).headers.get("set-cookie")?.split(";")[0] ?? "";
+
+  const body = await (await get("/api/report", { headers: { cookie } })).text();
+  const href = /<a href="([^"]+)">&larr; back to the panel<\/a>/.exec(body)?.[1] ?? "";
+  assert.equal(href, "/", "no token was in the URL, so none is carried into the back link");
+  assert.ok(!body.includes(TOKEN), "the key never reaches the page it did not arrive on");
+  assert.equal((await get(href, { headers: { cookie } })).status, 200, "the cookie is what authenticates the way back");
+});
+
 test("a once-token opens a session as a cookie, once, and the URL that did it is dead", async () => {
   const minted = await get("/api/once", {
     method: "POST",
@@ -269,6 +296,14 @@ test("a machine panel answers for every registered run, one root at a time", asy
 
     const rootless = await mGet("/api/steer", { method: "POST", body: JSON.stringify({ text: "nope" }) });
     assert.equal(rootless.status, 404, "a machine panel refuses a write that names no run");
+
+    const reported = await (await mGet(`/api/report?root=${encodeURIComponent(a.projectRoot)}`)).text();
+    const href = /<a href="([^"]+)">&larr; back to the panel<\/a>/.exec(reported)?.[1] ?? "";
+    assert.equal(
+      href,
+      `/?root=${encodeURIComponent(a.projectRoot).replaceAll("&", "&amp;")}`,
+      "on a machine panel the way back names the run the report is of",
+    );
 
     // A clean exit deregisters (D-025); the panel must keep showing what it watched finish.
     writeFileSync(registryFile, JSON.stringify({ runs: [] }));
