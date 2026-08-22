@@ -1,6 +1,6 @@
 {
   "name": "milestoner",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Run massive plans unattended for hours: an autonomous-run engine for coding agents, driven by a milestone state machine.",
   "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
   "license": "MIT",

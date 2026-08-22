@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
-## [Unreleased]
+## [0.9.0] - 2026-08-22
 
 A run can be created, written, configured, started, corrected and read from the browser. The panel
 was already the run's control surface once a run existed; what it grew here is everything before
