@@ -213,10 +213,14 @@ milestoner serve --write    # the per-project panel on its own, against whatever
 
 Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
 refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, edit
-the run's config, set or clear steering, unblock a milestone, kill a hung session, run the
-environment adapter, start a runner or stop it. It is
+the run's config, give a milestone its own model, set or clear steering, start a runner with the
+same options `run` takes on the command line, stop it, kill a hung session, unblock a milestone,
+run the environment adapter. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
-audit trail rather than two. The machine panel runs as a detached daemon the first run starts,
+audit trail rather than two.
+[The guide walks a whole run through it](docs/GUIDE.md#the-panel-only-workflow-start-to-finish),
+from an empty directory to the report; what stays outside the browser is bringing the panel up and
+writing the protocol and the prompts. The machine panel runs as a detached daemon the first run starts,
 lists every run on the machine with a switcher between them, and exits on its own ten minutes
 after the last run ends
 ([D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)).
@@ -275,6 +279,10 @@ never charged against the attempt budget are visible after the fact.
 **Set `liveness`.** It is the list of paths whose mtime proves work is happening. Without it,
 `status` can tell you a process exists but not that it is doing anything, which is the difference
 between a run that is thinking and a run that is wedged.
+
+`models` maps a milestone id to the model its session runs on (`{"M03": "opus"}`), so a plan can
+spend a cheap model on the mechanical milestones and a stronger one on the hard ones. It is read at
+every session launch, so an edit mid-run applies from the next one.
 
 Edit it in your editor or [in the panel](#the-web-panel), which validates a save with the same loader
 the runner uses and refuses anything that would not start.

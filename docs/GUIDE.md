@@ -653,6 +653,8 @@ daemon also opens your browser, through the single-use `/auth` exchange that kee
 browser history; `--open` forces that on any run and `--no-open` suppresses it. Details and the
 write-by-default reasoning are under [`milestoner serve`](#milestoner-serve) and in
 [D-033](DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20).
+What that page can do, in the order you would use it on a run of your own, is
+[the panel-only workflow](#the-panel-only-workflow-start-to-finish).
 
 #### Watching this run alone: `--serve`
 
@@ -936,7 +938,9 @@ milestoner serve [--all] [--port <n>] [--write] [--token <value>]
 
 This is the panel on its own, against whatever is or is not running in that directory. To bring it
 up with a run instead, and have it close with the run, see
-[`milestoner run --serve`](#watching-this-run-alone---serve).
+[`milestoner run --serve`](#watching-this-run-alone---serve). For the whole thing end to end -
+scaffold, config, start, steer, kill, unblock, report, without a second terminal - see
+[the panel-only workflow](#the-panel-only-workflow-start-to-finish).
 
 #### The machine panel: `--all`
 
@@ -989,6 +993,69 @@ would report a started runner that is already dead.
 Stopping a run sends `SIGINT` to the runner, which is its own "finish this session, then stop".
 Starting one spawns a detached `milestoner run`: closing the panel must not end an overnight run, and
 everything that manages a running runner already works on a separate process.
+
+#### The panel-only workflow, start to finish
+
+A whole run, from an empty directory to the report, without a second terminal. Each step names the
+control it uses; the subsections after this one are the detail behind each of them.
+
+**0. Bring the panel up.** One command, and the only one in this walkthrough:
+
+```sh
+milestoner serve --all --write --open
+```
+
+If a run is already going anywhere on this machine, its daemon is already serving the same page and
+`milestoner runs` prints the URL. From here on everything happens in the browser.
+
+1. **Scaffold the project.** On the hub, the **New run** card: **Directory** (an absolute path to a
+   directory that already exists), **Run name**, **Milestones**, then **Scaffold it**. That writes
+   the config, the state machine, the protocol template and the prompt skeletons, exactly as
+   [`milestoner init`](#milestoner-init) does. The project is recorded in
+   [the projects file](#milestoner-runs), so it joins the listing a refresh later.
+2. **Open it.** The run's chip in the switcher across the top of the page. **all runs** goes back to
+   the hub; a chip carries the run's name, its health and its progress.
+3. **Write the protocol and the prompts.** In your editor. This is the step the panel deliberately
+   does not do - they are the substance of the run, not its settings - and the **Lint** card names
+   every placeholder still in them until you have. It is the same read
+   [`milestoner lint`](#milestoner-lint) gives, refreshed with the run.
+4. **Set the config.** The **Config** card holds `.milestoner/config.json` as text. Set `liveness`,
+   the agent command, the `infra` thresholds, `environment.attendCommand` - every key in
+   [the config reference](#configuration-reference) - and press **Save the config**. A document the
+   next runner would refuse to load is refused here, with the loader's own sentence beside the box
+   and the file untouched. **Reload from disk** discards what you typed.
+5. **Give a milestone its own model.** The model box on that milestone's card, and **save** beside
+   it. It writes that one key of the `models` map; emptying the box removes it and the milestone
+   goes back to the agent's own model.
+6. **Start it.** **Start the run** drains the run as `milestoner run` does. **options** beside it
+   opens **Milestone**, **one session, then stop**, **Attempts** and **Model**, all optional. If the
+   lint gate refuses the start, the refusal names the findings and offers **Start anyway, without
+   the lint gate**, which passes `--no-lint` and records the bypass in the run log.
+7. **Watch it.** The page follows the run over server-sent events, with no refreshing: the pulse
+   line names the milestone, the attempt and how long this session has been going, and **watch the
+   live transcript** opens the session's log as it is written.
+8. **Steer it.** The **Steering** card: type the correction, then **Replace** or **Add a line**.
+   Every session launched from that point sees it as an override on its milestone prompt.
+   **Clear** puts the run back on the prompts alone.
+9. **Kill a hung session.** **Kill this session and retry** ends the agent session, not the runner:
+   the runner grades it incomplete, charges an attempt and relaunches with fresh context.
+   **Stop after this session** is the polite one - it interrupts the runner and lets the current
+   session finish.
+10. **Unstick the environment.** **Unstick the environment** runs `environment.attendCommand`, with
+    the seconds box beside it overriding `environment.attendSeconds` for that one run of it. The
+    button is there only when an adapter is configured.
+11. **Unblock a milestone.** A blocked milestone's card carries its diagnosis and two buttons:
+    **I fixed it, try again**, which sets it back to pending with the attempts refunded, and
+    **Try again, keep the attempts used**. Fixing what the diagnosis names is still yours.
+12. **Read what happened.** Every row of a milestone's attempt table has a **transcript** link, and
+    **Open the full report, with the timeline** at the foot of the page is
+    [`milestoner report`](#milestoner-report) served live: the tiles, the wall-clock timeline, the
+    evidence per milestone and the interventions.
+
+What still needs a terminal: bringing the panel up the first time, and writing the protocol and the
+prompts. Everything else on this list is a control on the page, calling the same function the
+command calls, so a kill from the browser lands in `supervisor-log.md` exactly like a kill from the
+shell.
 
 #### Starting a run with options
 

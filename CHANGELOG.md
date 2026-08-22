@@ -5,8 +5,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+A run can be created, configured, started, corrected and read from the browser. The panel was
+already the run's control surface once a run existed; what it grew here is everything before that
+and everything the CLI could do that it could not. The walkthrough is in
+[the guide](docs/GUIDE.md#the-panel-only-workflow-start-to-finish); what stays outside the browser
+is bringing the panel up and writing the protocol and the prompts.
+
 ### Added
 
+- A run can be created from the panel. The hub grows a **New run** card - directory, optional run
+  name, milestone count - posting to `POST /api/init`, which calls the same `init()` the CLI does,
+  so the scaffold and its refusals are the command's. The new project is recorded in
+  `~/.milestoner/projects.json`, so it joins the hub listing on the next refresh with no CLI command
+  run anywhere.
+- `POST /api/init` validates its body before `init()` sees it: the path must be absolute and an
+  existing directory (a relative one would resolve against the panel daemon's working directory, and
+  a missing one is refused rather than created), `milestones` takes the CLI's 1-99 bounds, and
+  `force` must be an explicit `true`. It is behind `--write`, the key, the `Host` allowlist and the
+  `Origin` check like every other mutation, and it is a machine-panel route: a panel serving one
+  project answers 404. Only an existing-config refusal reveals the force checkbox; a protocol naming
+  another run (D-030) is refused even with force and says which run it names, because force cannot
+  answer it. The reasoning for accepting a filesystem path over HTTP is D-038.
 - `.milestoner/config.json` can be read and edited from the panel. The per-run view carries the whole
   document in a text box, fed by `GET /api/config` and saved by `POST /api/config`, so every key -
   the `infra` thresholds, `fallbackAgents`, `liveness`, `environment`, the agent command - is
@@ -18,39 +37,17 @@ All notable changes to this project are documented here. The format follows
   (`missing required field "agent"`, or the JSON parser's position) and leaves the file byte for byte
   as it was, so nothing that would stop the next runner from starting can be saved from the panel.
   `projectRoot` is dropped rather than written, as `init` has always left it out.
-- A model field on every milestone card, holding that milestone's entry in the `models` map and empty
-  when it has none. Saving reads the config, changes that one key and sends the whole document back
-  through the same validated endpoint; clearing the field removes the entry and the milestone goes
-  back to the agent's own model.
-- A run can be created from the panel. The hub grows a **New run** card - directory, optional run
-  name, milestone count - posting to `POST /api/init`, which calls the same `init()` the CLI does,
-  so the scaffold and its refusals are the command's. The new project is recorded in
-  `~/.milestoner/projects.json`, so it joins the hub listing on the next refresh with no CLI command
-  run anywhere. With `init`, config and the run controls all reachable from the browser, the
-  panel-only workflow no longer needs a terminal.
-- `POST /api/init` validates its body before `init()` sees it: the path must be absolute and an
-  existing directory (a relative one would resolve against the panel daemon's working directory, and
-  a missing one is refused rather than created), `milestones` takes the CLI's 1-99 bounds, and
-  `force` must be an explicit `true`. It is behind `--write`, the key, the `Host` allowlist and the
-  `Origin` check like every other mutation, and it is a machine-panel route: a panel serving one
-  project answers 404. The reasoning for accepting a filesystem path over HTTP is D-038.
-- Only an existing-config refusal reveals the hub's force checkbox. A protocol naming another run
-  (D-030) is refused even with force and says which run it names, because force cannot answer it.
-- The machine panel lists every project on the machine, not only the ones whose runner is alive or
-  started while the panel was up. Every command that works inside a project records its directory in
-  `~/.milestoner/projects.json` (`init` included), and the hub summarises the ones the registry has
-  never heard of from their own `state.json`, reported `unknown` rather than `gone` because nothing
-  died there. They resolve for every control, so a run can be started, steered or unblocked from the
-  browser after a reboot. Writing the file is best-effort, a corrupt one is treated as empty, and an
-  entry whose directory is gone is skipped and left in place.
 - A model per milestone: `models` in `.milestoner/config.json` maps a milestone id to the model its
   session runs on (`{"M03": "opus"}`), so a plan can spend a cheap model on the mechanical
   milestones and a stronger one on the hard ones. It is resolved at each session launch, not once
   at startup, so an edit mid-run applies from the next session. `--model` overrides the whole map;
   a fallback agent keeps its own `model`, because model names are not interchangeable across
-  agents.
-- `milestoner lint` warns (`orphan-model`) about a `models` key naming no milestone in `state.json`,
-  which is otherwise a model silently never used.
+  agents. `milestoner lint` warns (`orphan-model`) about a `models` key naming no milestone in
+  `state.json`, which is otherwise a model silently never used.
+- A model field on every milestone card, holding that milestone's entry in the `models` map and empty
+  when it has none. Saving reads the config, changes that one key and sends the whole document back
+  through the same validated endpoint; clearing the field removes the entry and the milestone goes
+  back to the agent's own model.
 - The panel starts a run with the same options the CLI takes. `POST /api/run/start` accepts
   `milestone`, `once`, `maxAttempts` and `model` beside `noLint` and translates each to its flag on
   the spawned runner; the start control grows a collapsed options row with a milestone picker built
@@ -62,12 +59,24 @@ All notable changes to this project are documented here. The format follows
   and a non-boolean `once` are refused with a message naming the field and no runner started. The
   runner is spawned detached with its output discarded, so a flag it would reject would otherwise
   fail where nobody can see it.
+- The machine panel lists every project on the machine, not only the ones whose runner is alive or
+  started while the panel was up. Every command that works inside a project records its directory in
+  `~/.milestoner/projects.json` (`init` included), and the hub summarises the ones the registry has
+  never heard of from their own `state.json`, reported `unknown` rather than `gone` because nothing
+  died there. They resolve for every control, so a run can be started, steered or unblocked from the
+  browser after a reboot. Writing the file is best-effort, a corrupt one is treated as empty, and an
+  entry whose directory is gone is skipped and left in place.
+- Direct tests for the `api.ts` handlers, which the panel's whole write surface goes through and
+  which until now were only exercised indirectly over HTTP.
 
 ### Fixed
 
 - The hub is reachable on a machine with exactly one project. It opens that run on arrival, as
   before, but "all runs" now says so in the URL and stays on the hub instead of bouncing straight
   back into the only run - which left the hub, and now the new-run form on it, unreachable.
+- `GET /api/transcript` with no `name` answers 404 rather than 500. An empty name resolved to the
+  logs directory itself, and reading a directory as a file threw `EISDIR`, which the panel returned
+  as a filesystem error message.
 
 ## [0.8.0] - 2026-08-21
 

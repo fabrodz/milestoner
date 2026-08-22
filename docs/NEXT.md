@@ -1,8 +1,8 @@
 # What to do next
 
-Rewritten 2026-08-21, on cutting v0.7.0; updated the same day after the `v08-lint` run closed. The
-pre-rewrite-history question that used to sit here is gone: the repository was recreated fresh, so
-the old objects are no longer served by anyone.
+Rewritten 2026-08-21, on cutting v0.7.0; updated the same day after the `v08-lint` run closed, and
+on 2026-08-22 after the `v09-panel` run. The pre-rewrite-history question that used to sit here is
+gone: the repository was recreated fresh, so the old objects are no longer served by anyone.
 
 ## Where things stand
 
@@ -17,14 +17,23 @@ next deliberate step is cutting 0.8.0.
 ## 1. Test debt
 
 A sweep on 2026-08-21 closed the two worst gaps (`secondsUntilReset`, which gates the usage-limit
-behaviour the README leads with, and `skill install`). Still bare, in rough order of value:
+behaviour the README leads with, and `skill install`). The `v09-panel` run touched `api.ts` in every
+milestone and paid that line off on 2026-08-22: `src/server/api.test.ts` calls every exported
+handler directly against fixture layouts - the snapshot's composition and its tails, the transcript
+guard, lint, the report, steer, unblock, kill, attend, the config read and write, the start gates
+and the spawn, `initProject` and `stopRun`. It found one bug doing it (a `?name=` with nothing in it
+answered 500).
+
+Still bare, in rough order of value:
 
 - `status --json` - the contract the supervisor skill consumes as its primary signal.
-- `attend` - the shell-out with template substitution and its `(seconds + 60) * 1000` timeout.
-- The `api.ts` handlers, exercised only indirectly through `http.test.ts`.
+- `attend`'s `(seconds + 60) * 1000` timeout. The shell-out and the `{{seconds}}` substitution are
+  covered now, through `doAttend`; what a command that never returns does is not.
 - `cli.ts` - nothing tests argument parsing, including the two mutually-exclusive-flag guards
   around `--open`/`--serve`/`--no-panel`.
-- The renderers: `report.ts` has tests, `panel.ts` and `page.ts` have none.
+- The renderers: `report.ts` has tests, `panel.ts` and `page.ts` have none. `page.ts` is now
+  partly held by the drift checks in `http.test.ts` and the stubbed-DOM tests in
+  `http.start.test.ts` and `http.config.test.ts`, but nothing renders it whole.
 
 ## 2. Still unexercised by a real run
 
