@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { add } from "./commands/add.js";
 import { attend } from "./commands/attend.js";
 import { init } from "./commands/init.js";
 import { kill } from "./commands/kill.js";
@@ -24,6 +25,10 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
 
   milestoner init [--run <name>] [--milestones <n>] [--force]
       Scaffold .milestoner/ (config, state machine, protocol, prompt skeletons).
+
+  milestoner add [--title <text>]
+      Append one pending milestone to the run: the next id, plus its prompt skeleton
+      in .milestoner/prompts/. A runner that is alive picks it up when its turn comes.
 
   milestoner lint [--json]
       Check the run's form before a session spends time on it: milestone prompts,
@@ -129,6 +134,7 @@ async function main(): Promise<number> {
       version: { type: "boolean", short: "v" },
       run: { type: "string" },
       milestones: { type: "string" },
+      title: { type: "string" },
       force: { type: "boolean" },
       milestone: { type: "string" },
       "max-attempts": { type: "string" },
@@ -222,6 +228,10 @@ async function main(): Promise<number> {
 
   if (command === "lint") {
     return lint({ config, layout: project.layout, json: Boolean(values.json) });
+  }
+
+  if (command === "add") {
+    return add({ layout: project.layout, title: values.title });
   }
 
   if (command === "unblock") {

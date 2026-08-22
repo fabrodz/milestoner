@@ -4,7 +4,7 @@ import { layoutFor, samePath } from "../paths.js";
 import { listProjects } from "../projects.js";
 import { listRuns, summariseKnownProject, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
-  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, readConfigFile, readPromptFile, readProtocolFile,
+  doAddMilestone, doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, readConfigFile, readPromptFile, readProtocolFile,
   reportHtml, snapshot, startRun, stopRun, transcript, writeConfig, writePrompt, writeProtocol,
   type ActionResult, type ApiContext,
 } from "./api.js";
@@ -238,6 +238,9 @@ export function createPanel(options: ServerOptions) {
         switch (path) {
           case "/api/steer":
             result = doSteer(ctx, str("text"), bool("append"), bool("clear"));
+            break;
+          case "/api/milestone/add":
+            result = doAddMilestone(ctx, body.title);
             break;
           case "/api/unblock": {
             const id = str("id");

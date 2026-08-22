@@ -124,6 +124,13 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
 
   <h2>Milestones</h2>
   <div id="milestones"></div>
+  <div class="card">
+    <div class="row">
+      <label class="opt" style="flex:1;min-width:16rem">Title <input data-w id="addTitle" type="text" style="flex:1" placeholder="a scaffold placeholder when left empty"></label>
+      <button data-w onclick="addMilestone()">Add a milestone</button>
+    </div>
+    <span class="muted small">Appends one pending milestone after the last, with its prompt skeleton in .milestoner/prompts/. A runner that is alive picks it up when its turn comes; write the prompt before then.</span>
+  </div>
 
   <h2>Steering<span class="muted" style="text-transform:none;letter-spacing:0"> — a correction every session launched from now on will see</span></h2>
   <div class="card">
@@ -478,6 +485,13 @@ function startBody() {
 function attendNow() {
   const seconds = Number(field("attendSeconds"));
   post("/api/attend", seconds > 0 ? { seconds } : {});
+}
+/** The new card arrives with the next tick: the append bumps the rev, so the stream re-sends. */
+async function addMilestone() {
+  const title = field("addTitle");
+  await post("/api/milestone/add", title ? { title } : {});
+  const box = document.getElementById("addTitle");
+  if (box) box.value = "";
 }
 
 /** The hub's init form. The force box stays out of sight until a refusal asks for it. */

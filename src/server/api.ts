@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { appendMilestone } from "../add.js";
 import { attend } from "../commands/attend.js";
 import { init } from "../commands/init.js";
 import { kill } from "../commands/kill.js";
@@ -192,6 +193,26 @@ export function doSteer(ctx: ApiContext, text: string | undefined, append: boole
 
 export function doUnblock(ctx: ApiContext, id: string, keepAttempts: boolean): ActionResult {
   return outcome(unblock({ layout: ctx.layout, milestoneId: id, keepAttempts }), `${id} set to pending`, `could not unblock ${id}`);
+}
+
+/** One milestone per call, appended through the same locked primitive the CLI uses. */
+export function doAddMilestone(ctx: ApiContext, title: unknown): ActionResult {
+  if (title !== undefined && typeof title !== "string") {
+    return { ok: false, message: "title must be text, or absent for the scaffold placeholder" };
+  }
+  try {
+    const added = appendMilestone(ctx.layout, title);
+    const prompt = `.milestoner/prompts/${added.promptFile}`;
+    return {
+      ok: true,
+      message:
+        `${added.id} added as pending - ` +
+        (added.promptCreated ? `write ${prompt} before its turn comes` : `${prompt} already existed and was kept`) +
+        (added.runResumed ? "; the run was complete and has work again" : ""),
+    };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export async function doKill(ctx: ApiContext, reason: string): Promise<ActionResult> {
