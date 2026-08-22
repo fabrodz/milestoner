@@ -1044,6 +1044,38 @@ This is the machine panel's form. A panel serving a single project has no hub an
 the route. The security reasoning for accepting a path over HTTP at all is
 [D-038](DECISIONS.md#d-038---the-panel-scaffolds-a-project-by-path-and-why-that-is-not-a-new-hole-2026-08-22).
 
+#### Editing the config from the panel
+
+The per-run view carries `.milestoner/config.json` in an editable box, fed by `GET /api/config` and
+saved by `POST /api/config`. It is the whole document as text, not a form: every key in
+[the config reference](#configuration-reference) is reachable, including the ones a form would have
+to grow a field for - the `infra` thresholds, `fallbackAgents`, `liveness`, `environment`.
+
+What is saved is validated by the loader itself. The submitted text is parsed and run through the
+same checks `loadConfig` performs on every runner start, and only a document that passes is written.
+A refusal shows the loader's own sentence beside the box - `missing required field "agent"`, or the
+JSON parser's position - and the file on disk is left byte for byte as it was. Nothing that would
+stop the next runner from starting can be saved from here.
+
+`projectRoot` is never written, whatever is typed. It is where the config was found, not something
+the config says, and `init` has always left it out.
+
+A runner that is already going read its config when it started, so an edit applies to the **next**
+session-launching start, not the one in flight. Editing is not blocked while a run is alive: the card
+says so instead. The exception is [`models`](#configuration-reference), which the runner re-reads at
+every session launch, so a model change does apply mid-run from the next session.
+
+**The model field on a milestone card.** The edit most often wanted is one key of that document, so
+each milestone card carries it directly: a text box holding that milestone's entry in `models`, empty
+when it has none. Saving reads the current config, changes that one key, and sends the whole document
+back through the same endpoint, so it is validated exactly like a hand edit; clearing the box removes
+the entry and the milestone goes back to the agent's own model. The precedence rules are unchanged:
+`milestoner run --model`, and the panel's own model field on the start form, still override the whole
+map.
+
+Prompts and the protocol stay files. They are the substance of a run rather than its settings, and
+the [planner skill](#milestoner-skill-install) is what authoring them properly looks like.
+
 #### What you are running
 
 This is the part to read before the flags. Everything the panel can do happens on the machine it
@@ -1137,7 +1169,8 @@ touches project code. Fails with an explanation when no adapter is configured. S
 
 ## Configuration reference
 
-`.milestoner/config.json`, created by `init`:
+`.milestoner/config.json`, created by `init`, edited in a text editor or
+[from the panel](#editing-the-config-from-the-panel):
 
 ```json
 {

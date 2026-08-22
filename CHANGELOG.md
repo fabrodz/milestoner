@@ -7,6 +7,21 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `.milestoner/config.json` can be read and edited from the panel. The per-run view carries the whole
+  document in a text box, fed by `GET /api/config` and saved by `POST /api/config`, so every key -
+  the `infra` thresholds, `fallbackAgents`, `liveness`, `environment`, the agent command - is
+  reachable without leaving the browser. A runner that is already going read its config at startup,
+  so an edit applies to the next one; the card says so rather than blocking the edit.
+- A save is validated by the loader itself: the submitted text is parsed and put through the same
+  checks `loadConfig` runs on every runner start, and only a document that passes is written, through
+  the same atomic write every other engine write uses. A refusal carries the loader's own sentence
+  (`missing required field "agent"`, or the JSON parser's position) and leaves the file byte for byte
+  as it was, so nothing that would stop the next runner from starting can be saved from the panel.
+  `projectRoot` is dropped rather than written, as `init` has always left it out.
+- A model field on every milestone card, holding that milestone's entry in the `models` map and empty
+  when it has none. Saving reads the config, changes that one key and sends the whole document back
+  through the same validated endpoint; clearing the field removes the entry and the milestone goes
+  back to the agent's own model.
 - A run can be created from the panel. The hub grows a **New run** card - directory, optional run
   name, milestone count - posting to `POST /api/init`, which calls the same `init()` the CLI does,
   so the scaffold and its refusals are the command's. The new project is recorded in

@@ -212,9 +212,9 @@ milestoner serve --write    # the per-project panel on its own, against whatever
 ```
 
 Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
-refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, set or
-clear steering, unblock a milestone, kill a hung session, run the environment adapter, start a runner
-or stop it. It is
+refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, edit
+the run's config, set or clear steering, unblock a milestone, kill a hung session, run the
+environment adapter, start a runner or stop it. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
 audit trail rather than two. The machine panel runs as a detached daemon the first run starts,
 lists every run on the machine with a switcher between them, and exits on its own ten minutes
@@ -275,6 +275,9 @@ never charged against the attempt budget are visible after the fact.
 **Set `liveness`.** It is the list of paths whose mtime proves work is happening. Without it,
 `status` can tell you a process exists but not that it is doing anything, which is the difference
 between a run that is thinking and a run that is wedged.
+
+Edit it in your editor or [in the panel](#the-web-panel), which validates a save with the same loader
+the runner uses and refuses anything that would not start.
 
 Every key, including the `infra` block that decides what counts as an infrastructure failure rather
 than a milestone failure, is documented in
