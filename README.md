@@ -212,15 +212,16 @@ milestoner serve --write    # the per-project panel on its own, against whatever
 ```
 
 Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
-refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, edit
-the run's config, give a milestone its own model, set or clear steering, start a runner with the
-same options `run` takes on the command line, stop it, kill a hung session, unblock a milestone,
-run the environment adapter. It is
+refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, write
+the milestone prompts and the protocol, edit the run's config, give a milestone its own model, set
+or clear steering, start a runner with the same options `run` takes on the command line, stop it,
+kill a hung session, unblock a milestone, run the environment adapter. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
 audit trail rather than two.
 [The guide walks a whole run through it](docs/GUIDE.md#the-panel-only-workflow-start-to-finish),
-from an empty directory to the report; what stays outside the browser is bringing the panel up and
-writing the protocol and the prompts. The machine panel runs as a detached daemon the first run starts,
+from an empty directory to the report - the milestone prompts and the protocol included, each in a
+save-and-reload editor with the lint card naming what is still skeleton; what stays outside the
+browser is bringing the panel up. The machine panel runs as a detached daemon the first run starts,
 lists every run on the machine with a switcher between them, and exits on its own ten minutes
 after the last run ends
 ([D-033](docs/DECISIONS.md#d-033---the-panel-spans-runs-one-machine-panel-brought-up-by-the-first-run-2026-08-20)).

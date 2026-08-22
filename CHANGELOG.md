@@ -5,11 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-A run can be created, configured, started, corrected and read from the browser. The panel was
-already the run's control surface once a run existed; what it grew here is everything before that
-and everything the CLI could do that it could not. The walkthrough is in
+A run can be created, written, configured, started, corrected and read from the browser. The panel
+was already the run's control surface once a run existed; what it grew here is everything before
+that and everything the CLI could do that it could not. The walkthrough is in
 [the guide](docs/GUIDE.md#the-panel-only-workflow-start-to-finish); what stays outside the browser
-is bringing the panel up and writing the protocol and the prompts.
+is bringing the panel up.
 
 ### Added
 
@@ -66,6 +66,16 @@ is bringing the panel up and writing the protocol and the prompts.
   died there. They resolve for every control, so a run can be started, steered or unblocked from the
   browser after a reboot. Writing the file is best-effort, a corrupt one is treated as empty, and an
   entry whose directory is gone is skipped and left in place.
+- The milestone prompts and the protocol can be written from the panel. Each milestone card carries
+  an editor for its prompt file, collapsed behind an "edit the prompt" link, fed by
+  `GET /api/prompt?name=<file>` and saved by `POST /api/prompt`; a **Protocol** card holds
+  `.milestoner/protocol.md` through `GET` and `POST /api/protocol`. Nothing structural is checked
+  before writing - both files are hand-written prose by design, so the lint card is the feedback
+  rather than a write gate, and it refreshes on a save so filling in a skeleton visibly clears its
+  `template-residue` findings. A prompt is reachable only by a name some milestone's `prompt` field
+  carries: path separators, a missing `.md` or a name no milestone owns are refused, read and write
+  alike. Writes are atomic and behind `--write`, the key and the `Origin` check like every other
+  mutation; an edit applies to the next session launched, as steering does, and the editors say so.
 - Direct tests for the `api.ts` handlers, which the panel's whole write surface goes through and
   which until now were only exercised indirectly over HTTP.
 

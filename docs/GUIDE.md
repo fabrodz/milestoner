@@ -1015,10 +1015,13 @@ If a run is already going anywhere on this machine, its daemon is already servin
    [the projects file](#milestoner-runs), so it joins the listing a refresh later.
 2. **Open it.** The run's chip in the switcher across the top of the page. **all runs** goes back to
    the hub; a chip carries the run's name, its health and its progress.
-3. **Write the protocol and the prompts.** In your editor. This is the step the panel deliberately
-   does not do - they are the substance of the run, not its settings - and the **Lint** card names
-   every placeholder still in them until you have. It is the same read
-   [`milestoner lint`](#milestoner-lint) gives, refreshed with the run.
+3. **Write the protocol and the prompts.** Each milestone card carries **edit the prompt**, which
+   opens that milestone's `.milestoner/prompts/` file in a text box; the **Protocol** card holds
+   `.milestoner/protocol.md` the same way. Fill in the skeletons and save. The **Lint** card names
+   every placeholder still in them - the same read [`milestoner lint`](#milestoner-lint) gives -
+   and a save refreshes it, so you watch the findings clear as you go. What you write is still
+   yours to write: the panel checks nothing here, because the prompts are the substance of the run,
+   not its settings.
 4. **Set the config.** The **Config** card holds `.milestoner/config.json` as text. Set `liveness`,
    the agent command, the `infra` thresholds, `environment.attendCommand` - every key in
    [the config reference](#configuration-reference) - and press **Save the config**. A document the
@@ -1052,10 +1055,9 @@ If a run is already going anywhere on this machine, its daemon is already servin
     [`milestoner report`](#milestoner-report) served live: the tiles, the wall-clock timeline, the
     evidence per milestone and the interventions.
 
-What still needs a terminal: bringing the panel up the first time, and writing the protocol and the
-prompts. Everything else on this list is a control on the page, calling the same function the
-command calls, so a kill from the browser lands in `supervisor-log.md` exactly like a kill from the
-shell.
+What still needs a terminal: bringing the panel up the first time. Everything else on this list is
+a control on the page, calling the same function the command calls, so a kill from the browser
+lands in `supervisor-log.md` exactly like a kill from the shell.
 
 #### Starting a run with options
 
@@ -1140,8 +1142,30 @@ the entry and the milestone goes back to the agent's own model. The precedence r
 `milestoner run --model`, and the panel's own model field on the start form, still override the whole
 map.
 
-Prompts and the protocol stay files. They are the substance of a run rather than its settings, and
-the [planner skill](#milestoner-skill-install) is what authoring them properly looks like.
+#### Writing the prompts and the protocol from the panel
+
+Each milestone card carries **edit the prompt**, collapsed behind a link so the cards stay
+scannable. It opens that milestone's prompt file - `GET /api/prompt?name=M01.md`, saved by
+`POST /api/prompt` - in the same save-and-reload editor the config has. The **Protocol** card
+holds `.milestoner/protocol.md` through `GET` and `POST /api/protocol`, with no name because there
+is only one.
+
+Unlike the config, nothing structural is checked before writing. Prompts and the protocol are
+hand-written prose by design, and there is no loader to borrow a validator from; the
+[lint rules](#milestoner-lint) are the feedback, not a write gate. A save refreshes the **Lint**
+card, so filling in a skeleton is a loop you can watch close: save, and that milestone's
+`template-residue` findings drop. A vague acceptance criterion still saves fine - the linter can
+tell you a criterion names no artifact, but only you can tell whether the one it names is worth
+anything. The [planner skill](#milestoner-skill-install) is still what authoring them properly
+looks like.
+
+A prompt is reachable only by the name a milestone's `prompt` field carries: a name with path
+separators, one that does not end in `.md`, or one no milestone in the run owns is refused, read
+and write alike. Writes go through the same atomic write every other engine write uses, behind
+`--write`, the key and the `Origin` check like every other mutation.
+
+A session that is already running read these files when it started, so an edit applies to the next
+session launched, exactly like steering does. The editors say so rather than blocking the save.
 
 #### What you are running
 
@@ -1159,7 +1183,7 @@ on that assumption rather than in spite of it:
 | `Host` must be a loopback name | DNS rebinding: an attacker's domain resolving to 127.0.0.1 and scripting your panel from a page you opened. |
 | `Origin` must be this exact server | A page on another local port posting to your run. |
 | Read-only unless `--write` | Everything above mattering by accident. |
-| Transcript names resolved inside `logs/` and re-checked | `?name=../../../../etc/passwd`. |
+| Transcript and prompt names resolved inside their own directories and re-checked; a prompt name must also be one a milestone in state owns | `?name=../../../../etc/passwd`. |
 
 The key travels in the URL so the link is enough to open the panel. That also means the URL *is* the
 credential: do not paste it into a chat or a ticket.
