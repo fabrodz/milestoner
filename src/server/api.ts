@@ -7,6 +7,7 @@ import { kill } from "../commands/kill.js";
 import { collectLintInput, gatingFindings, lintTotals } from "../commands/lint.js";
 import { steer } from "../commands/steer.js";
 import { unblock } from "../commands/unblock.js";
+import { mergeConfig } from "../config.js";
 import { lintRun, type LintFinding } from "../lint.js";
 import type { Layout } from "../paths.js";
 import { recordProject } from "../projects.js";
@@ -14,6 +15,7 @@ import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
 import type { MilestonerConfig, RunState } from "../types.js";
+import { writeJsonAtomic } from "../util/fs.js";
 
 export interface ApiContext {
   config: MilestonerConfig;
@@ -53,6 +55,7 @@ export function snapshot(ctx: ApiContext) {
       startedAt: m.startedAt,
       finishedAt: m.finishedAt,
       history: m.history,
+      model: ctx.config.models[m.id] ?? null,
     })),
     pulse: pulse
       ? {
@@ -133,6 +136,48 @@ export async function doKill(ctx: ApiContext, reason: string): Promise<ActionRes
 
 export function doAttend(ctx: ApiContext, seconds: number | undefined): ActionResult {
   return outcome(attend({ config: ctx.config, layout: ctx.layout, seconds, rule: "web" }), "environment adapter finished", "environment adapter failed");
+}
+
+/** The config exactly as it is on disk, or null if it has gone missing under a long-lived panel. */
+export function readConfigFile(ctx: ApiContext): string | null {
+  try {
+    return readFileSync(ctx.layout.config, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Replace `config.json` with a submitted document. The validator is `mergeConfig` - the checks
+ * `loadConfig` runs on every start - so nothing is written that the next runner would refuse to
+ * load, and its message is returned verbatim rather than reworded into a second set of rules.
+ * `projectRoot` is dropped instead of written: it is where the config was found, never what it says.
+ */
+export function writeConfig(ctx: ApiContext, content: unknown): ActionResult {
+  if (typeof content !== "string" || content.trim() === "") {
+    return { ok: false, message: "content is required: the whole config.json document, as text" };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (err) {
+    return { ok: false, message: `not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  let merged: MilestonerConfig;
+  try {
+    merged = mergeConfig(parsed as Partial<MilestonerConfig>, ctx.layout.config, ctx.config.projectRoot);
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+
+  const { projectRoot: _root, ...document } = parsed as Partial<MilestonerConfig>;
+  writeJsonAtomic(ctx.layout.config, document);
+  // A project panel resolved its context once, at construction, so without this the snapshot and
+  // the controls would go on answering from the config as it was before this write.
+  ctx.config = merged;
+  return { ok: true, message: "config saved - a runner already running loaded its own copy at startup, so this applies to the next one" };
 }
 
 /** Everything a start may carry, straight off the request body: the values are checked here. */

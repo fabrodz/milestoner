@@ -136,6 +136,17 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     </div>
   </div>
 
+  <h2>Config<span class="muted" style="text-transform:none;letter-spacing:0"> — .milestoner/config.json, checked by the loader before it is written</span></h2>
+  <div class="card" id="configCard">
+    <textarea id="configText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
+    <div class="row" style="margin-top:.55rem">
+      <button data-w class="primary" onclick="saveConfig()">Save the config</button>
+      <button class="link" onclick="loadConfigText('always')">Reload from disk</button>
+      <span class="muted small" id="configNote" style="margin-left:auto">A runner that is already going loaded its config when it started, so an edit applies to the next one.</span>
+    </div>
+    <div class="todo" id="configError" style="display:none"></div>
+  </div>
+
   <div class="card" id="logView" style="display:none">
     <div class="row"><strong>Session transcript</strong><span class="muted small" id="logName"></span>
       <button style="margin-left:auto" onclick="closeLog()">Close</button></div>
@@ -291,7 +302,64 @@ async function refreshLint(rev) {
   }
 }
 
+/* config.json is not in the snapshot and has no revision of its own, so it is fetched rather than
+   ticked: a box being typed into must not be rewritten four times a minute. */
+let configOnDisk = null;
+function configProblem(msg) {
+  const box = document.getElementById("configError");
+  box.style.display = msg ? "block" : "none";
+  box.innerHTML = msg ? "<b>Not saved</b>" + esc(msg) : "";
+}
+async function fetchConfig() {
+  const r = await fetch(api("/api/config"), { headers: auth });
+  if (!r.ok) throw new Error((await r.json()).error || "status " + r.status);
+  return await r.text();
+}
+/** "always" overwrites the box; anything else leaves an edit in progress alone. */
+async function loadConfigText(overwrite) {
+  if (configOnDisk !== null && !overwrite) return;
+  const box = document.getElementById("configText");
+  try {
+    const text = await fetchConfig();
+    if (overwrite === "always" || configOnDisk === null || box.value === configOnDisk) box.value = text;
+    configOnDisk = text;
+    configProblem("");
+  } catch (e) {
+    configProblem("could not read config.json: " + e.message);
+  }
+}
+async function saveConfig() {
+  configProblem("");
+  try {
+    const r = await fetch(api("/api/config"), { method: "POST", headers: auth,
+      body: JSON.stringify({ content: document.getElementById("configText").value }) });
+    const a = await r.json();
+    toast(a.message || a.error || (r.ok ? "done" : "failed"));
+    if (a.ok) await loadConfigText("always");
+    else configProblem(a.message || a.error || "the panel refused it");
+  } catch (e) { configProblem("request failed: " + e.message); }
+}
+/** The model field on a milestone card is one key of that same document: read it, change that key,
+    send the whole thing back, so what the server validates is what will be on disk. */
+async function saveModel(id) {
+  const el = document.getElementById("model-" + id);
+  const value = el && el.value ? el.value.trim() : "";
+  try {
+    const doc = JSON.parse(await fetchConfig());
+    if (!doc.models) doc.models = {};
+    if (value) doc.models[id] = value; else delete doc.models[id];
+    const r = await fetch(api("/api/config"), { method: "POST", headers: auth,
+      body: JSON.stringify({ content: JSON.stringify(doc, null, 2) }) });
+    const a = await r.json();
+    if (!a.ok) return toast(a.message || a.error || "the panel refused it");
+    toast(value ? id + " runs on " + value + " from the next session launched" : id + " goes back to the agent's own model");
+    lastMilestones = "";
+    await loadConfigText(true);
+  } catch (e) { toast("could not save the model: " + e.message); }
+}
+
 let lastControls = "";
+let lastMilestones = "";
 /** The same options milestoner run takes. Only the fields that were filled in are sent. */
 function startOptionsHtml(d) {
   return '<div id="startOpts" style="display:none;margin-top:.7rem">' +
@@ -473,6 +541,7 @@ function render(d) {
   document.getElementById("run").textContent = d.run;
   document.getElementById("reportLink").href = api("/api/report");
   refreshLint(d.rev);
+  loadConfigText(false);
 
   const v = verdictOf(d);
   document.getElementById("verdict").className = "card verdict " + v.cls;
@@ -508,7 +577,7 @@ function render(d) {
     [d.milestones.reduce((n, m) => n + m.evidence.length, 0), "pieces of written evidence"],
   ].map(([v, k]) => '<div class="stat"><div class="v">' + esc(v) + '</div><div class="k">' + esc(k) + "</div></div>").join("");
 
-  document.getElementById("milestones").innerHTML = d.milestones.map(m => {
+  const milestones = d.milestones.map(m => {
     const dg = m.diagnosis
       ? '<div class="todo" style="margin-top:.7rem"><b>What to do</b>' + esc(m.diagnosis.userAction) + "</div>" +
         (m.diagnosis.tried && m.diagnosis.tried.length ? '<div class="tried">Already tried: ' + esc(m.diagnosis.tried.join("; ")) + "</div>" : "")
@@ -532,12 +601,20 @@ function render(d) {
         '<button data-w onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
       : "";
     const spent = m.attempts > 0 ? m.attempts + " of " + d.maxAttempts + " attempts used" : "no attempts used";
+    const model = '<div class="row" style="margin-top:.6rem"><label class="opt">Model ' +
+      '<input data-w type="text" style="width:11rem" placeholder="the agent default" id="model-' + esc(m.id) +
+      '" value="' + esc(m.model || "") + '"></label>' +
+      '<button data-w class="link" data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
+      '<span class="muted small">this milestone\'s entry in the config\'s model map; empty removes it</span></div>';
     return '<div class="card ms ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
       esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) +
       '<span class="muted small" style="margin-left:auto">' + esc(spent) +
       (m.finishedAt ? " · finished " : "") + (m.finishedAt ? ago(m.finishedAt) : "") + "</span></div>" +
-      dg + ev + att + un + "</div>";
+      dg + model + ev + att + un + "</div>";
   }).join("");
+  // Memoised for the same reason the controls card is: this list now carries an input per milestone,
+  // and a tick that rebuilt it would throw away a model name half typed into one.
+  if (milestones !== lastMilestones) { lastMilestones = milestones; document.getElementById("milestones").innerHTML = milestones; }
 
   document.getElementById("steerNow").textContent = d.steering ? "a steer is in force" : "no steer in force";
   if (d.steering && !document.getElementById("steerText").value) {

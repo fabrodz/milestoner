@@ -4,8 +4,8 @@ import { layoutFor, samePath } from "../paths.js";
 import { listProjects } from "../projects.js";
 import { listRuns, summariseKnownProject, summariseUnregistered, type RunSummary, type SeenRun } from "../registry.js";
 import {
-  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, reportHtml, snapshot, startRun, stopRun, transcript,
-  type ActionResult, type ApiContext,
+  doAttend, doKill, doSteer, doUnblock, initProject, lintFindings, readConfigFile, reportHtml, snapshot, startRun,
+  stopRun, transcript, writeConfig, type ActionResult, type ApiContext,
 } from "./api.js";
 import { BIND_HOST, TOKEN_COOKIE, hostAllowed, newToken, originAllowed, tokenFrom, tokenMatches } from "./security.js";
 import { PAGE } from "./page.js";
@@ -179,6 +179,12 @@ export function createPanel(options: ServerOptions) {
     if (req.method === "GET" && path === "/api/report") {
       return ctxOr((ctx) => send(res, 200, "text/html; charset=utf-8", reportHtml(ctx)));
     }
+    if (req.method === "GET" && path === "/api/config") {
+      return ctxOr((ctx) => {
+        const body = readConfigFile(ctx);
+        return body === null ? json(res, 404, { error: "config.json is not there any more" }) : send(res, 200, "text/plain; charset=utf-8", body);
+      });
+    }
     if (req.method === "GET" && path === "/api/transcript") {
       return ctxOr((ctx) => {
         const body = transcript(ctx, url.searchParams.get("name") ?? "");
@@ -250,6 +256,9 @@ export function createPanel(options: ServerOptions) {
             break;
           case "/api/run/stop":
             result = stopRun(ctx);
+            break;
+          case "/api/config":
+            result = writeConfig(ctx, body.content);
             break;
           default:
             return json(res, 404, { error: "no such endpoint" });

@@ -34,7 +34,18 @@ export function defaultConfig(run: string, projectRoot: string): MilestonerConfi
 const REQUIRED = ["run", "agent", "infra"] as const;
 
 export function loadConfig(configPath: string, projectRoot: string): MilestonerConfig {
-  const raw = readJson<Partial<MilestonerConfig>>(configPath);
+  return mergeConfig(readJson<Partial<MilestonerConfig>>(configPath), configPath, projectRoot);
+}
+
+/**
+ * The checks and the defaulting, over a document that need not have come from disk: the panel's
+ * config editor validates what was typed into it by running it through exactly this, so a write it
+ * accepts is one the next `loadConfig` will accept too. `configPath` only names the file in errors.
+ */
+export function mergeConfig(raw: Partial<MilestonerConfig>, configPath: string, projectRoot: string): MilestonerConfig {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${configPath}: must be a JSON object`);
+  }
   for (const key of REQUIRED) {
     if (raw[key] === undefined) throw new Error(`${configPath}: missing required field "${key}"`);
   }
