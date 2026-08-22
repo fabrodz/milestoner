@@ -106,6 +106,32 @@ test("timeline segments stay inside the track", () => {
   }
 });
 
+test("an in-progress milestone with no graded history reads as in progress, never as never started", () => {
+  const midRun = normalizeState({
+    run: "mid-run",
+    createdAt: "2026-08-22T19:30:00.000Z",
+    runComplete: false,
+    milestones: [
+      {
+        id: "M03",
+        title: "The live one",
+        status: "in_progress",
+        attempts: 0,
+        startedAt: "2026-08-22T19:58:27.435Z",
+        evidence: [],
+        history: [],
+      },
+    ],
+  });
+  const html = buildReport({ state: midRun, maxAttempts: 3, runLog: [], supervisorLog: [], generatedAt: new Date("2026-08-22T20:10:00.000Z") });
+
+  assert.ok(html.includes("in progress since 2026-08-22 19:58, no session graded yet"), "the card says what is actually happening");
+  assert.ok(html.includes("still in progress when this report was generated"), "and the empty evidence block matches");
+  assert.ok(!html.includes("no evidence recorded"), "the pending wording stays off an in-progress card");
+  assert.ok(!html.includes("0 sessions"), "a zero count is not how an unfinished milestone is described");
+  assert.ok(!html.includes("Not started yet."));
+});
+
 test("the attempt budget comes from the config, not from what happened to be spent", () => {
   const html = buildReport({ state, maxAttempts: 3, runLog: [], supervisorLog: [], generatedAt: new Date(0) });
 

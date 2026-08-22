@@ -89,7 +89,9 @@ function attemptTable(milestone: Milestone): string {
 function milestoneCard(milestone: Milestone, maxAttempts: number): string {
   const evidence = milestone.evidence.length
     ? `<ul class="evidence">${milestone.evidence.map((e) => `<li>${escapeHtml(e)}</li>`).join("")}</ul>`
-    : `<p class="none">no evidence recorded</p>`;
+    : milestone.status === "in_progress"
+      ? `<p class="none">no evidence yet - the milestone was still in progress when this report was generated</p>`
+      : `<p class="none">no evidence recorded</p>`;
 
   const diagnosis = milestone.diagnosis
     ? `<div class="diagnosis">
@@ -101,8 +103,13 @@ function milestoneCard(milestone: Milestone, maxAttempts: number): string {
 
   const wasted = milestone.history.filter((a) => a.outcome === "infra-failure").length;
   const sessions = milestone.history.length;
+  // The report gets state only, never the pulse, so an in-progress card must not claim a session
+  // is live: "in progress since" is what state can vouch for whether or not the runner survived.
+  const started = milestone.startedAt ? escapeHtml(milestone.startedAt.slice(0, 16).replace("T", " ")) : null;
   const meta = [
-    `${sessions} ${sessions === 1 ? "session" : "sessions"}`,
+    milestone.status === "in_progress" && sessions === 0
+      ? `in progress${started ? ` since ${started}` : ""}, no session graded yet`
+      : `${sessions} ${sessions === 1 ? "session" : "sessions"}`,
     `${milestone.attempts}/${maxAttempts} attempts charged`,
     milestone.finishedAt ? `finished ${escapeHtml(milestone.finishedAt.slice(0, 16).replace("T", " "))}` : null,
     wasted ? `${wasted} infrastructure ${wasted === 1 ? "retry" : "retries"} (not charged)` : null,

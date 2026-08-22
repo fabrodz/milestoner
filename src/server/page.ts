@@ -580,6 +580,69 @@ function verdictOf(d) {
     todo:null };
 }
 
+/** One milestone's card. Pure like lintCardHtml, so a test can render it without a browser.
+    The live test is the verdict banner's own - pulse present, runner alive - narrowed to this card. */
+function milestoneCardHtml(m, d) {
+  const p = d.pulse;
+  const live = p && p.runnerAlive && p.milestoneId === m.id ? p : null;
+  const session = live
+    ? '<div class="row" style="margin-top:.55rem"><span class="pill in_progress">live</span>' +
+      '<span class="small">session started ' + (live.sessionStartedAt ? ago(live.sessionStartedAt) : "just now") +
+      (live.agent ? " · agent " + esc(live.agent) : "") + "</span>" +
+      (live.transcript ? '<button class="link" onclick="viewLog(' + JSON.stringify(live.transcript) + ')">watch the live transcript</button>' : "") +
+      "</div>"
+    : m.status === "in_progress"
+      ? '<p class="muted small" style="margin:.5rem 0 0">No session is live on this milestone: the runner is ' +
+        (p && p.runnerAlive ? "on another milestone" : "gone") + ".</p>"
+      : "";
+  const dg = m.diagnosis
+    ? '<div class="todo" style="margin-top:.7rem"><b>What to do</b>' + esc(m.diagnosis.userAction) + "</div>" +
+      (m.diagnosis.tried && m.diagnosis.tried.length ? '<div class="tried">Already tried: ' + esc(m.diagnosis.tried.join("; ")) + "</div>" : "")
+    : "";
+  const ev = m.evidence.length
+    ? "<h2 style='margin:.9rem 0 0'>Evidence</h2><ul class='ev'>" + m.evidence.map(e => "<li>" + esc(e) + "</li>").join("") + "</ul>"
+    : "";
+  const att = m.history.length
+    ? '<table class="att"><thead><tr><th>Attempt</th><th>Result</th><th>Took</th><th>When</th><th>Agent</th><th></th></tr></thead><tbody>' +
+      m.history.map(h =>
+        "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
+        esc(OUTCOME[h.outcome] || h.outcome) + "</span></td><td>" + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
+        "</td><td>" + esc(h.agent || "-") + '</td><td><button class="link" onclick="viewLog(' +
+        JSON.stringify(h.transcript) + ')">transcript</button></td></tr>' +
+        (h.detail ? '<tr><td></td><td colspan="5" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
+        (h.steering ? '<tr><td></td><td colspan="5" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
+      ).join("") + "</tbody></table>"
+    : m.status === "pending" && !live
+      ? '<p class="muted small" style="margin:.5rem 0 0">Not started yet.</p>'
+      : "";
+  const un = m.status === "blocked"
+    ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + '})">I fixed it, try again</button>' +
+      '<button data-w onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
+    : "";
+  const spent = live
+    ? "attempt " + (live.attempt ?? "?") + " of " + d.maxAttempts + " running"
+    : m.attempts > 0 ? m.attempts + " of " + d.maxAttempts + " attempts used" : "no attempts used";
+  const model = '<div class="row" style="margin-top:.6rem"><label class="opt">Model ' +
+    '<input data-w type="text" style="width:11rem" placeholder="the agent default" id="model-' + esc(m.id) +
+    '" value="' + esc(m.model || "") + '"></label>' +
+    '<button data-w class="link" data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
+    '<span class="muted small">this milestone\'s entry in the config\'s model map; empty removes it</span></div>';
+  const ed = '<div style="margin-top:.45rem"><button class="link" data-name="' + esc(m.prompt) +
+    '" onclick="togglePrompt(this.dataset.name)">edit the prompt</button>' +
+    '<div id="promptBox-' + esc(m.prompt) + '" style="display:none;margin-top:.5rem">' +
+    '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>' +
+    '<div class="row" style="margin-top:.55rem">' +
+    '<button data-w class="primary" data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
+    '<button class="link" data-name="' + esc(m.prompt) + '" onclick="loadPromptText(this.dataset.name,\'always\')">Reload from disk</button>' +
+    '<span class="muted small" style="margin-left:auto">.milestoner/prompts/' + esc(m.prompt) + ' - a session already going got its kickoff at launch, so an edit applies to the next one</span>' +
+    '</div><div class="todo" id="promptError-' + esc(m.prompt) + '" style="display:none"></div></div></div>';
+  return '<div class="card ms ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
+    esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) +
+    '<span class="muted small" style="margin-left:auto">' + esc(spent) +
+    (m.finishedAt ? " · finished " : "") + (m.finishedAt ? ago(m.finishedAt) : "") + "</span></div>" +
+    session + dg + model + ed + ev + att + un + "</div>";
+}
+
 /* Case-blind and slash-blind, like the server compares project roots on Windows and macOS. */
 const sameRoot = root => String(root).replace(/\\/g, "/").toLowerCase() === ROOT.replace(/\\/g, "/").toLowerCase();
 const HEALTH_PILL = { alive:"in_progress", slow:"incomplete", hung:"blocked", gone:"blocked", complete:"done", unknown:"pending" };
@@ -681,50 +744,7 @@ function render(d) {
     [d.milestones.reduce((n, m) => n + m.evidence.length, 0), "pieces of written evidence"],
   ].map(([v, k]) => '<div class="stat"><div class="v">' + esc(v) + '</div><div class="k">' + esc(k) + "</div></div>").join("");
 
-  const milestones = d.milestones.map(m => {
-    const dg = m.diagnosis
-      ? '<div class="todo" style="margin-top:.7rem"><b>What to do</b>' + esc(m.diagnosis.userAction) + "</div>" +
-        (m.diagnosis.tried && m.diagnosis.tried.length ? '<div class="tried">Already tried: ' + esc(m.diagnosis.tried.join("; ")) + "</div>" : "")
-      : "";
-    const ev = m.evidence.length
-      ? "<h2 style='margin:.9rem 0 0'>Evidence</h2><ul class='ev'>" + m.evidence.map(e => "<li>" + esc(e) + "</li>").join("") + "</ul>"
-      : "";
-    const att = m.history.length
-      ? '<table class="att"><thead><tr><th>Attempt</th><th>Result</th><th>Took</th><th>When</th><th>Agent</th><th></th></tr></thead><tbody>' +
-        m.history.map(h =>
-          "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
-          esc(OUTCOME[h.outcome] || h.outcome) + "</span></td><td>" + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
-          "</td><td>" + esc(h.agent || "-") + '</td><td><button class="link" onclick="viewLog(' +
-          JSON.stringify(h.transcript) + ')">transcript</button></td></tr>' +
-          (h.detail ? '<tr><td></td><td colspan="5" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
-          (h.steering ? '<tr><td></td><td colspan="5" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
-        ).join("") + "</tbody></table>"
-      : '<p class="muted small" style="margin:.5rem 0 0">Not started yet.</p>';
-    const un = m.status === "blocked"
-      ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + '})">I fixed it, try again</button>' +
-        '<button data-w onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
-      : "";
-    const spent = m.attempts > 0 ? m.attempts + " of " + d.maxAttempts + " attempts used" : "no attempts used";
-    const model = '<div class="row" style="margin-top:.6rem"><label class="opt">Model ' +
-      '<input data-w type="text" style="width:11rem" placeholder="the agent default" id="model-' + esc(m.id) +
-      '" value="' + esc(m.model || "") + '"></label>' +
-      '<button data-w class="link" data-id="' + esc(m.id) + '" onclick="saveModel(this.dataset.id)">save</button>' +
-      '<span class="muted small">this milestone\'s entry in the config\'s model map; empty removes it</span></div>';
-    const ed = '<div style="margin-top:.45rem"><button class="link" data-name="' + esc(m.prompt) +
-      '" onclick="togglePrompt(this.dataset.name)">edit the prompt</button>' +
-      '<div id="promptBox-' + esc(m.prompt) + '" style="display:none;margin-top:.5rem">' +
-      '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>' +
-      '<div class="row" style="margin-top:.55rem">' +
-      '<button data-w class="primary" data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
-      '<button class="link" data-name="' + esc(m.prompt) + '" onclick="loadPromptText(this.dataset.name,\'always\')">Reload from disk</button>' +
-      '<span class="muted small" style="margin-left:auto">.milestoner/prompts/' + esc(m.prompt) + ' - a session already going got its kickoff at launch, so an edit applies to the next one</span>' +
-      '</div><div class="todo" id="promptError-' + esc(m.prompt) + '" style="display:none"></div></div></div>';
-    return '<div class="card ms ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
-      esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) +
-      '<span class="muted small" style="margin-left:auto">' + esc(spent) +
-      (m.finishedAt ? " · finished " : "") + (m.finishedAt ? ago(m.finishedAt) : "") + "</span></div>" +
-      dg + model + ed + ev + att + un + "</div>";
-  }).join("");
+  const milestones = d.milestones.map(m => milestoneCardHtml(m, d)).join("");
   // Memoised for the same reason the controls card is: this list now carries an input per milestone,
   // and a tick that rebuilt it would throw away a model name half typed into one.
   if (milestones !== lastMilestones) { lastMilestones = milestones; document.getElementById("milestones").innerHTML = milestones; }
