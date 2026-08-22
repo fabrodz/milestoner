@@ -885,3 +885,51 @@ directory costs the panel a listing and the command nothing.
 Rejected: scanning the disk (above); pruning dead entries on read (above); and putting the paths in
 `runs.json`, which would give one file two retention rules and make "is this run alive" and "have I
 worked here" the same question, which they are not.
+
+## D-038 - The panel scaffolds a project by path, and why that is not a new hole (2026-08-22)
+
+`init` was the one step of the panel-only workflow that still needed a terminal. `POST /api/init`
+closes it: the hub takes a directory path, an optional run name and a milestone count, and calls the
+same `init()` the CLI calls. The panel can now create the run it will later start, steer and unblock.
+
+**Accepting a filesystem path over HTTP is the part that needs arguing.** It is a new shape of
+request - every other route names a project the listing already knows, and this one may name a
+directory nothing has heard of - but it is not a new capability. The layers it arrives through are
+unchanged and none of them is relaxed: the server binds `127.0.0.1` and that is not configurable,
+every request carries the generated key compared in constant time, the `Host` must be a loopback
+name, a POST must carry this exact server's `Origin`, and a panel without `--write` answers 403
+before the body is even read. What gets through all of that is the local user holding the key, and
+that user can run `milestoner init` in any directory they like. D-027 already settled the larger
+version of this question - a write-enabled panel starts an agent with
+`--dangerously-skip-permissions` and runs `attendCommand` through a shell, so it is a remote code
+execution endpoint by construction and is built on that assumption. Writing a directory of Markdown
+and JSON is strictly less than what the start button already does.
+
+**No sandbox, no allowlist of directories.** A path allowlist would have to be configured somewhere,
+and the only person who could configure it is the person already holding the key. It would buy
+nothing against the threat that matters (a stolen URL, which owns the machine through `start`
+anyway) and cost the workflow the thing it is for: scaffolding a project the panel has never seen.
+What the handler does instead is refuse anything ambiguous. The path must be absolute, because a
+relative one would resolve against the panel daemon's working directory - which is wherever the
+first run happened to start it, and is nobody's intention. It must already be a directory, because a
+typo that creates a tree is worse than a typo that is refused. `milestones` takes the same 1-99
+bounds `cli.ts` puts on `--milestones`, and `force` must be an explicit `true`: defaulting it would
+turn a re-scaffold into a silent overwrite of a config someone edited.
+
+**The refusals are `init`'s, not a second set.** The handler validates the body and nothing else. The
+existing-config refusal and D-030's protocol refusal come back as `init`'s own messages, so the
+browser reads what the terminal would have read; `init` now returns them beside its exit code rather
+than only printing them. The two cases are distinguished for the page's benefit: an existing config
+is answered by `force`, and the hub surfaces a force checkbox after that refusal and only after it,
+while a protocol naming another run is not, so nothing offers a checkbox that cannot help. A second
+implementation of those rules in the server is the drift D-030 was written to prevent.
+
+**Machine scope only.** The form lives on the hub, and a panel serving one project has no hub, no
+listing to add to and no projects file in its scope; there it answers 404. On success the new root
+goes into `~/.milestoner/projects.json` (D-037), which is what puts the project in the hub listing on
+the very next tick with no CLI command run anywhere.
+
+Rejected: reimplementing the scaffold in the server to get structured errors (two sets of rules, one
+of them untested against the CLI's); a path allowlist (above); creating the directory when it is
+missing (a typo becomes a tree); and defaulting `force` to true so the form always works (it would
+overwrite a hand-edited config on a double click).

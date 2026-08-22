@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- A run can be created from the panel. The hub grows a **New run** card - directory, optional run
+  name, milestone count - posting to `POST /api/init`, which calls the same `init()` the CLI does,
+  so the scaffold and its refusals are the command's. The new project is recorded in
+  `~/.milestoner/projects.json`, so it joins the hub listing on the next refresh with no CLI command
+  run anywhere. With `init`, config and the run controls all reachable from the browser, the
+  panel-only workflow no longer needs a terminal.
+- `POST /api/init` validates its body before `init()` sees it: the path must be absolute and an
+  existing directory (a relative one would resolve against the panel daemon's working directory, and
+  a missing one is refused rather than created), `milestones` takes the CLI's 1-99 bounds, and
+  `force` must be an explicit `true`. It is behind `--write`, the key, the `Host` allowlist and the
+  `Origin` check like every other mutation, and it is a machine-panel route: a panel serving one
+  project answers 404. The reasoning for accepting a filesystem path over HTTP is D-038.
+- Only an existing-config refusal reveals the hub's force checkbox. A protocol naming another run
+  (D-030) is refused even with force and says which run it names, because force cannot answer it.
 - The machine panel lists every project on the machine, not only the ones whose runner is alive or
   started while the panel was up. Every command that works inside a project records its directory in
   `~/.milestoner/projects.json` (`init` included), and the hub summarises the ones the registry has
@@ -33,6 +47,12 @@ All notable changes to this project are documented here. The format follows
   and a non-boolean `once` are refused with a message naming the field and no runner started. The
   runner is spawned detached with its output discarded, so a flag it would reject would otherwise
   fail where nobody can see it.
+
+### Fixed
+
+- The hub is reachable on a machine with exactly one project. It opens that run on arrival, as
+  before, but "all runs" now says so in the URL and stays on the hub instead of bouncing straight
+  back into the only run - which left the hub, and now the new-run form on it, unreachable.
 
 ## [0.8.0] - 2026-08-21
 

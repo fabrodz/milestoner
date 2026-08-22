@@ -518,6 +518,10 @@ milestoner init [--run <name>] [--milestones <n>] [--force]
 Adding a milestone later is a manual edit: create `prompts/M05.md` and append an entry to
 `state.json`. That is intentional. `state.json` is a run's history, not a scratch file.
 
+This is also the one thing the web panel can do without a terminal: the hub's **New run** card takes
+the same three values and calls the same function, refusals included. See
+[Scaffolding a new run from the hub](#scaffolding-a-new-run-from-the-hub).
+
 **Re-init over an existing `.milestoner/`.** The hand-written files - prompts, the protocol, both
 logs - survive every re-init; `--force` only replaces `config.json` and `state.json`. The one thing
 `init` checks about the protocol it is keeping is that it belongs to the run being scaffolded. If
@@ -1009,11 +1013,43 @@ nobody can read it.
 `environment.attendSeconds` for that one run of the adapter; left empty, the configured default
 applies.
 
+#### Scaffolding a new run from the hub
+
+The hub's **New run** card is [`milestoner init`](#milestoner-init) with a form in front of it:
+a directory path, an optional run name, a milestone count. It posts to `POST /api/init`, which
+calls the same `init()` the command does, so what lands on disk is the same config, state machine,
+protocol template and prompt skeletons, and the refusals are the command's refusals.
+
+| Field | Flag | Meaning |
+| --- | --- | --- |
+| Directory | (the working directory) | Absolute path to a directory that already exists on this machine. Required. |
+| Run name | `--run <name>` | The run's name. Left empty, it comes from the directory name, as on the command line. |
+| Milestones | `--milestones <n>` | How many prompt skeletons to write. An integer between 1 and 99; 3 when empty. |
+
+A relative path is refused, because it would resolve against whatever directory the panel daemon
+was started in. A directory that is not there is refused rather than created: a typo that makes a
+tree is worse than a typo that comes back as a message. Scaffolding over an existing
+`.milestoner/config.json` is refused too, and only that refusal reveals the "overwrite the config
+that is already there" checkbox - the deliberate `--force`. A protocol naming a different run
+([D-030](DECISIONS.md#d-030---re-init-refuses-another-runs-protocol-and-tags-lose-their-slash-2026-08-20))
+is refused even with the box ticked, and says which run it names, because force is not the answer
+to that one.
+
+On success the project is recorded in [the projects file](#milestoner-runs), so it joins the hub
+listing on the next refresh - a second or two later - and every control works on it from there:
+lint it, start it, steer it. Writing the protocol and the prompts is still yours, and the lint card
+on the new run's page will say so until you have.
+
+This is the machine panel's form. A panel serving a single project has no hub and answers 404 on
+the route. The security reasoning for accepting a path over HTTP at all is
+[D-038](DECISIONS.md#d-038---the-panel-scaffolds-a-project-by-path-and-why-that-is-not-a-new-hole-2026-08-22).
+
 #### What you are running
 
 This is the part to read before the flags. Everything the panel can do happens on the machine it
 runs on with the permissions of whoever started it. Starting a run launches an agent with
 `--dangerously-skip-permissions`. `attend` executes `environment.attendCommand` through a shell.
+Scaffolding writes a directory tree at a path the request names.
 A write-enabled panel is therefore a remote code execution endpoint by construction, and it is built
 on that assumption rather than in spite of it:
 

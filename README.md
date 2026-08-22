@@ -212,8 +212,9 @@ milestoner serve --write    # the per-project panel on its own, against whatever
 ```
 
 Every form prints a URL carrying a one-time key. The panel shows the same run `status` does,
-refreshed over server-sent events, and lets you act on it: set or clear steering, unblock a
-milestone, kill a hung session, run the environment adapter, start a runner or stop it. It is
+refreshed over server-sent events, and lets you act on it: scaffold a new run in a directory, set or
+clear steering, unblock a milestone, kill a hung session, run the environment adapter, start a runner
+or stop it. It is
 deliberately the *same* surface as the CLI, calling the same functions, which is what keeps one
 audit trail rather than two. The machine panel runs as a detached daemon the first run starts,
 lists every run on the machine with a switcher between them, and exits on its own ten minutes
@@ -223,6 +224,9 @@ It lists more than the live ones: the CLI records every project it works in to
 `~/.milestoner/projects.json`, so a project whose run is finished, or never started, is there to be
 opened and started after a reboot
 ([D-037](docs/DECISIONS.md#d-037---a-projects-file-so-the-panel-knows-a-project-no-runner-is-announcing-2026-08-22)).
+The hub also scaffolds: a directory path, a run name and a milestone count call the same `init()`
+the CLI does, with the same refusals, and the new project joins the listing on the next refresh
+([D-038](docs/DECISIONS.md#d-038---the-panel-scaffolds-a-project-by-path-and-why-that-is-not-a-new-hole-2026-08-22)).
 
 **Read what this is before you run it.** Everything the panel can do, it does with your account's
 permissions on the machine it runs on: starting a run launches an agent with
