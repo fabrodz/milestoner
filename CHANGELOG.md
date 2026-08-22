@@ -95,6 +95,18 @@ is bringing the panel up.
 
 ### Fixed
 
+- The milestone card a session is working on shows that session. The card body rendered only graded
+  attempt history, so while attempt 1 ran the page contradicted itself: the verdict banner said
+  "Working on M01, attempt 1" while the card below read "IN PROGRESS", "no attempts used" and "Not
+  started yet." Now, when the pulse names the milestone and the runner is alive, the card carries a
+  live block - when the session started, the agent when the pulse names one, a "watch the live
+  transcript" link - and its counter reads "attempt 1 of 3 running"; with the runner gone or on
+  another milestone it says exactly that instead of claiming a session, and the graded history keeps
+  its table below either way. "Not started yet." is reserved for a pending milestone with no history
+  and no live session. The report has the matching fix: an in-progress milestone with nothing graded
+  yet reads "in progress since <started>, no session graded yet" rather than "0 sessions" and "no
+  evidence recorded" - worded from state alone, because a static report cannot vouch for a live
+  session.
 - The hub is reachable on a machine with exactly one project. It opens that run on arrival, as
   before, but "all runs" now says so in the URL and stays on the hub instead of bouncing straight
   back into the only run - which left the hub, and now the new-run form on it, unreachable.
