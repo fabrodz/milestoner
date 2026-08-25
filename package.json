@@ -1,16 +1,35 @@
 {
   "name": "milestoner",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Run massive plans unattended for hours: an autonomous-run engine for coding agents, driven by a milestone state machine.",
-  "keywords": ["claude-code", "agents", "autonomous", "orchestrator", "milestones"],
+  "keywords": [
+    "claude-code",
+    "agents",
+    "autonomous",
+    "orchestrator",
+    "milestones"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/fabrodz/milestoner.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabrodz/milestoner.git"
+  },
   "homepage": "https://github.com/fabrodz/milestoner#readme",
-  "bugs": { "url": "https://github.com/fabrodz/milestoner/issues" },
+  "bugs": {
+    "url": "https://github.com/fabrodz/milestoner/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=20" },
-  "bin": { "milestoner": "dist/cli.js" },
-  "files": ["dist", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "milestoner": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

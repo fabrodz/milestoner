@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
+## [0.9.1] - 2026-08-25
+
+### Fixed
+
+- The panel's transcript buttons - "watch the live transcript" and the per-attempt "transcript"
+  link - and both unblock buttons did nothing when clicked. Each built its `onclick` attribute by
+  splicing `JSON.stringify(...)` straight into a double-quoted HTML attribute; `JSON.stringify`'s
+  own quotes closed the attribute early, leaving `onclick` holding invalid JavaScript. The value is
+  now HTML-escaped before it goes in, matching every other attribute the panel builds this way.
+
 ## [0.9.0] - 2026-08-22
 
 A run can be created, written, configured, started, corrected and read from the browser. The panel
