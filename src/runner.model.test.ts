@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { defaultConfig } from "./config.js";
 import { MILESTONER_DIR, layoutFor } from "./paths.js";
 import { run } from "./runner.js";
+import { loadState } from "./state.js";
 import type { AgentConfig, RunState } from "./types.js";
 
 // The runner registers itself in the machine registry; keep these runs out of the real one.
@@ -91,6 +92,12 @@ function argvOf(root: string, id: string): string[] {
   return JSON.parse(readFileSync(join(root, `${id}-argv.json`), "utf8")) as string[];
 }
 
+function lastAttempt(layout: ReturnType<typeof layoutFor>, id: string) {
+  const state = loadState(layout.state);
+  const milestone = state.milestones.find((m) => m.id === id);
+  return milestone?.history.at(-1);
+}
+
 test("a per-milestone model reaches the session, and a milestone the map omits keeps the agent's own", async () => {
   const { root, layout, config } = scaffold({ M02: "opus" });
   const signal = new AbortController().signal;
@@ -100,6 +107,8 @@ test("a per-milestone model reaches the session, and a milestone the map omits k
 
   assert.deepEqual(argvOf(root, "M01").slice(-2), ["--model", "sonnet"]);
   assert.deepEqual(argvOf(root, "M02").slice(-2), ["--model", "opus"]);
+  assert.equal(lastAttempt(layout, "M01")?.model, "sonnet", "the agent's own default is recorded too");
+  assert.equal(lastAttempt(layout, "M02")?.model, "opus", "the per-milestone model is recorded on the attempt");
 });
 
 test("a run-level model override beats the per-milestone entry", async () => {
@@ -109,6 +118,7 @@ test("a run-level model override beats the per-milestone entry", async () => {
   await run({ config, layout, once: true, milestoneId: "M01", model: "haiku", signal });
 
   assert.deepEqual(argvOf(root, "M01").slice(-2), ["--model", "haiku"]);
+  assert.equal(lastAttempt(layout, "M01")?.model, "haiku", "the override is what gets recorded, not the map entry it beat");
 });
 
 test("a fallback agent keeps its own model whatever the map says", async () => {
@@ -121,4 +131,5 @@ test("a fallback agent keeps its own model whatever the map says", async () => {
   const argv = argvOf(root, "M01");
   assert.deepEqual(argv.slice(-2), ["--model", "gpt-5-codex"]);
   assert.equal(argv.includes("opus"), false, "the map belongs to the primary agent only");
+  assert.equal(lastAttempt(layout, "M01")?.model, "gpt-5-codex", "the graded attempt records the fallback's own model");
 });

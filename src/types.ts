@@ -19,6 +19,9 @@ export interface AttemptRecord {
   steering?: string;
   /** Which agent ran it. Without this a run that rotated agents cannot be read back. */
   agent?: string;
+  /** The model resolved for this attempt, whatever the agent - a config string, not one this
+   *  engine interprets. Absent means none was passed, so the agent ran on its own default. */
+  model?: string | null;
 }
 
 export interface Milestone {
@@ -134,6 +137,9 @@ export interface Pulse {
   agentPid: number | null;
   /** Name of the agent currently in use, when the run has fallbacks configured. */
   agent?: string | null;
+  /** The model resolved for the session in progress, whatever the agent. Null means the agent's
+   *  own default, which this engine cannot see. */
+  model?: string | null;
   transcript: string | null;
   lastEvent: string;
   lastEventAt: string;

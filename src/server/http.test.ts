@@ -27,7 +27,7 @@ function scaffold(): ReturnType<typeof layoutFor> {
         diagnosis: { symptom: "port busy", tried: [], userAction: "free the port" },
         history: [
           { attempt: 1, startedAt: new Date(0).toISOString(), endedAt: new Date(1000).toISOString(), seconds: 1,
-            exitCode: 0, transcript: "M01-a.log", outcome: "blocked", detail: "d", steering: "s", agent: "claude" },
+            exitCode: 0, transcript: "M01-a.log", outcome: "blocked", detail: "d", steering: "s", agent: "claude", model: "opus" },
         ] },
     ],
   };

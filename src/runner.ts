@@ -165,6 +165,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
 
   let agentPid: number | null = null;
   let transcriptPath: string | null = null;
+  let currentModel: string | null = null;
 
   const pulse = (milestone: Milestone | null, attempt: number | null, sessionStartedAt: string | null, event: string) => {
     // Refreshed here rather than on its own schedule, so `runs` and `status` can never disagree
@@ -179,6 +180,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
       sessionStartedAt,
       agentPid,
       agent: hasFallbacks(pool) ? currentAgent(pool).name : null,
+      model: currentModel,
       transcript: transcriptPath,
       lastEvent: event,
       lastEventAt: iso(),
@@ -291,6 +293,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
       // Resolved here rather than once at startup: the model can change with the milestone. The
       // primary slot alone takes the override and the map; a fallback carries its own model.
       const model = pool.index === 0 ? resolveModel(config, next.id, options.model) : active.agent.model;
+      currentModel = model;
       const args = buildAgentArgs(
         active.agent,
         {
@@ -309,13 +312,14 @@ export async function run(options: RunOptions): Promise<RunExit> {
       info(`transcript ${relative(config.projectRoot, transcript)}`);
       if (steering) info(`steering   ${color.bold(steering.headline)}`);
       if (hasFallbacks(pool)) info(`agent      ${color.bold(active.name)}`);
+      if (model) info(`model      ${color.bold(model)}`);
       const sessionStartedAt = iso();
       pulse(next, attempt, sessionStartedAt, "session-launched");
       logEvent(
         layout,
         next.id,
         "launch",
-        `attempt ${attempt}/${maxAttempts}, agent ${active.name}${steering ? `, steering: ${steering.headline}` : ""}`,
+        `attempt ${attempt}/${maxAttempts}, agent ${active.name}${model ? `, model ${model}` : ""}${steering ? `, steering: ${steering.headline}` : ""}`,
       );
 
       const outcome = await runSession({
@@ -385,6 +389,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
             detail: `${infra.reason}: ${infra.detail}`,
             steering: steering?.headline,
             agent: active.name,
+            model,
           });
         });
         if (infraRetries > config.infra.maxRetries) {
@@ -436,6 +441,7 @@ export async function run(options: RunOptions): Promise<RunExit> {
         detail: verdict.warnings.join("; ") || undefined,
         steering: steering?.headline,
         agent: active.name,
+        model,
       };
 
       const after = updateState(layout.dir, layout.state, (s) => applyVerdict(s, next.id, record, verdict, maxAttempts));

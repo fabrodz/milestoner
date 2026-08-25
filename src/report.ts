@@ -121,13 +121,14 @@ function attemptTable(milestone: Milestone): string {
     .map((a) => {
       const steering = a.steering ? `<div class="steer">steering: ${escapeHtml(a.steering)}</div>` : "";
       const agent = a.agent ? `<div class="steer">agent: ${escapeHtml(a.agent)}</div>` : "";
+      const model = a.model ? `<div class="steer">model: ${escapeHtml(a.model)}</div>` : "";
       const detail = a.detail ? `<div class="detail">${escapeHtml(a.detail)}</div>` : "";
       return `<tr>
         <td>${a.attempt}</td>
         <td><span class="pill ${a.outcome}">${OUTCOME_LABEL[a.outcome]}</span></td>
         <td>${a.seconds}s</td>
         <td>${a.exitCode === null ? "-" : a.exitCode}</td>
-        <td class="mono">${escapeHtml(a.transcript)}${detail}${agent}${steering}</td>
+        <td class="mono">${escapeHtml(a.transcript)}${detail}${agent}${model}${steering}</td>
       </tr>`;
     })
     .join("");

@@ -608,7 +608,8 @@ function milestoneCardHtml(m, d) {
   const session = live
     ? '<div class="row" style="margin-top:.55rem"><span class="pill in_progress">live</span>' +
       '<span class="small">session started ' + (live.sessionStartedAt ? ago(live.sessionStartedAt) : "just now") +
-      (live.agent ? " · agent " + esc(live.agent) : "") + "</span>" +
+      (live.agent ? " · agent " + esc(live.agent) : "") +
+      (live.model ? " · model " + esc(live.model) : "") + "</span>" +
       (live.transcript ? '<button class="link" onclick="viewLog(' + esc(JSON.stringify(live.transcript)) + ')">watch the live transcript</button>' : "") +
       "</div>"
     : m.status === "in_progress"
@@ -623,14 +624,14 @@ function milestoneCardHtml(m, d) {
     ? "<h2 style='margin:.9rem 0 0'>Evidence</h2><ul class='ev'>" + m.evidence.map(e => "<li>" + esc(e) + "</li>").join("") + "</ul>"
     : "";
   const att = m.history.length
-    ? '<table class="att"><thead><tr><th>Attempt</th><th>Result</th><th>Took</th><th>When</th><th>Agent</th><th></th></tr></thead><tbody>' +
+    ? '<table class="att"><thead><tr><th>Attempt</th><th>Result</th><th>Took</th><th>When</th><th>Agent</th><th>Model</th><th></th></tr></thead><tbody>' +
       m.history.map(h =>
         "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
         esc(OUTCOME[h.outcome] || h.outcome) + "</span></td><td>" + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
-        "</td><td>" + esc(h.agent || "-") + '</td><td><button class="link" onclick="viewLog(' +
+        "</td><td>" + esc(h.agent || "-") + "</td><td>" + esc(h.model || "-") + '</td><td><button class="link" onclick="viewLog(' +
         esc(JSON.stringify(h.transcript)) + ')">transcript</button></td></tr>' +
-        (h.detail ? '<tr><td></td><td colspan="5" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
-        (h.steering ? '<tr><td></td><td colspan="5" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
+        (h.detail ? '<tr><td></td><td colspan="6" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
+        (h.steering ? '<tr><td></td><td colspan="6" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
       ).join("") + "</tbody></table>"
     : m.status === "pending" && !live
       ? '<p class="muted small" style="margin:.5rem 0 0">Not started yet.</p>'

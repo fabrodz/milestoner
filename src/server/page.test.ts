@@ -46,6 +46,7 @@ const pulse = (over: Record<string, unknown> = {}) => ({
   sessionStartedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
   agentPid: 12,
   agent: "claude",
+  model: "opus",
   transcript: "M03-20260822-195827.log",
   runnerAlive: true,
   agentAlive: true,
@@ -64,6 +65,7 @@ test("a live pulse naming the milestone puts the running session on its card", (
   assert.ok(html.includes("viewLog(&quot;M03-20260822-195827.log&quot;)"), "the live transcript is one click away, as a validly-quoted attribute");
   assert.ok(html.includes("watch the live transcript"));
   assert.ok(html.includes("agent claude"), "the agent name shows when the pulse carries one");
+  assert.ok(html.includes("model opus"), "the model shows too, whatever agent it names");
   assert.ok(!html.includes("Not started yet."), "an in-progress card never reads as never started");
 });
 
@@ -99,13 +101,14 @@ test("Not started yet. appears only on a pending milestone with no history and n
 
 test("the graded history stays on the card below a live session", () => {
   const card = cardBuilder();
-  const history = [{ attempt: 1, startedAt: "2026-08-22T19:00:00.000Z", endedAt: "2026-08-22T19:10:00.000Z", seconds: 600, exitCode: 1, transcript: "M03-a.log", outcome: "incomplete" }];
+  const history = [{ attempt: 1, startedAt: "2026-08-22T19:00:00.000Z", endedAt: "2026-08-22T19:10:00.000Z", seconds: 600, exitCode: 1, transcript: "M03-a.log", outcome: "incomplete", agent: "codex", model: "gpt-5-codex" }];
   const html = card(milestone({ attempts: 1, history }), data(pulse({ attempt: 2 })));
 
   assert.ok(html.includes("attempt 2 of 3 running"), "the counter follows the in-flight attempt, not the graded one");
   assert.ok(html.includes("did not finish"), "the graded attempt keeps its row");
   assert.ok(html.includes("viewLog(&quot;M03-a.log&quot;)"), "with its transcript");
   assert.ok(html.includes("watch the live transcript"), "beside the live block");
+  assert.ok(html.includes(">codex<") && html.includes(">gpt-5-codex<"), "a graded attempt names the agent and model that ran it, whichever they were");
 });
 
 test("the attempts counter reads the graded count when nothing is live", () => {
