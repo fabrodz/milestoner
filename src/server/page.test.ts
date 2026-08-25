@@ -237,6 +237,30 @@ test("every consequential control carries a tooltip", () => {
   assert.ok(unblocks.some((t) => /keeps the attempts already spent/.test(t)));
 });
 
+test("no em-dash anywhere on the page", () => {
+  assert.equal(PAGE.includes("—"), false, "an em-dash slipped into a visible string");
+});
+
+test("the report link is a real button, opened alongside the panel rather than over it", () => {
+  assert.match(PAGE, /<a id="reportLink" class="btn" href="#" target="_blank" rel="noopener">/);
+});
+
+test("the config card explains its own fields instead of leaving the reader to guess", () => {
+  assert.match(PAGE, /<details class="ref">/, "the reference is collapsed by default, not dumped inline");
+  assert.match(PAGE, /Field reference and agent examples/);
+  for (const field of ["maxAttempts", "agent.command", "agent.modelArgs", "models", "fallbackAgents", "liveness"]) {
+    assert.ok(PAGE.includes("<code>" + field + "</code>"), `the reference table is missing ${field}`);
+  }
+  for (const agent of ["Claude Code", "OpenAI Codex", "Ollama"]) {
+    assert.ok(PAGE.includes(agent), `the reference is missing a ${agent} example`);
+  }
+});
+
+test("the transcript viewer wraps long lines instead of scrolling sideways", () => {
+  assert.match(PAGE, /pre\{[^}]*white-space:pre-wrap/, "logBody is a <pre>, styled by the shared rule");
+  assert.match(PAGE, /pre\{[^}]*overflow-x:hidden/);
+});
+
 test("the page's inline script is parseable javascript", () => {
   const script = PAGE.match(/<script>([\s\S]*)<\/script>/);
   assert.ok(script, "the page must carry its script");

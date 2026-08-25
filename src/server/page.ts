@@ -59,14 +59,17 @@ table.att th{text-align:left;font-weight:500;font-size:.7rem;text-transform:uppe
 table.att td{padding:.35rem .6rem .35rem 0;border-bottom:1px solid var(--line);vertical-align:top}
 table.att tr:last-child td{border-bottom:none}
 
-button{font:inherit;font-size:.85rem;padding:.38rem .85rem;border:1px solid var(--line);border-radius:.4rem;
-  background:var(--panel);color:var(--fg);cursor:pointer}
-button:hover:not(:disabled){border-color:var(--muted)}
+button,a.btn{display:inline-block;font:inherit;font-size:.85rem;padding:.38rem .85rem;border:1px solid var(--line);
+  border-radius:.4rem;background:var(--panel);color:var(--fg);text-decoration:none;cursor:pointer}
+button:hover:not(:disabled),a.btn:hover{border-color:var(--muted)}
+button:active:not(:disabled),a.btn:active{transform:translateY(1px)}
 button:disabled{opacity:.35;cursor:not-allowed}
 button.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 button.danger{color:var(--blocked);border-color:color-mix(in srgb,var(--blocked) 40%,var(--line))}
 button.link{border:none;background:none;padding:0;color:var(--progress);text-decoration:underline;
   font-size:.84rem;cursor:pointer}
+button.link:active{transform:none}
+:focus-visible{outline:2px solid var(--progress);outline-offset:2px}
 textarea{font:inherit;font-size:.9rem;width:100%;min-height:4rem;padding:.55rem .65rem;resize:vertical;
   border:1px solid var(--line);border-radius:.4rem;background:var(--bg);color:var(--fg)}
 input,select{font:inherit;font-size:.85rem;padding:.3rem .5rem;border:1px solid var(--line);border-radius:.4rem;
@@ -74,9 +77,19 @@ input,select{font:inherit;font-size:.85rem;padding:.3rem .5rem;border:1px solid 
 input:disabled,select:disabled{opacity:.35}
 input[type=checkbox]{padding:0;accent-color:var(--progress)}
 label.opt{display:inline-flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--muted)}
-pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;overflow:auto;margin:0;
+pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;white-space:pre-wrap;
+  word-break:break-word;overflow-x:hidden;overflow-y:auto;margin:0;
   padding:.7rem .8rem;background:color-mix(in srgb,var(--fg) 4%,transparent);border-radius:.35rem;max-height:26rem}
 time{cursor:help;border-bottom:1px dotted var(--line)}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em;
+  background:color-mix(in srgb,var(--fg) 6%,transparent);padding:.1rem .3rem;border-radius:.25rem}
+details.ref{margin-top:.6rem;border-top:1px solid var(--line);padding-top:.6rem}
+details.ref summary{cursor:pointer;font-size:.84rem;color:var(--progress);list-style:none}
+details.ref summary::-webkit-details-marker{display:none}
+details.ref summary:before{content:"+ ";font-weight:600}
+details.ref[open] summary:before{content:"- "}
+details.ref .body{margin-top:.7rem;font-size:.85rem}
+details.ref pre{max-height:none}
 #toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--fg);color:var(--bg);
   padding:.55rem .95rem;border-radius:.4rem;font-size:.88rem;opacity:0;transition:opacity .2s;
   pointer-events:none;max-width:90vw}
@@ -109,7 +122,7 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <h2>Runs on this machine</h2>
     <div id="hubRuns"></div>
 
-    <h2>New run<span class="muted" style="text-transform:none;letter-spacing:0"> — scaffold .milestoner/ in a directory on this machine</span></h2>
+    <h2>New run<span class="muted" style="text-transform:none;letter-spacing:0"> - scaffold .milestoner/ in a directory on this machine</span></h2>
     <div class="card" id="initCard"></div>
   </div>
 
@@ -120,10 +133,10 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
   <div class="card" id="lintRefusal" style="display:none"></div>
   <div class="stats" id="stats"></div>
 
-  <h2>Lint<span class="muted" style="text-transform:none;letter-spacing:0"> — form findings on the prompts, the protocol and the config; error-level ones on pending milestones refuse a start</span></h2>
+  <h2>Lint<span class="muted" style="text-transform:none;letter-spacing:0"> - form findings on the prompts, the protocol and the config; error-level ones on pending milestones refuse a start</span></h2>
   <div class="card" id="lintCard"><span class="muted small">checking…</span></div>
 
-  <h2>Milestones<span class="muted" style="text-transform:none;letter-spacing:0"> — one card per milestone: what it is for, the attempts it has spent, the evidence its sessions left, and the prompt they read</span></h2>
+  <h2>Milestones<span class="muted" style="text-transform:none;letter-spacing:0"> - one card per milestone: what it is for, the attempts it has spent, the evidence its sessions left, and the prompt they read</span></h2>
   <div id="milestones"></div>
   <div class="card">
     <div class="row">
@@ -133,7 +146,7 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <span class="muted small">Appends one pending milestone after the last, with its prompt skeleton in .milestoner/prompts/. A runner that is alive picks it up when its turn comes; write the prompt before then.</span>
   </div>
 
-  <h2>Steering<span class="muted" style="text-transform:none;letter-spacing:0"> — a correction read by the next session launched, not by the one running</span></h2>
+  <h2>Steering<span class="muted" style="text-transform:none;letter-spacing:0"> - a correction read by the next session launched, not by the one running</span></h2>
   <div class="card">
     <textarea id="steerText" placeholder="It overrides the milestone prompt. It does not allow dropping an acceptance criterion: a steer that makes the milestone impossible comes back as blocked."></textarea>
     <div class="row" style="margin-top:.55rem">
@@ -144,7 +157,7 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     </div>
   </div>
 
-  <h2>Config<span class="muted" style="text-transform:none;letter-spacing:0"> — .milestoner/config.json, checked by the loader before it is written</span></h2>
+  <h2>Config<span class="muted" style="text-transform:none;letter-spacing:0"> - .milestoner/config.json, checked by the loader before it is written</span></h2>
   <div class="card" id="configCard">
     <textarea id="configText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
@@ -153,9 +166,63 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
       <span class="muted small" id="configNote" style="margin-left:auto">A runner that is already going loaded its config when it started, so an edit applies to the next one.</span>
     </div>
     <div class="todo" id="configError" style="display:none"></div>
+    <details class="ref">
+      <summary>Field reference and agent examples</summary>
+      <div class="body">
+        <table class="att">
+          <thead><tr><th>Field</th><th>Default</th><th>What it controls</th></tr></thead>
+          <tbody>
+            <tr><td><code>maxAttempts</code></td><td>3</td><td>Attempts per milestone before it is marked blocked.</td></tr>
+            <tr><td><code>retryDelaySeconds</code></td><td>15</td><td>Pause after a non-done verdict, before the next session.</td></tr>
+            <tr><td><code>agent.command</code></td><td>"claude"</td><td>The executable. A different agent is a config change, not an engine change.</td></tr>
+            <tr><td><code>agent.args</code></td><td>see examples below</td><td>Argument template. Placeholders: <code>{{kickoff}}</code> <code>{{promptFile}}</code> <code>{{milestoneId}}</code> <code>{{projectRoot}}</code> <code>{{milestonerDir}}</code> <code>{{model}}</code>.</td></tr>
+            <tr><td><code>agent.modelArgs</code></td><td><code>["--model","{{model}}"]</code></td><td>Appended only when a model is set, in config or via <code>--model</code>.</td></tr>
+            <tr><td><code>agent.model</code></td><td>null</td><td>Pin a model for the whole run. Empty means the agent's own default.</td></tr>
+            <tr><td><code>agent.env</code></td><td>{}</td><td>Extra environment variables for the session process.</td></tr>
+            <tr><td><code>models</code></td><td>{}</td><td>Model per milestone id, e.g. <code>{"M03":"opus"}</code>. Overrides <code>agent.model</code> for that milestone only, primary agent only.</td></tr>
+            <tr><td><code>fallbackAgents</code></td><td>[]</td><td>Agents tried in order when the primary is unavailable. Same shape as <code>agent</code>, each keeps its own model.</td></tr>
+            <tr><td><code>infra.deathSeconds</code></td><td>90</td><td>A session shorter than this, with no result.json, is a candidate infrastructure failure, not a graded attempt.</td></tr>
+            <tr><td><code>infra.maxRetries</code></td><td>30</td><td>Consecutive infrastructure retries before the runner gives up.</td></tr>
+            <tr><td><code>infra.usageLimitPatterns</code></td><td>see config</td><td>Case-insensitive substrings searched in the transcript to detect a usage limit, refunding the attempt.</td></tr>
+            <tr><td><code>liveness</code></td><td>[]</td><td>Paths, relative to the project root, whose mtime proves work is happening. Never the transcript itself.</td></tr>
+            <tr><td><code>environment.attendCommand</code></td><td>null</td><td>Shell command run by <code>milestoner attend</code>, with a <code>{{seconds}}</code> placeholder. Null disables it.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted small" style="margin-top:.8rem">Agent blocks, ready to paste into the <code>agent</code> key:</p>
+        <pre>Claude Code
+{
+  "command": "claude",
+  "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+  "modelArgs": ["--model", "{{model}}"],
+  "model": null,
+  "env": {}
+}
+
+OpenAI Codex
+{
+  "command": "codex",
+  "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+           "--skip-git-repo-check", "-C", "{{projectRoot}}"],
+  "modelArgs": ["--model", "{{model}}"],
+  "model": null,
+  "env": {}
+}
+
+A local model, through Codex talking to Ollama (needs "ollama serve" running)
+{
+  "command": "codex",
+  "args": ["exec", "{{kickoff}}", "--dangerously-bypass-approvals-and-sandbox",
+           "-C", "{{projectRoot}}", "--oss", "--local-provider", "ollama"],
+  "modelArgs": ["--model", "{{model}}"],
+  "model": "qwen2.5-coder:7b",
+  "env": {}
+}</pre>
+        <p class="muted small" style="margin-top:.6rem">The complete reference, with the reasoning behind each default, lives in <code>docs/GUIDE.md</code> under "Configuration reference".</p>
+      </div>
+    </details>
   </div>
 
-  <h2>Protocol<span class="muted" style="text-transform:none;letter-spacing:0"> — .milestoner/protocol.md, the rules every session reads before its milestone</span></h2>
+  <h2>Protocol<span class="muted" style="text-transform:none;letter-spacing:0"> - .milestoner/protocol.md, the rules every session reads before its milestone</span></h2>
   <div class="card" id="protocolCard">
     <textarea id="protocolText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
@@ -172,14 +239,16 @@ time{cursor:help;border-bottom:1px dotted var(--line)}
     <pre id="logBody" style="margin-top:.6rem"></pre>
   </div>
 
-  <h2>What the engine did<span class="muted" style="text-transform:none;letter-spacing:0"> — every event the runner recorded in .milestoner/run-log.md, newest first: sessions launched, how each was graded, and the failures charged to infrastructure rather than to the agent</span></h2>
+  <h2>What the engine did<span class="muted" style="text-transform:none;letter-spacing:0"> - every event the runner recorded in .milestoner/run-log.md, newest first: sessions launched, how each was graded, and the failures charged to infrastructure rather than to the agent</span></h2>
   <div class="card"><table class="att" id="activity"></table></div>
 
-  <h2>Interventions<span class="muted" style="text-transform:none;letter-spacing:0"> — outside actions on the run: a hung session killed by a supervisor rule or from this panel, the environment adapter run, each with its rule and its result</span></h2>
+  <h2>Interventions<span class="muted" style="text-transform:none;letter-spacing:0"> - outside actions on the run: a hung session killed by a supervisor rule or from this panel, the environment adapter run, each with its rule and its result</span></h2>
   <div class="card"><div id="interventions" class="small"></div></div>
 
-  <p class="small muted" style="margin-top:1.5rem"><a id="reportLink" href="#">Open the full report, with the timeline</a><br>
-    One self-contained HTML file, no scripts and no external assets: the stat tiles, a wall-clock timeline of every session that ran, and each milestone's evidence and diagnosis. It survives being sent to someone.</p>
+  <div style="margin-top:1.5rem">
+    <a id="reportLink" class="btn" href="#" target="_blank" rel="noopener">Open the full report</a>
+    <p class="small muted" style="margin-top:.5rem">One self-contained HTML file, no scripts and no external assets: the stat tiles, a wall-clock timeline of every session that ran, and each milestone's evidence and diagnosis. It survives being sent to someone.</p>
+  </div>
   </div>
 </main>
 <div id="toast"></div>
@@ -237,10 +306,10 @@ function readEvent(ev, detail) {
   if (ev === "run-complete") return ["Run complete", detail];
   if (ev === "attempts-exhausted") return ["Out of attempts, marked blocked", detail];
   if (ev === "infra-exhausted") return ["Too many infrastructure failures, gave up", detail];
-  if (ev === "infra:usage-limit") return ["Hit a usage limit", detail + " — no attempt was charged"];
-  if (ev === "infra:agent-failure") return ["The agent could not run", detail + " — no attempt was charged"];
-  if (ev === "infra:instant-death") return ["The session died on startup", detail + " — no attempt was charged"];
-  if (ev === "infra:crash") return ["The session crashed mid-run", detail + " — no attempt was charged"];
+  if (ev === "infra:usage-limit") return ["Hit a usage limit", detail + " - no attempt was charged"];
+  if (ev === "infra:agent-failure") return ["The agent could not run", detail + " - no attempt was charged"];
+  if (ev === "infra:instant-death") return ["The session died on startup", detail + " - no attempt was charged"];
+  if (ev === "infra:crash") return ["The session crashed mid-run", detail + " - no attempt was charged"];
   return [ev, detail];
 }
 function parseLog(lines) {
@@ -591,7 +660,7 @@ function verdictOf(d) {
       why:"Session running for " + dur(p.sessionSeconds) +
         (d.liveness ? ", last sign of work " + dur(d.liveness.ageSeconds) + " ago in " + esc(d.liveness.path)
                     : ", no liveness paths configured so there is no sign of work to check") +
-        (stale ? ". That is longer than usual — it may be stuck." : "."),
+        (stale ? ". That is longer than usual - it may be stuck." : "."),
       todo:null };
   }
   return { cls:"warn",
