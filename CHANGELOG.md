@@ -3,6 +3,39 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
+## [0.9.2] - 2026-08-25
+
+### Added
+
+- Every attempt now records the model that ran it, not just the agent. Resolved at launch
+  alongside the agent (`runner.ts`), it lands on the `AttemptRecord`, on `pulse.json` while a
+  session is live, and in `run-log.md`'s launch line - surfaced in the panel's milestone cards
+  and attempt tables, the standalone report, and `milestoner status`. The field is a plain config
+  string, the same one already threaded through `agent.modelArgs`, so it needed no per-agent
+  logic: it records correctly whatever the agent, Claude, Codex, or a fallback under any name.
+
+### Changed
+
+- The panel got a pass on its rough edges and its visual identity:
+  - The "watch the live transcript" button did nothing when clicked, and the per-attempt
+    "transcript" link and both unblock buttons had the same bug: each built its `onclick`
+    attribute by splicing `JSON.stringify(...)` straight into a double-quoted HTML attribute,
+    and `JSON.stringify`'s own quotes closed the attribute early. The value is now HTML-escaped
+    before it goes in.
+  - The report link fell back to unstyled browser-default blue with no CSS of its own. It is now
+    a real button, styled like every other action on the page, and opens in a new tab so the
+    live panel is not lost.
+  - The transcript viewer scrolled sideways on long lines. It now wraps and scrolls vertically
+    only.
+  - The config editor had no guidance on what it accepts. A collapsed reference now documents
+    every field plus copy-paste agent blocks for Claude, Codex, and Ollama-via-Codex.
+  - IDs, timestamps, durations, and agent/model names now render in a tabular monospace face
+    throughout (stat tiles, milestone cards, attempt tables, lint findings, activity log,
+    interventions), while narrative text (the verdict, a diagnosis, evidence) stays sans-serif -
+    a console feel that fits a coding-agent supervision tool better than a generic SaaS
+    dashboard. Added `:focus-visible` and `:active` feedback, previously absent on every control.
+  - Zero em-dashes left in visible panel text.
+
 ## [0.9.1] - 2026-08-25
 
 ### Fixed
