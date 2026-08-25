@@ -61,7 +61,7 @@ test("a live pulse naming the milestone puts the running session on its card", (
 
   assert.ok(html.includes("attempt 1 of 3 running"), "the counter counts the in-flight attempt");
   assert.match(html, /session started <time[^>]*>(5 min ago|just now)<\/time>/, "the elapsed time is on the card");
-  assert.ok(html.includes('viewLog("M03-20260822-195827.log")'), "the live transcript is one click away");
+  assert.ok(html.includes("viewLog(&quot;M03-20260822-195827.log&quot;)"), "the live transcript is one click away, as a validly-quoted attribute");
   assert.ok(html.includes("watch the live transcript"));
   assert.ok(html.includes("agent claude"), "the agent name shows when the pulse carries one");
   assert.ok(!html.includes("Not started yet."), "an in-progress card never reads as never started");
@@ -104,7 +104,7 @@ test("the graded history stays on the card below a live session", () => {
 
   assert.ok(html.includes("attempt 2 of 3 running"), "the counter follows the in-flight attempt, not the graded one");
   assert.ok(html.includes("did not finish"), "the graded attempt keeps its row");
-  assert.ok(html.includes('viewLog("M03-a.log")'), "with its transcript");
+  assert.ok(html.includes("viewLog(&quot;M03-a.log&quot;)"), "with its transcript");
   assert.ok(html.includes("watch the live transcript"), "beside the live block");
 });
 

@@ -609,7 +609,7 @@ function milestoneCardHtml(m, d) {
     ? '<div class="row" style="margin-top:.55rem"><span class="pill in_progress">live</span>' +
       '<span class="small">session started ' + (live.sessionStartedAt ? ago(live.sessionStartedAt) : "just now") +
       (live.agent ? " · agent " + esc(live.agent) : "") + "</span>" +
-      (live.transcript ? '<button class="link" onclick="viewLog(' + JSON.stringify(live.transcript) + ')">watch the live transcript</button>' : "") +
+      (live.transcript ? '<button class="link" onclick="viewLog(' + esc(JSON.stringify(live.transcript)) + ')">watch the live transcript</button>' : "") +
       "</div>"
     : m.status === "in_progress"
       ? '<p class="muted small" style="margin:.5rem 0 0">No session is live on this milestone: the runner is ' +
@@ -628,7 +628,7 @@ function milestoneCardHtml(m, d) {
         "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
         esc(OUTCOME[h.outcome] || h.outcome) + "</span></td><td>" + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
         "</td><td>" + esc(h.agent || "-") + '</td><td><button class="link" onclick="viewLog(' +
-        JSON.stringify(h.transcript) + ')">transcript</button></td></tr>' +
+        esc(JSON.stringify(h.transcript)) + ')">transcript</button></td></tr>' +
         (h.detail ? '<tr><td></td><td colspan="5" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
         (h.steering ? '<tr><td></td><td colspan="5" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
       ).join("") + "</tbody></table>"
@@ -636,8 +636,8 @@ function milestoneCardHtml(m, d) {
       ? '<p class="muted small" style="margin:.5rem 0 0">Not started yet.</p>'
       : "";
   const un = m.status === "blocked"
-    ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" title="Sets this milestone back to pending and returns the attempts it spent, so the next runner gives it the full cap again." onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + '})">I fixed it, try again</button>' +
-      '<button data-w title="Sets it back to pending but keeps the attempts already spent, so it gets only what is left of the cap." onclick="post(\'/api/unblock\',{id:' + JSON.stringify(m.id) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
+    ? '<div class="row" style="margin-top:.8rem"><button data-w class="primary" title="Sets this milestone back to pending and returns the attempts it spent, so the next runner gives it the full cap again." onclick="post(\'/api/unblock\',{id:' + esc(JSON.stringify(m.id)) + '})">I fixed it, try again</button>' +
+      '<button data-w title="Sets it back to pending but keeps the attempts already spent, so it gets only what is left of the cap." onclick="post(\'/api/unblock\',{id:' + esc(JSON.stringify(m.id)) + ',keepAttempts:true})">Try again, keep the attempts used</button></div>'
     : "";
   const spent = live
     ? "attempt " + (live.attempt ?? "?") + " of " + d.maxAttempts + " running"
@@ -748,7 +748,7 @@ function render(d) {
       ? '<button data-w onclick="attendNow()" title="Runs environment.attendCommand from the config once, against the host rather than the run, and records it in the intervention log.">Unstick the environment</button>' +
         '<input data-w id="attendSeconds" type="number" min="1" step="1" style="width:6rem" placeholder="seconds" title="how long the adapter gets; the configured default when empty">'
       : "") +
-    (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + JSON.stringify(d.pulse.transcript) + ')">watch the live transcript</button>' : "") +
+    (d.pulse && d.pulse.transcript ? '<button class="link" style="margin-left:auto" onclick="viewLog(' + esc(JSON.stringify(d.pulse.transcript)) + ')">watch the live transcript</button>' : "") +
     "</div>" +
     (!running && d.canStart ? startOptionsHtml(d) : "");
   // Rewritten only when it actually changed: this card carries inputs, and a tick that rebuilds it
