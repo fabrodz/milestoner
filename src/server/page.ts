@@ -8,6 +8,7 @@ export const PAGE = String.raw`<!doctype html>
 :root{
   --bg:#fbfbfa;--fg:#1c1c1a;--muted:#6b6b66;--line:#e2e2dd;--panel:#fff;
   --done:#3f7d51;--blocked:#b4453c;--incomplete:#b07d2b;--infra:#8a8a84;--progress:#3b6ea5;
+  --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#161714;--fg:#e8e8e3;--muted:#9a9a92;--line:#2e2f2b;--panel:#1e201c;
@@ -22,6 +23,7 @@ h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mu
 .row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
 .muted{color:var(--muted)}
 .small{font-size:.85rem}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 /* the answer to "how is it going", in words, before anything else */
 .verdict{border-left:4px solid var(--infra);padding:.9rem 1.1rem;margin-bottom:.9rem}
@@ -43,7 +45,7 @@ h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mu
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.6rem;margin-bottom:1rem}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:.5rem;padding:.65rem .8rem}
-.stat .v{font-size:1.3rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .v{font-family:var(--mono);font-size:1.3rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
 .stat .k{color:var(--muted);font-size:.78rem;margin-top:.15rem}
 
 .ms{border-left:3px solid transparent}
@@ -77,11 +79,11 @@ input,select{font:inherit;font-size:.85rem;padding:.3rem .5rem;border:1px solid 
 input:disabled,select:disabled{opacity:.35}
 input[type=checkbox]{padding:0;accent-color:var(--progress)}
 label.opt{display:inline-flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--muted)}
-pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;white-space:pre-wrap;
+pre{font-family:var(--mono);font-size:.78rem;white-space:pre-wrap;
   word-break:break-word;overflow-x:hidden;overflow-y:auto;margin:0;
   padding:.7rem .8rem;background:color-mix(in srgb,var(--fg) 4%,transparent);border-radius:.35rem;max-height:26rem}
-time{cursor:help;border-bottom:1px dotted var(--line)}
-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em;
+time{font-family:var(--mono);font-variant-numeric:tabular-nums;cursor:help;border-bottom:1px dotted var(--line)}
+code{font-family:var(--mono);font-size:.85em;
   background:color-mix(in srgb,var(--fg) 6%,transparent);padding:.1rem .3rem;border-radius:.25rem}
 details.ref{margin-top:.6rem;border-top:1px solid var(--line);padding-top:.6rem}
 details.ref summary{cursor:pointer;font-size:.84rem;color:var(--progress);list-style:none}
@@ -112,7 +114,7 @@ details.ref pre{max-height:none}
 <main>
   <div class="row" style="margin-bottom:.9rem">
     <h1 id="run">connecting…</h1>
-    <span class="muted small" id="conn" style="margin-left:auto"></span>
+    <span class="muted small mono" id="conn" style="margin-left:auto"></span>
   </div>
 
   <div id="runsBar"></div>
@@ -159,7 +161,7 @@ details.ref pre{max-height:none}
 
   <h2>Config<span class="muted" style="text-transform:none;letter-spacing:0"> - .milestoner/config.json, checked by the loader before it is written</span></h2>
   <div class="card" id="configCard">
-    <textarea id="configText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
+    <textarea id="configText" spellcheck="false" style="min-height:18rem;font-family:var(--mono);font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
       <button data-w class="primary" onclick="saveConfig()" title="Writes config.json after the loader validates it. A runner already going keeps the copy it loaded at startup, so this applies to the next one.">Save the config</button>
       <button class="link" onclick="loadConfigText('always')">Reload from disk</button>
@@ -224,7 +226,7 @@ A local model, through Codex talking to Ollama (needs "ollama serve" running)
 
   <h2>Protocol<span class="muted" style="text-transform:none;letter-spacing:0"> - .milestoner/protocol.md, the rules every session reads before its milestone</span></h2>
   <div class="card" id="protocolCard">
-    <textarea id="protocolText" spellcheck="false" style="min-height:18rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>
+    <textarea id="protocolText" spellcheck="false" style="min-height:18rem;font-family:var(--mono);font-size:.8rem" placeholder="loading…"></textarea>
     <div class="row" style="margin-top:.55rem">
       <button data-w class="primary" onclick="saveProtocol()" title="Overwrites .milestoner/protocol.md. A session already going read the file at launch, so this applies to the next one.">Save the protocol</button>
       <button class="link" onclick="loadProtocolText('always')">Reload from disk</button>
@@ -368,9 +370,9 @@ function lintCardHtml(L) {
     '<span class="muted small">error-level findings on pending milestones refuse a start</span></div>' +
     '<table class="att"><thead><tr><th>Where</th><th>Severity</th><th>Rule</th><th>Finding</th></tr></thead><tbody>' +
     L.findings.map(f =>
-      "<tr><td>" + esc(f.milestone || "run") + '</td><td><span class="pill ' + (f.severity === "error" ? "blocked" : "incomplete") + '">' +
-      esc(f.severity) + "</span></td><td>" + esc(f.rule) + "</td><td>" + esc(f.message) +
-      '<div class="muted small">' + esc(f.file + (f.line ? ":" + f.line : "")) + "</div></td></tr>"
+      '<tr><td class="mono">' + esc(f.milestone || "run") + '</td><td><span class="pill ' + (f.severity === "error" ? "blocked" : "incomplete") + '">' +
+      esc(f.severity) + '</span></td><td class="mono">' + esc(f.rule) + "</td><td>" + esc(f.message) +
+      '<div class="muted small mono">' + esc(f.file + (f.line ? ":" + f.line : "")) + "</div></td></tr>"
     ).join("") + "</tbody></table>";
 }
 
@@ -387,7 +389,7 @@ function interventionsHtml(lines) {
   if (!rows.length)
     return '<span class="muted">No interventions: nothing outside the run has had to step in, which is what a healthy run looks like.</span>';
   return rows.map(l => { const parts = l.split(" | ");
-    return '<div style="margin-bottom:.3rem">' + ago(parts[0]) + ' <strong>' + esc(parts[1] || "") + "</strong> " +
+    return '<div style="margin-bottom:.3rem">' + ago(parts[0]) + ' <strong class="mono">' + esc(parts[1] || "") + "</strong> " +
            esc(parts.slice(2).join(" - ")) + "</div>"; }).join("");
 }
 
@@ -677,8 +679,8 @@ function milestoneCardHtml(m, d) {
   const session = live
     ? '<div class="row" style="margin-top:.55rem"><span class="pill in_progress">live</span>' +
       '<span class="small">session started ' + (live.sessionStartedAt ? ago(live.sessionStartedAt) : "just now") +
-      (live.agent ? " · agent " + esc(live.agent) : "") +
-      (live.model ? " · model " + esc(live.model) : "") + "</span>" +
+      (live.agent ? ' · agent <span class="mono">' + esc(live.agent) + "</span>" : "") +
+      (live.model ? ' · model <span class="mono">' + esc(live.model) + "</span>" : "") + "</span>" +
       (live.transcript ? '<button class="link" onclick="viewLog(' + esc(JSON.stringify(live.transcript)) + ')">watch the live transcript</button>' : "") +
       "</div>"
     : m.status === "in_progress"
@@ -695,9 +697,9 @@ function milestoneCardHtml(m, d) {
   const att = m.history.length
     ? '<table class="att"><thead><tr><th>Attempt</th><th>Result</th><th>Took</th><th>When</th><th>Agent</th><th>Model</th><th></th></tr></thead><tbody>' +
       m.history.map(h =>
-        "<tr><td>#" + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
-        esc(OUTCOME[h.outcome] || h.outcome) + "</span></td><td>" + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
-        "</td><td>" + esc(h.agent || "-") + "</td><td>" + esc(h.model || "-") + '</td><td><button class="link" onclick="viewLog(' +
+        '<tr><td class="mono">#' + h.attempt + '</td><td><span class="pill ' + esc(OUTCOME_CLASS[h.outcome] || "") + '">' +
+        esc(OUTCOME[h.outcome] || h.outcome) + '</span></td><td class="mono">' + dur(h.seconds) + "</td><td>" + ago(h.endedAt) +
+        '</td><td class="mono">' + esc(h.agent || "-") + '</td><td class="mono">' + esc(h.model || "-") + '</td><td><button class="link" onclick="viewLog(' +
         esc(JSON.stringify(h.transcript)) + ')">transcript</button></td></tr>' +
         (h.detail ? '<tr><td></td><td colspan="6" class="muted small">' + esc(h.detail) + "</td></tr>" : "") +
         (h.steering ? '<tr><td></td><td colspan="6" class="muted small">saw the steering: ' + esc(h.steering) + "</td></tr>" : "")
@@ -720,14 +722,14 @@ function milestoneCardHtml(m, d) {
   const ed = '<div style="margin-top:.45rem"><button class="link" data-name="' + esc(m.prompt) +
     '" onclick="togglePrompt(this.dataset.name)">edit the prompt</button>' +
     '<div id="promptBox-' + esc(m.prompt) + '" style="display:none;margin-top:.5rem">' +
-    '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.8rem" placeholder="loading…"></textarea>' +
+    '<textarea id="promptText-' + esc(m.prompt) + '" spellcheck="false" style="min-height:14rem;font-family:var(--mono);font-size:.8rem" placeholder="loading…"></textarea>' +
     '<div class="row" style="margin-top:.55rem">' +
     '<button data-w class="primary" title="Overwrites this milestone\'s prompt file. A session already going got its kickoff at launch, so this applies to the next one." data-name="' + esc(m.prompt) + '" onclick="savePrompt(this.dataset.name)">Save the prompt</button>' +
     '<button class="link" data-name="' + esc(m.prompt) + '" onclick="loadPromptText(this.dataset.name,\'always\')">Reload from disk</button>' +
     '<span class="muted small" style="margin-left:auto">.milestoner/prompts/' + esc(m.prompt) + ' - a session already going got its kickoff at launch, so an edit applies to the next one</span>' +
     '</div><div class="todo" id="promptError-' + esc(m.prompt) + '" style="display:none"></div></div></div>';
   return '<div class="card ms ' + esc(m.status) + '"><div class="row"><span class="pill ' + esc(m.status) + '">' +
-    esc(m.status.replace("_", " ")) + '</span><strong>' + esc(m.id) + "</strong> " + esc(m.title) +
+    esc(m.status.replace("_", " ")) + '</span><strong class="mono">' + esc(m.id) + "</strong> " + esc(m.title) +
     '<span class="muted small" style="margin-left:auto">' + esc(spent) +
     (m.finishedAt ? " · finished " : "") + (m.finishedAt ? ago(m.finishedAt) : "") + "</span></div>" +
     session + dg + model + ed + ev + att + un + "</div>";
@@ -747,7 +749,7 @@ function renderRunsBar(d) {
     d.runs.map(r =>
       '<button class="chip' + (!d.hub && sameRoot(r.projectRoot) ? " here" : "") + '" data-root="' + esc(r.projectRoot) +
       '" onclick="goRun(this.dataset.root)"><span class="dot ' + esc(r.health) + '"></span>' + esc(r.run) +
-      ' <span class="muted">' + r.done + "/" + r.total + "</span></button>"
+      ' <span class="muted mono">' + r.done + "/" + r.total + "</span></button>"
     ).join("");
 }
 
@@ -776,7 +778,7 @@ function renderHub(d) {
     '<span class="pill ' + esc(HEALTH_PILL[r.health] || "pending") + '">' + esc(r.health) + "</span>" +
     '<span class="muted small" style="margin-left:auto">' + r.done + " of " + r.total + " milestones" +
     (r.blocked ? " · " + r.blocked + " blocked" : "") + "</span></div>" +
-    '<div class="muted small" style="margin-top:.3rem">' + esc(r.projectRoot) +
+    '<div class="muted small mono" style="margin-top:.3rem">' + esc(r.projectRoot) +
     (r.milestoneId ? " · on " + esc(r.milestoneId) : "") +
     (r.lastEventSeconds != null ? " · last event " + dur(r.lastEventSeconds) + " ago" : "") + "</div></div>"
   ).join("");
@@ -848,7 +850,7 @@ function render(d) {
   const rows = parseLog(d.runLog);
   document.getElementById("activity").innerHTML = rows.length
     ? "<tbody>" + rows.map(r =>
-        "<tr><td class='muted' style='white-space:nowrap'>" + ago(r.at) + "</td><td><strong>" + esc(r.who) +
+        "<tr><td class='muted' style='white-space:nowrap'>" + ago(r.at) + "</td><td><strong class='mono'>" + esc(r.who) +
         "</strong></td><td>" + esc(r.what) + '</td><td class="muted">' + esc(r.why) + "</td></tr>").join("") + "</tbody>"
     : "<tbody><tr><td class='muted'>Nothing has happened yet.</td></tr></tbody>";
 

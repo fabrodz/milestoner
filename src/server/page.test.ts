@@ -64,8 +64,8 @@ test("a live pulse naming the milestone puts the running session on its card", (
   assert.match(html, /session started <time[^>]*>(5 min ago|just now)<\/time>/, "the elapsed time is on the card");
   assert.ok(html.includes("viewLog(&quot;M03-20260822-195827.log&quot;)"), "the live transcript is one click away, as a validly-quoted attribute");
   assert.ok(html.includes("watch the live transcript"));
-  assert.ok(html.includes("agent claude"), "the agent name shows when the pulse carries one");
-  assert.ok(html.includes("model opus"), "the model shows too, whatever agent it names");
+  assert.ok(html.includes('agent <span class="mono">claude</span>'), "the agent name shows when the pulse carries one");
+  assert.ok(html.includes('model <span class="mono">opus</span>'), "the model shows too, whatever agent it names");
   assert.ok(!html.includes("Not started yet."), "an in-progress card never reads as never started");
 });
 
@@ -159,7 +159,7 @@ test("a real intervention renders its time, its rule and its result", () => {
 
   assert.ok(!out.includes("No interventions"), "one line is enough to fill the card");
   assert.match(out, /<time title="2026-08-22T20:00:00.000Z"/, "the stamp stays on hover");
-  assert.ok(out.includes("<strong>4</strong>"), "the rule that fired leads the line");
+  assert.ok(out.includes('<strong class="mono">4</strong>'), "the rule that fired leads the line");
   assert.ok(out.includes("killed the session - attempt charged"), "what it did and what came of it");
   assert.ok(!out.includes("Supervisor log"), "with the file's own header still filtered out");
 });
