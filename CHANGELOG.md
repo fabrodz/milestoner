@@ -3,7 +3,10 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
-## [Unreleased]
+## [0.10.0] - 2026-08-29
+
+The transcript of a running session is readable while it runs - in the panel, and by the supervisor
+that has to decide whether to step in.
 
 ### Changed
 
