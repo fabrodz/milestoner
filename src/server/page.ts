@@ -237,6 +237,7 @@ A local model, through Codex talking to Ollama (needs "ollama serve" running)
 
   <div class="card" id="logView" style="display:none">
     <div class="row"><strong>Session transcript</strong><span class="muted small" id="logName"></span>
+      <span class="muted small">follows the session while it runs</span>
       <button style="margin-left:auto" onclick="closeLog()">Close</button></div>
     <pre id="logBody" style="margin-top:.6rem"></pre>
   </div>
@@ -345,19 +346,83 @@ function killAgent() {
   const reason = prompt("Why is this session being killed? It goes in the intervention log.", "no progress for a long time");
   if (reason !== null) post("/api/kill", { reason: reason || "killed from the panel" });
 }
-async function viewLog(name) {
-  const box = document.getElementById("logView"), body = document.getElementById("logBody");
-  document.getElementById("logName").textContent = name;
-  body.textContent = "loading…";
-  box.style.display = "block";
-  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+function oneLine(value, max) {
+  const flat = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+  return flat.length > max ? flat.slice(0, max) + "…" : flat;
+}
+
+/** A stream-json transcript is NDJSON, one event per line, and read raw it is four kilobytes of
+    tool inventory before the first word the agent said. This turns it back into the session as
+    prose. A transcript carrying no events at all is passed through untouched: an agent that does
+    not speak this format still has to be watchable. Pure, like lintCardHtml. */
+function transcriptText(raw) {
+  const out = [];
+  let events = 0;
+  const lines = (raw || "").split("\n");
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let e = null;
+    if (line.charAt(0) === "{") { try { e = JSON.parse(line); } catch (err) { e = null; } }
+    if (!e || typeof e.type !== "string") { out.push(line); continue; }
+    events += 1;
+    if (e.type === "system") {
+      // Only init is the session announcing itself. The other subtypes a real session emits are
+      // telemetry - thinking_tokens arrives every few turns - and belong nowhere on this page.
+      if (e.subtype === "init") out.push("- session started" + (e.model ? " on " + e.model : "") + (e.cwd ? " in " + e.cwd : ""));
+    } else if (e.type === "result") {
+      const secs = typeof e.duration_ms === "number" ? " after " + Math.round(e.duration_ms / 1000) + "s" : "";
+      const turns = typeof e.num_turns === "number" ? ", " + e.num_turns + " turns" : "";
+      out.push("- session ended" + (e.is_error ? " with an error" : "") + secs + turns);
+    } else if (e.message && Array.isArray(e.message.content)) {
+      for (const b of e.message.content) {
+        if (b.type === "text" && b.text && b.text.trim()) out.push(b.text.trim());
+        else if (b.type === "thinking" && b.thinking) out.push("(thinking) " + b.thinking.trim());
+        else if (b.type === "tool_use") out.push("> " + b.name + " " + oneLine(JSON.stringify(b.input || {}), 200));
+        else if (b.type === "tool_result") out.push("< " + oneLine(typeof b.content === "string" ? b.content : JSON.stringify(b.content), 240));
+      }
+    }
+  }
+  return events ? out.join("\n\n") : (raw || "");
+}
+
+let openLog = null, logTimer = null;
+
+/* The transcript is followed while it is open, not fetched once: a stream-json session appends to
+   it for as long as it runs, so a single read would freeze the live view on its first second. The
+   scroll sticks to the bottom only while the reader is already there, so following a session does
+   not yank the page out from under someone reading further up. */
+async function refreshLog() {
+  const body = document.getElementById("logBody");
+  const name = openLog;
+  if (!name) return;
   try {
     const r = await fetch(api("/api/transcript") + "&name=" + encodeURIComponent(name), { headers: auth });
-    body.textContent = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
-    body.scrollTop = body.scrollHeight; // read to find out how it ended
-  } catch (e) { body.textContent = "request failed: " + e.message; }
+    const text = r.ok ? transcriptText(await r.text()) : "could not read it: " + (await r.json()).error;
+    if (openLog !== name) return;
+    const atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+    const shown = text || "nothing in it yet - the session has not written its first event";
+    if (shown !== body.textContent) body.textContent = shown;
+    if (atEnd) body.scrollTop = body.scrollHeight;
+  } catch (e) { if (openLog === name) body.textContent = "request failed: " + e.message; }
 }
-function closeLog() { document.getElementById("logView").style.display = "none"; }
+
+function viewLog(name) {
+  const box = document.getElementById("logView");
+  document.getElementById("logName").textContent = name;
+  if (name !== openLog) document.getElementById("logBody").textContent = "loading…";
+  openLog = name;
+  box.style.display = "block";
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (logTimer) clearInterval(logTimer);
+  logTimer = setInterval(refreshLog, 2500);
+  refreshLog();
+}
+
+function closeLog() {
+  document.getElementById("logView").style.display = "none";
+  openLog = null;
+  if (logTimer) { clearInterval(logTimer); logTimer = null; }
+}
 
 /** The lint card body, one row per finding. Kept pure so a test can render it without a browser. */
 function lintCardHtml(L) {

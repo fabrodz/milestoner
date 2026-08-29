@@ -51,7 +51,8 @@ function newestUnder(root: string, depth: number): LivenessSignal | null {
 
 /**
  * Liveness comes from side signals - tool logs, test results, source mtimes - never from the
- * transcript: a headless session flushes it only at exit.
+ * transcript. It streams now (D-040), so it would tick over; it would also tick over for an agent
+ * narrating a retry loop it never escapes. An mtime moves only when something was done.
  */
 export function newestSignal(projectRoot: string, watch: string[], depth = 6): LivenessSignal | null {
   let best: LivenessSignal | null = null;

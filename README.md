@@ -147,7 +147,8 @@ overnight is the one worth being told about.
    usage limit, or crashes at any point leaving a next-to-empty transcript, does not consume an
    attempt. An announced reset time is parsed and waited out.
 6. **Liveness comes from side signals.** Watched source dirs, test-result files and tool logs, never
-   the transcript: a headless `claude -p` flushes it only at exit.
+   the transcript: it grows while an agent narrates a retry loop, and an mtime moves only when
+   something was done.
 
 ## The supervisor
 
@@ -278,7 +279,8 @@ only one that knows a panel exists; the file version links nowhere, which is wha
   "run": "my-run",
   "maxAttempts": 3,
   "agent": { "command": "claude",
-             "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
+             "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+                      "--dangerously-skip-permissions"] },
   "liveness": ["src", "tests/results/latest.txt"],
   "environment": { "attendCommand": null, "attendSeconds": 120 }
 }
@@ -307,7 +309,8 @@ with the milestone prompt:
 
 ```json
 "agent": { "name": "claude", "command": "claude",
-           "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] }
+           "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+                    "--dangerously-skip-permissions"] }
 ```
 
 Anything works that accepts a prompt as an argument, can read and write files in the project, and

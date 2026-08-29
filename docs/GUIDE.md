@@ -181,9 +181,10 @@ diagnosis; `milestoner unblock <id>` puts the milestone back in play once you ha
 a usage limit, an auth prompt or a network error. That does not consume an attempt. If the agent
 announced a reset time, the engine waits until then instead of guessing.
 
-**6. Liveness comes from side signals.** A headless `claude -p` flushes its transcript only when it
-exits, so a silent log proves nothing. The engine watches the paths you list in `liveness`: source
-directories, test-result files, tool logs. Their mtime is the proof that work is happening.
+**6. Liveness comes from side signals.** The engine watches the paths you list in `liveness`: source
+directories, test-result files, tool logs. Their mtime is the proof that work is happening. The
+transcript is not one of them even now that it streams (D-040): a transcript grows while an agent
+narrates a retry loop it will never escape, and a file's mtime only moves when something was done.
 
 **7. The engine keeps a run correct; the supervisor keeps it alive.** Two jobs, two processes. The
 engine grades and retries. The supervisor decides whether the run is advancing at all, and acts
@@ -1327,7 +1328,7 @@ touches project code. Fails with an explanation when no adapter is configured. S
   "retryDelaySeconds": 15,
   "agent": {
     "command": "claude",
-    "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+    "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
     "modelArgs": ["--model", "{{model}}"],
     "model": null,
     "env": {}
@@ -1379,7 +1380,8 @@ on, so a plan can spend a cheap model on the mechanical work and a stronger one 
 that need it:
 
 ```json
-"agent": { "command": "claude", "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+"agent": { "command": "claude",
+           "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
            "modelArgs": ["--model", "{{model}}"], "model": "sonnet", "env": {} },
 "models": { "M03": "opus", "M06": "opus" }
 ```
@@ -1427,7 +1429,7 @@ An agent qualifies if it can:
 ```json
 "agent": {
   "command": "claude",
-  "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+  "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
   "modelArgs": ["--model", "{{model}}"],
   "model": null,
   "env": {}
@@ -1498,7 +1500,7 @@ unavailable:
 "agent": {
   "name": "claude",
   "command": "claude",
-  "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+  "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
   "modelArgs": ["--model", "{{model}}"],
   "model": null,
   "env": {}
@@ -2017,8 +2019,11 @@ The engine never learns agent names.
 **Read what a session actually claimed.** `.milestoner/results/M03-attempt2.json` is the raw, ungraded
 claim. Compare it against the graded outcome in `state.json` when a verdict surprises you.
 
-**Watch a live session's output.** Transcripts are flushed only at exit for headless Claude Code, so
-`tail -f` on the log is usually silent. Watch the liveness paths instead, or `milestoner status`.
+**Watch a live session's output.** The default `agent.args` run Claude Code with
+`--output-format stream-json --verbose`, so the transcript is written event by event as the session
+works: `tail -f` on the log follows it, and the panel's "watch the live transcript" renders those
+events as prose and keeps following while the card is open. An agent configured without a streaming
+output format writes nothing until it exits; watch the liveness paths there, or `milestoner status`.
 
 **Notify yourself when the run needs you.**
 

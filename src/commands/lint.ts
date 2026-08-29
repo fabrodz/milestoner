@@ -42,6 +42,7 @@ export function collectLintInput(config: MilestonerConfig, layout: Layout, state
     modelKeys: Object.keys(config.models),
     protocol: readIfPresent(layout.protocol),
     livenessCount: config.liveness.length,
+    agent: { command: config.agent.command, args: config.agent.args },
   };
 }
 

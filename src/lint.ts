@@ -32,6 +32,8 @@ export interface LintInput {
   protocol: string | null;
   /** Number of configured liveness paths. */
   livenessCount: number;
+  /** The primary agent's command and rendered args, for the streaming check. */
+  agent: { command: string; args: string[] };
 }
 
 export function protocolRunName(protocol: string): string | null {
@@ -183,6 +185,16 @@ export function lintRun(input: LintInput): LintFinding[] {
 
   if (input.livenessCount === 0) {
     warn("liveness-empty", "no liveness paths configured, so nothing proves a session is doing anything", CONFIG_FILE);
+  }
+
+  // Only Claude Code: this is the one agent whose streaming flag the engine knows the spelling of,
+  // and guessing at another CLI's is how a linter starts being wrong out loud. See D-040.
+  if (/(^|[\\/])claude(\.\w+)?$/.test(input.agent.command) && !input.agent.args.includes("stream-json")) {
+    warn(
+      "agent-not-streaming",
+      "claude writes nothing until it exits without --output-format stream-json --verbose, so the panel's live transcript stays empty",
+      CONFIG_FILE,
+    );
   }
 
   return findings;

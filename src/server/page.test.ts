@@ -267,3 +267,63 @@ test("the page's inline script is parseable javascript", () => {
   // Never called: constructing it is the syntax check, and the body wants a browser to run in.
   assert.doesNotThrow(() => new Function(script[1]!));
 });
+
+/** transcriptText is pure for the same reason milestoneCardHtml is: the panel's whole reason to
+    render NDJSON is that a stream-json session is unreadable raw, and that is provable here. */
+function transcriptRenderer(): (raw: string) => string {
+  const src = [grab("function oneLine\\(value, max\\) \\{"), grab("function transcriptText\\(raw\\) \\{")];
+  assert.ok(src.every(Boolean), "the page must carry transcriptText and its helper");
+  return new Function(`${src.join("\n")}\nreturn transcriptText;`)() as (raw: string) => string;
+}
+
+test("a transcript with no events at all is shown exactly as it was written", () => {
+  const render = transcriptRenderer();
+  assert.equal(render("Execution error\nand nothing else"), "Execution error\nand nothing else");
+  assert.equal(render(""), "");
+});
+
+test("a stream-json session is rendered as the session, not as its wire format", () => {
+  const render = transcriptRenderer();
+  const out = render([
+    JSON.stringify({ type: "system", subtype: "init", cwd: "/repo", model: "claude-opus-5", tools: ["Bash", "Read"] }),
+    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "Reading the runner." }] } }),
+    JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name: "Read", input: { file_path: "src/runner.ts" } }] } }),
+    JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "export function run() {}" }] } }),
+    JSON.stringify({ is_error: false, num_turns: 4, duration_ms: 92_000, type: "result" }),
+  ].join("\n"));
+
+  assert.match(out, /- session started on claude-opus-5 in \/repo/);
+  assert.match(out, /Reading the runner\./);
+  assert.match(out, /> Read .*src\/runner\.ts/);
+  assert.match(out, /< export function run/);
+  assert.match(out, /- session ended after 92s, 4 turns/);
+  assert.doesNotMatch(out, /"type":/, "no line survives as raw JSON");
+});
+
+test("a half-written last line does not lose the session that came before it", () => {
+  const render = transcriptRenderer();
+  const out = render(
+    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "still going" }] } }) + '\n{"type":"assis',
+  );
+  assert.match(out, /still going/, "the completed events still render");
+  assert.match(out, /\{"type":"assis/, "and the partial line is shown rather than swallowed");
+});
+
+test("an errored result says so", () => {
+  const render = transcriptRenderer();
+  assert.match(render(JSON.stringify({ is_error: true, type: "result", duration_ms: 3000 })), /- session ended with an error after 3s/);
+});
+
+test("the telemetry a real session emits between turns is not rendered as anything", () => {
+  const render = transcriptRenderer();
+  const out = render([
+    JSON.stringify({ type: "system", subtype: "init", cwd: "/repo", model: "claude-opus-5" }),
+    JSON.stringify({ type: "system", subtype: "thinking_tokens", estimated_tokens: 50 }),
+    JSON.stringify({ type: "system", subtype: "thinking_tokens", estimated_tokens: 120 }),
+    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "done" }] } }),
+  ].join("\n"));
+
+  assert.equal(out.match(/- session started/g)?.length, 1, "one session, said once");
+  assert.doesNotMatch(out, /thinking_tokens|estimated_tokens/);
+  assert.match(out, /done/);
+});

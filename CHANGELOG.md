@@ -3,6 +3,36 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project uses semantic versioning.
 
+## [Unreleased]
+
+### Changed
+
+- The default `agent.args` run Claude Code with `--output-format stream-json --verbose`. A headless
+  `claude -p` with the default text format writes nothing until it exits, so the panel's "watch the
+  live transcript" opened a file that was empty for the whole session. It now fills event by event
+  while the session works.
+- Infrastructure classification weighs what the agent produced, not what the transcript file holds.
+  A stream-json session opens with a four-kilobyte `system`/`init` tool inventory and closes with a
+  `result` envelope; counted as evidence those alone cleared `tinyTranscriptBytes` and
+  `crashTranscriptBytes`, which would have charged an attempt for every infrastructure death.
+  `readTranscriptEvidence` discounts them, so both thresholds keep their existing calibration and a
+  plain-text transcript from any other agent weighs exactly what it always did. See D-040.
+- The init inventory is no longer searched for `infraFailurePatterns` or `usageLimitPatterns`. It
+  lists every installed skill and slash command, so a session could be classified from somebody
+  else's prose. The `result` envelope is still searched: that is where a failure names itself.
+
+### Added
+
+- A usage limit the agent reports outright (`rate_limit_event`, with its epoch `resetsAt`) is
+  checked before the text patterns and outside the `deathSeconds` bound they sit behind, so a quota
+  that ran out mid-session refunds the attempt and waits for the announced reset.
+- The panel follows an open transcript while the session runs, refreshing every 2.5s, and renders
+  its NDJSON as prose - messages, tool calls, tool results - instead of raw wire format. The scroll
+  sticks to the bottom only while the reader is already there.
+- `milestoner lint` warns (`agent-not-streaming`) when a `claude` agent is configured without
+  `stream-json`, which is what an existing `.milestoner/config.json` written before this release
+  will be.
+
 ## [0.9.2] - 2026-08-25
 
 ### Added

@@ -962,3 +962,47 @@ history syncs.
 the same file `milestoner report` writes, made to be kept or sent on, where the panel is the live
 view. The panel/report split is a real question for anyone who reaches one from the other, and
 answering it in the artifact is cheaper than answering it in the guide alone.
+
+## D-040 - The transcript streams, and the byte rules learn to read it (2026-08-29)
+
+The panel's "watch the live transcript" opened a file that was empty for the whole session and
+filled in at the end. That was not a panel bug: with the default `--output-format text`, a headless
+`claude -p` prints its answer once, on exit, so there was nothing to watch. The fix is one argument,
+`--output-format stream-json --verbose` (the CLI refuses the first without the second), and it lands
+squarely on the one thing in the engine that reads a transcript's size for meaning.
+
+**The preamble is not evidence.** A stream-json session opens with a `system`/`init` event listing
+every tool, slash command, agent and path available to it. Measured on a session that did nothing
+but answer `ok`, that line is 4029 bytes of a 7186-byte transcript, against `tinyTranscriptBytes` of
+500 and `crashTranscriptBytes` of 100. Left alone, the switch would have retired
+[D-029](#d-029---a-transcript-with-nothing-in-it-is-a-crash-at-any-duration-2026-08-20) silently:
+every session, however instantly it died, would have cleared every threshold and been charged an
+attempt for an infrastructure failure. So `readTranscriptEvidence` weighs what the agent produced
+rather than what the file holds, discounting `system`, `result` and `rate_limit_event`. A plain-text
+transcript has none of those, weighs exactly what it always did, and every existing rule and
+threshold keeps its calibration - which is the point of fixing the measurement rather than retuning
+the numbers per project.
+
+**The preamble is not searchable either.** `infraFailurePatterns` contains `not logged in` and
+`usageLimitPatterns` contains `429`. The init inventory carries the description of every skill and
+slash command installed on the machine, so leaving it in the searched text meant any session under
+`deathSeconds` could be classified from somebody else's prose. It is dropped from the text; the
+`result` envelope is not, because a failing session's closing words are where the failure names
+itself.
+
+**A reported quota outranks a guessed one, at any duration.** `rate_limit_event` carries a status
+and an epoch `resetsAt`. That is the agent stating the quota is gone, not a substring suggesting it,
+so it is checked before the patterns and outside the `deathSeconds` bound they sit behind: a limit
+reached forty minutes in explains a missing `result.json` exactly as well as one that was gone at
+launch. `wroteResult` still outranks it - a session that finished the work is never refunded.
+
+**Liveness still does not watch the transcript.** The old reason is gone; the rule is not. A
+transcript ticks over while an agent narrates a retry loop it will never escape, and a watched
+path's mtime moves only when something was done.
+
+Rejected: raising `tinyTranscriptBytes` and `crashTranscriptBytes` past the preamble, which trades a
+universal constant for a number that has to be measured per project, since the inventory's size is
+whatever that machine has installed; narrowing the `429` pattern, which would miss the raw API error
+it exists for while leaving every other pattern exposed to the same inventory; and leaving the
+default at `text` and having the panel say the transcript arrives at the end, which is an accurate
+label on a button worth nothing.

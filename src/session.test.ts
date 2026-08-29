@@ -106,3 +106,50 @@ test("%VAR% is flagged because cmd expands it and it cannot be escaped", () => {
   assert.equal(hasUnescapablePercent(["read %PATH% please"]), true);
   assert.equal(hasUnescapablePercent(["100% done"]), false);
 });
+
+test("the stream-json preamble is not evidence: work bytes drive the byte rules, not file size", () => {
+  // A session that died instantly still leaves a 4 KB init inventory and a result envelope behind.
+  // Weighed as a whole it clears every threshold; weighed as work it is the instant death it is.
+  const v = classifyInfraFailure(
+    { seconds: 8, bytes: 6455, workBytes: 0, text: "", wroteResult: false },
+    infra,
+  );
+  assert.equal(v?.reason, "instant-death");
+  assert.match(v?.detail ?? "", /0-byte \(of 6455\)/, "the detail says what was weighed and what was there");
+});
+
+test("work above the line is still charged, however much protocol came with it", () => {
+  const v = classifyInfraFailure(
+    { seconds: 4000, bytes: 90000, workBytes: 40000, text: "", wroteResult: false },
+    infra,
+  );
+  assert.equal(v, null);
+});
+
+test("a reported quota is infrastructure at any duration, unlike the patterns", () => {
+  const now = new Date("2026-08-18T14:00:00Z");
+  const v = classifyInfraFailure(
+    { seconds: 2400, bytes: 90000, workBytes: 80000, usageLimit: { resetsAt: Date.parse("2026-08-18T15:00:00Z") / 1000 }, text: "", wroteResult: false },
+    infra,
+    now,
+  );
+  assert.equal(v?.reason, "usage-limit");
+  assert.equal(v?.waitSeconds, 3600, "it waits for the announced reset, not the fixed fallback");
+});
+
+test("a reported quota with no reset time falls back to the configured wait", () => {
+  const v = classifyInfraFailure(
+    { seconds: 5, bytes: 6000, workBytes: 0, usageLimit: { resetsAt: null }, text: "", wroteResult: false },
+    infra,
+  );
+  assert.equal(v?.reason, "usage-limit");
+  assert.equal(v?.waitSeconds, infra.usageLimitWaitSeconds);
+});
+
+test("a result the agent wrote outranks a reported quota", () => {
+  const v = classifyInfraFailure(
+    { seconds: 30, bytes: 6000, workBytes: 0, usageLimit: { resetsAt: null }, text: "", wroteResult: true },
+    infra,
+  );
+  assert.equal(v, null);
+});

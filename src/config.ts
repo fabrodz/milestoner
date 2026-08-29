@@ -9,7 +9,10 @@ export function defaultConfig(run: string, projectRoot: string): MilestonerConfi
     retryDelaySeconds: 15,
     agent: {
       command: "claude",
-      args: ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+      // stream-json is what makes the panel's live transcript live: with the default text format a
+      // headless `claude -p` writes nothing at all until it exits. --verbose is not optional, the
+      // CLI refuses the combination without it. See D-040 for what it costs the infra rules.
+      args: ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"],
       modelArgs: ["--model", "{{model}}"],
       model: null,
       env: {},
