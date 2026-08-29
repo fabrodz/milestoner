@@ -41,6 +41,7 @@ function input(overrides: Partial<LintInput> = {}): LintInput {
     modelKeys: [],
     protocol: `# Execution protocol - run "${RUN}"\n\nThe rules.\n`,
     livenessCount: 1,
+    agent: { command: "claude", args: ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose"] },
     ...overrides,
   };
 }
@@ -214,4 +215,22 @@ test("liveness-empty: zero configured liveness paths", () => {
 
 test("liveness-empty: quiet when at least one path is configured", () => {
   assert.deepEqual(only(lintRun(input()), "liveness-empty"), []);
+});
+
+test("a claude agent that cannot stream is warned about, because its live transcript never fills", () => {
+  const findings = lintRun(input({ agent: { command: "claude", args: ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] } }));
+  const found = findings.find((f) => f.rule === "agent-not-streaming");
+  assert.equal(found?.severity, "warning", "a run with an older config still starts; it just watches nothing");
+});
+
+test("another agent's arguments are not guessed at", () => {
+  const findings = lintRun(input({ agent: { command: "codex", args: ["exec", "{{kickoff}}"] } }));
+  assert.equal(findings.find((f) => f.rule === "agent-not-streaming"), undefined);
+});
+
+test("a streaming claude agent is clean, however it was spelled on the path", () => {
+  const args = ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose"];
+  for (const command of ["claude", "/usr/local/bin/claude", "C:\\npm\\claude.cmd"]) {
+    assert.equal(lintRun(input({ agent: { command, args } })).find((f) => f.rule === "agent-not-streaming"), undefined, command);
+  }
 });

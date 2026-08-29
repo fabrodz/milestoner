@@ -116,6 +116,7 @@ Then, in a Claude Code session at the project root:
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `milestoner serve [--all] [--port <n>] [--write]` | Local web panel. Loopback only, key in the URL. `--all` serves every run on the machine, from any directory. |
 | `milestoner skill install [<name>] [-g\|--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
+| `milestoner transcript [--name <file>] [--lines <n>] [--raw]` | What the running session is doing, as prose rather than as its wire format. Read-only. |
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
@@ -147,7 +148,10 @@ overnight is the one worth being told about.
    usage limit, or crashes at any point leaving a next-to-empty transcript, does not consume an
    attempt. An announced reset time is parsed and waited out.
 6. **Liveness comes from side signals.** Watched source dirs, test-result files and tool logs, never
-   the transcript: a headless `claude -p` flushes it only at exit.
+   the transcript: it sits still through a long generation and grows while an agent narrates a retry
+   loop. An mtime moves only when something was done. What the transcript *is* for is the other
+   question - what the session is doing - which `milestoner transcript` answers in prose, for a
+   person or for a supervisor deciding whether to step in.
 
 ## The supervisor
 
@@ -164,9 +168,11 @@ Then, in a Claude Code session at the project root:
 /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
-Each cycle it reads the whole run through `milestoner status --json` and applies the first matching
-rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
-blocked for real, or something it cannot explain. Its entire write surface is `milestoner kill`,
+Each cycle it reads the whole run through `milestoner status --json`, reads what the live session is
+doing through `milestoner transcript`, and applies the first matching rule: healthy, environment
+stalled, agent session hung, waiting out a usage limit, runner dead, blocked for real, or something
+it cannot explain. The transcript is why an intervention can name what it saw instead of quoting a
+timer; it is never a liveness signal. Its entire write surface is `milestoner kill`,
 `milestoner attend`, relaunching `milestoner run`, and appending to `.milestoner/supervisor-log.md`.
 It never edits project code, never touches `state.json`, and never runs the project's own tools
 while a session owns them. Clearing a block stays a human decision.
@@ -278,7 +284,8 @@ only one that knows a panel exists; the file version links nowhere, which is wha
   "run": "my-run",
   "maxAttempts": 3,
   "agent": { "command": "claude",
-             "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] },
+             "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+                      "--dangerously-skip-permissions"] },
   "liveness": ["src", "tests/results/latest.txt"],
   "environment": { "attendCommand": null, "attendSeconds": 120 }
 }
@@ -307,7 +314,8 @@ with the milestone prompt:
 
 ```json
 "agent": { "name": "claude", "command": "claude",
-           "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"] }
+           "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+                    "--dangerously-skip-permissions"] }
 ```
 
 Anything works that accepts a prompt as an argument, can read and write files in the project, and
@@ -338,6 +346,17 @@ a local model through Ollama, the fallback pool - are in
   `init` handing a new run the previous run's protocol. First version published to npm. Done.
 - **v0.7** the planner skill, the machine panel (one panel spanning every run, brought up by the
   first one), one distribution channel (the plugin retired, D-034), and `skill install -g`. Done.
+- **v0.8** [`milestoner lint`](#commands): the run's form checked before a session spends real time
+  on it, the same rules gating the start of a run and shown in the panel. The line between form and
+  judgement is D-035. Done.
+- **v0.9** the panel-only workflow: a run created, a milestone added mid-run, the config and the
+  protocol edited, all from the browser, against the same engine primitives the CLI calls. Every
+  attempt also records the model that ran it, not just the agent. Done.
+- **v0.10** the live transcript. A headless session streams its output instead of flushing at exit,
+  which took teaching the infrastructure rules to weigh what the agent produced rather than what
+  the file holds (D-040). One renderer serves both readers: the panel follows the running session,
+  and [`milestoner transcript`](#commands) hands the supervisor the same thing in prose, so an
+  intervention can name what it saw instead of quoting a timer. Done.
 
 Validated end to end, by building itself. v0.4 was a four-milestone milestoner run and v0.5 to v0.6
 was a seven-milestone one, every milestone a fresh Claude Code session graded against the evidence it

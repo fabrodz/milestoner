@@ -194,7 +194,8 @@ details.ref pre{max-height:none}
         <pre>Claude Code
 {
   "command": "claude",
-  "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+  "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+           "--dangerously-skip-permissions"],
   "modelArgs": ["--model", "{{model}}"],
   "model": null,
   "env": {}
@@ -237,6 +238,7 @@ A local model, through Codex talking to Ollama (needs "ollama serve" running)
 
   <div class="card" id="logView" style="display:none">
     <div class="row"><strong>Session transcript</strong><span class="muted small" id="logName"></span>
+      <span class="muted small">follows the session while it runs</span>
       <button style="margin-left:auto" onclick="closeLog()">Close</button></div>
     <pre id="logBody" style="margin-top:.6rem"></pre>
   </div>
@@ -345,19 +347,50 @@ function killAgent() {
   const reason = prompt("Why is this session being killed? It goes in the intervention log.", "no progress for a long time");
   if (reason !== null) post("/api/kill", { reason: reason || "killed from the panel" });
 }
-async function viewLog(name) {
-  const box = document.getElementById("logView"), body = document.getElementById("logBody");
-  document.getElementById("logName").textContent = name;
-  body.textContent = "loading…";
-  box.style.display = "block";
-  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+let openLog = null, logTimer = null;
+
+/* The transcript is followed while it is open, not fetched once: a streaming session appends to it
+   for as long as it runs, so a single read would freeze the live view on its first second. The
+   scroll sticks to the bottom only while the reader is already there, so following a session does
+   not yank the page out from under someone reading further up. Following stops in stopFollowing(),
+   off the pulse rather than off the file's contents. */
+async function refreshLog() {
+  const body = document.getElementById("logBody");
+  const name = openLog;
+  if (!name) return;
   try {
     const r = await fetch(api("/api/transcript") + "&name=" + encodeURIComponent(name), { headers: auth });
-    body.textContent = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
-    body.scrollTop = body.scrollHeight; // read to find out how it ended
-  } catch (e) { body.textContent = "request failed: " + e.message; }
+    const text = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
+    if (openLog !== name) return;
+    const atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+    const shown = text || "nothing in it yet - the session has not written its first event";
+    if (shown !== body.textContent) body.textContent = shown;
+    if (atEnd) body.scrollTop = body.scrollHeight;
+  } catch (e) { if (openLog === name) body.textContent = "request failed: " + e.message; }
 }
-function closeLog() { document.getElementById("logView").style.display = "none"; }
+
+function viewLog(name) {
+  const box = document.getElementById("logView");
+  document.getElementById("logName").textContent = name;
+  if (name !== openLog) document.getElementById("logBody").textContent = "loading…";
+  openLog = name;
+  box.style.display = "block";
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (logTimer) clearInterval(logTimer);
+  logTimer = setInterval(refreshLog, 2500);
+  refreshLog();
+}
+
+/** Stop polling but leave the card up: what it shows is still worth reading. */
+function stopFollowing() {
+  if (logTimer) { clearInterval(logTimer); logTimer = null; }
+}
+
+function closeLog() {
+  document.getElementById("logView").style.display = "none";
+  openLog = null;
+  stopFollowing();
+}
 
 /** The lint card body, one row per finding. Kept pure so a test can render it without a browser. */
 function lintCardHtml(L) {
@@ -786,11 +819,19 @@ function renderHub(d) {
 
 function render(d) {
   renderRunsBar(d);
+  // Following stops off the pulse, not off the transcript's contents: whether there is still a
+  // session writing to this file is the engine's question, and asking it here is the one form of
+  // the question that holds for every agent. It also ends the pointless follow of a transcript
+  // opened from the attempt history, which by definition will never grow again.
+  if (openLog && logTimer && !(d.pulse && d.pulse.runnerAlive && d.pulse.transcript === openLog)) stopFollowing();
   document.getElementById("hubView").style.display = d.hub ? "block" : "none";
   document.getElementById("runView").style.display = d.hub ? "none" : "block";
   document.getElementById("conn").textContent = "updated " + new Date().toTimeString().slice(0, 5);
   if (d.hub) {
     document.getElementById("run").textContent = "every run on this machine";
+    // The log card lives inside runView, so the hub hides it anyway. Closing it means coming back
+    // to a run reopens a live view rather than a frozen one still captioned as the live transcript.
+    closeLog();
     renderHub(d);
     document.querySelectorAll("[data-w]").forEach(b => { b.disabled = !d.writable; });
     if (!stayOnHub && (d.runs || []).length === 1) goRun(d.runs[0].projectRoot);

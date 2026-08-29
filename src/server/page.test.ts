@@ -267,3 +267,30 @@ test("the page's inline script is parseable javascript", () => {
   // Never called: constructing it is the syntax check, and the body wants a browser to run in.
   assert.doesNotThrow(() => new Function(script[1]!));
 });
+
+/** The page must not grow a parser back: rendering is the server's job now, and one format known
+    in one place is the whole point of moving it there. */
+test("the page carries no transcript parser of its own", () => {
+  for (const gone of ["function transcriptText", "function oneLine", "function sessionEnded"]) {
+    assert.equal(PAGE.includes(gone), false, `${gone} belongs in src/transcript.ts, not in the page`);
+  }
+  assert.match(PAGE, /api\("\/api\/transcript"\)/, "the page still reads the transcript, it just does not decode it");
+});
+
+test("following a transcript stops off the pulse, so it holds for any agent", () => {
+  // Sniffing the file for a result event only ever worked for one output format, and left a
+  // historical transcript being polled forever.
+  assert.match(PAGE, /function stopFollowing\(\)/);
+  assert.match(PAGE, /d\.pulse\.transcript === openLog/);
+  assert.match(PAGE, /if \(openLog && logTimer && !\(d\.pulse/);
+  // The card lives inside runView; leaving for the hub must not park a frozen view captioned live.
+  assert.match(PAGE, /renderHub\(d\);/);
+  const hubBranch = PAGE.slice(PAGE.indexOf("if (d.hub) {"), PAGE.indexOf("renderHub(d);"));
+  assert.match(hubBranch, /closeLog\(\);/);
+});
+
+test("the pasteable Claude block is the config the lint rule asks for", () => {
+  const block = PAGE.slice(PAGE.indexOf("Claude Code\n{"), PAGE.indexOf("OpenAI Codex"));
+  assert.match(block, /stream-json/, "a config copied out of the panel must not be one the linter warns about");
+  assert.match(block, /--verbose/, "the CLI refuses stream-json without it");
+});

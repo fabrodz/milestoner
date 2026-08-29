@@ -102,8 +102,8 @@ export interface MilestonerConfig {
    */
   models: Record<string, string>;
   infra: InfraConfig;
-  /** Paths (relative to projectRoot) whose mtime proves the run is alive. The transcript
-   *  is never one: headless sessions flush it only at exit. */
+  /** Paths (relative to projectRoot) whose mtime proves the run is alive. The transcript is never
+   *  one: it streams (D-040), but it streams for a stuck agent too. */
   liveness: string[];
   environment: EnvironmentConfig;
 }

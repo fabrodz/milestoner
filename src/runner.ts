@@ -8,7 +8,7 @@ import { registryPath, type Layout } from "./paths.js";
 import { newestSignal, clearPulse, writePulse } from "./pulse.js";
 import { deregisterRun, registerRun } from "./registry.js";
 import { archiveResult, gradeResult, readResult, type Verdict } from "./result.js";
-import { classifyInfraFailure, readTranscriptTail, runSession } from "./session.js";
+import { classifyInfraFailure, readTranscriptEvidence, runSession } from "./session.js";
 import { ensureGlobalPanel, openPanel, panelUrl } from "./server/global.js";
 import { projectScope, startRunPanel, type PanelHandle } from "./server/panel.js";
 import { readSteering, type Steering } from "./steering.js";
@@ -362,12 +362,22 @@ export async function run(options: RunOptions): Promise<RunExit> {
         logEvent(layout, next.id, "killed", killed.reason);
       }
 
-      const infra = killed
-        ? null
-        : classifyInfraFailure(
-            { seconds, bytes: outcome.bytes, text: readTranscriptTail(transcript), wroteResult: rawResult !== null },
+      // Read only when the verdict can use it: a killed session is not classified, and a
+      // stream-json transcript is the whole file in memory.
+      const evidence = killed ? null : readTranscriptEvidence(transcript);
+      const infra = evidence
+        ? classifyInfraFailure(
+            {
+              seconds,
+              bytes: outcome.bytes,
+              workBytes: evidence.bytes,
+              usageLimit: evidence.usageLimit,
+              text: evidence.text,
+              wroteResult: rawResult !== null,
+            },
             config.infra,
-          );
+          )
+        : null;
 
       if (infra) {
         infraRetries += 1;

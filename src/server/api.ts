@@ -16,6 +16,7 @@ import { isProcessAlive, newestSignal, readPulse } from "../pulse.js";
 import { buildReport } from "../report.js";
 import { loadState, summarize } from "../state.js";
 import { readInterventions } from "../supervisorLog.js";
+import { renderTranscript } from "../transcript.js";
 import type { MilestonerConfig, RunState } from "../types.js";
 import { writeJsonAtomic, writeTextAtomic } from "../util/fs.js";
 
@@ -98,13 +99,18 @@ export function reportHtml(ctx: ApiContext, panelHref?: string): string {
 /**
  * Transcripts are served by name only, resolved inside the logs directory and checked afterwards.
  * The name arrives over HTTP, so treating it as a path is how a caller reads /etc/passwd.
+ *
+ * Served as prose, not as the wire format. The rendering is the same `renderTranscript` that
+ * `milestoner transcript` prints, so the panel and a supervisor reading the CLI see one transcript
+ * described one way, and the page carries no parser of its own.
  */
 export function transcript(ctx: ApiContext, name: string): string | null {
   const file = resolve(ctx.layout.logs, basename(name));
   if (relative(ctx.layout.logs, file).startsWith("..")) return null;
   try {
     // An empty name resolves to the logs directory itself, which read as a file is EISDIR, not a 404.
-    return statSync(file).isFile() ? readFileSync(file, "utf8").slice(-200_000) : null;
+    if (!statSync(file).isFile()) return null;
+    return renderTranscript(readFileSync(file, "utf8").slice(-200_000));
   } catch {
     return null;
   }

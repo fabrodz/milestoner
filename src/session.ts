@@ -1,7 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
-import { createWriteStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import { delimiter, extname, join, sep } from "node:path";
 import { isProcessAlive } from "./pulse.js";
+import { parseEvent } from "./transcript.js";
 import { ensureDir, fileSize } from "./util/fs.js";
 import type { InfraConfig } from "./types.js";
 import { secondsUntilReset } from "./util/time.js";
@@ -191,6 +192,12 @@ export interface InfraVerdict {
 export interface InfraInput {
   seconds: number;
   bytes: number;
+  /** Bytes of agent output, with the harness's own protocol discounted. Defaults to `bytes`, which
+   *  is what a plain-text transcript is: all of it is the agent talking. */
+  workBytes?: number;
+  /** The agent stating outright that its quota is gone, rather than a substring suggesting it.
+   *  `resetsAt` is epoch seconds when the agent named a time. */
+  usageLimit?: { resetsAt: number | null } | null;
   text: string;
   wroteResult: boolean;
 }
@@ -211,6 +218,23 @@ export interface InfraInput {
  */
 export function classifyInfraFailure(input: InfraInput, infra: InfraConfig, now: Date = new Date()): InfraVerdict | null {
   if (input.wroteResult) return null;
+
+  const evidence = input.workBytes ?? input.bytes;
+  const size = (n: number) => (n === input.bytes ? `${n}-byte` : `${n}-byte (of ${input.bytes})`);
+
+  // Deliberately outside the deathSeconds bound the patterns sit behind. This is not a substring
+  // that suggests a usage limit, it is the agent reporting one, and a quota that ran out forty
+  // minutes in explains a missing result.json exactly as well as one that was gone at launch.
+  if (input.usageLimit) {
+    const untilReset = input.usageLimit.resetsAt === null ? null : Math.max(0, Math.round(input.usageLimit.resetsAt - now.getTime() / 1000));
+    return {
+      reason: "usage-limit",
+      waitSeconds: untilReset ?? infra.usageLimitWaitSeconds,
+      detail: untilReset
+        ? `the agent reported its quota gone, waiting ${Math.round(untilReset / 60)}m for the announced reset`
+        : "the agent reported its quota gone, with no reset time",
+    };
+  }
 
   if (input.seconds < infra.deathSeconds) {
     const haystack = input.text.toLowerCase();
@@ -237,32 +261,107 @@ export function classifyInfraFailure(input: InfraInput, infra: InfraConfig, now:
       };
     }
 
-    if (input.bytes < infra.tinyTranscriptBytes) {
+    if (evidence < infra.tinyTranscriptBytes) {
       return {
         reason: "instant-death",
         waitSeconds: infra.genericWaitSeconds,
-        detail: `died in ${Math.round(input.seconds)}s with a ${input.bytes}-byte transcript`,
+        detail: `died in ${Math.round(input.seconds)}s with a ${size(evidence)} transcript`,
       };
     }
   }
 
-  if (input.bytes < infra.crashTranscriptBytes) {
+  if (evidence < infra.crashTranscriptBytes) {
     return {
       reason: "crash",
       waitSeconds: infra.genericWaitSeconds,
-      detail: `crashed after ${Math.round(input.seconds)}s with a ${input.bytes}-byte transcript`,
+      detail: `crashed after ${Math.round(input.seconds)}s with a ${size(evidence)} transcript`,
     };
   }
 
   return null;
 }
 
-export function readTranscriptTail(file: string, maxBytes = 4000): string {
+/** stream-json events that are the harness talking, not the agent working. */
+const PROTOCOL_EVENTS = new Set(["system", "result", "rate_limit_event"]);
+
+/** Work past this is not counted. The number only has to be exact near the infra thresholds, and a
+ *  session that ran for hours writes megabytes nobody needs to weigh. */
+const WORK_CAP = 64_000;
+
+export interface TranscriptEvidence {
+  /** Bytes the agent produced. The file size for a plain-text transcript, protocol discounted for
+   *  a stream-json one, capped once it is plainly past anything a threshold asks about. */
+  bytes: number;
+  /** The tail the infra patterns are searched in, preamble removed. */
+  text: string;
+  usageLimit: { resetsAt: number | null } | null;
+}
+
+function exhaustedQuota(event: Record<string, unknown>): { resetsAt: number | null } | null {
+  const info = event.rate_limit_info as { status?: unknown; resetsAt?: unknown } | undefined;
+  // Only "rejected" is the quota being gone. "allowed_warning" is the CLI saying the limit is near
+  // and the session runs straight through it; read as exhaustion it sleeps out a reset that never
+  // applied. `overageStatus` sits in the same object and answers a different question.
+  if (!info || typeof info !== "object" || info.status !== "rejected") return null;
+  return { resetsAt: typeof info.resetsAt === "number" ? info.resetsAt : null };
+}
+
+/**
+ * What a transcript is evidence of, separated from what the harness printed around it.
+ *
+ * A plain-text transcript is all agent output, so `bytes` is its size and every rule in
+ * `classifyInfraFailure` behaves exactly as it always has. A stream-json transcript is not. It
+ * opens with a four-kilobyte `system`/`init` inventory of tools, slash commands, agents and paths,
+ * written before the agent has done anything, and closes with a `result` envelope of counters.
+ * Counted as evidence, those two alone put every session over every threshold however instantly it
+ * died, which is D-029 switched off. Searched for patterns, the inventory matches `not logged
+ * in` or `429` on the strength of somebody's skill description. So the preamble is dropped from
+ * both, and the envelope only from the byte count: it carries the agent's closing words, which are
+ * exactly where a failure names itself.
+ */
+export function readTranscriptEvidence(file: string, maxTextBytes = 20_000): TranscriptEvidence {
+  let raw: string;
   try {
-    const size = statSync(file).size;
-    const text = readFileSync(file, "utf8");
-    return size <= maxBytes ? text : text.slice(-maxBytes);
+    raw = readFileSync(file, "utf8");
   } catch {
-    return "";
+    return { bytes: 0, text: "", usageLimit: null };
   }
+
+  const lines = raw.split("\n");
+  let bytes = 0;
+  let usageLimit: { resetsAt: number | null } | null = null;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    const counting = bytes < WORK_CAP;
+    // Past the cap only one event is still worth finding, and it names itself in its own text.
+    if (!counting && !line.includes('"rate_limit_event"')) continue;
+    const event = parseEvent(line);
+    const type = event ? String(event.type) : null;
+    // The last event wins: a quota rejected early and allowed again is not the quota that ended
+    // the session. Past the cap only these lines are parsed, so the last one is still the last one.
+    if (type === "rate_limit_event") usageLimit = exhaustedQuota(event!);
+    if (counting && (type === null || !PROTOCOL_EVENTS.has(type))) {
+      bytes += Buffer.byteLength(line) + (i === lines.length - 1 ? 0 : 1);
+    }
+  }
+
+  const text = (raw.length > maxTextBytes ? raw.slice(-maxTextBytes) : raw)
+    .split("\n")
+    .map((line) => {
+      const event = parseEvent(line);
+      if (!event) return line;
+      if (event.type === "system") return null;
+      // The envelope's counters are digits, not prose: a cost or a hex uuid carries `429` as
+      // readily as a rate limit does. Only what the session closed with is searched, and
+      // api_error_status is where a real one lands.
+      if (event.type === "result") {
+        return [event.result, event.subtype, event.api_error_status].filter((v) => typeof v === "string").join(" ");
+      }
+      return line;
+    })
+    .filter((line): line is string => line !== null)
+    .join("\n");
+
+  return { bytes, text, usageLimit };
 }

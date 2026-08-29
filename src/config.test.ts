@@ -13,10 +13,10 @@ test("placeholders are substituted, unknown ones stay visible", () => {
 test("model args are appended only when a model is configured", () => {
   const config = defaultConfig("t", "/p");
   const vars = { kickoff: "do M01", promptFile: "/p/.milestoner/prompts/M01.md", milestoneId: "M01", projectRoot: "/p", model: "" };
-  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--dangerously-skip-permissions"]);
+  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"]);
 
   config.agent.model = "claude-opus-5";
-  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--dangerously-skip-permissions", "--model", "claude-opus-5"]);
+  assert.deepEqual(buildAgentArgs(config.agent, vars), ["-p", "do M01", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions", "--model", "claude-opus-5"]);
 });
 
 test("a different agent is only a config change", () => {
@@ -74,7 +74,7 @@ test("buildAgentArgs takes an explicit model over the agent's own", () => {
 
   assert.deepEqual(buildAgentArgs(config.agent, vars, "opus").slice(-2), ["--model", "opus"]);
   assert.deepEqual(buildAgentArgs(config.agent, vars).slice(-2), ["--model", "sonnet"]);
-  assert.deepEqual(buildAgentArgs(config.agent, { ...vars, model: "" }, null), ["-p", "do M02", "--dangerously-skip-permissions"]);
+  assert.deepEqual(buildAgentArgs(config.agent, { ...vars, model: "" }, null), ["-p", "do M02", "--output-format", "stream-json", "--verbose", "--dangerously-skip-permissions"]);
 });
 
 test("a config without the required fields is rejected", () => {
