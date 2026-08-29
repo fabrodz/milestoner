@@ -194,7 +194,8 @@ details.ref pre{max-height:none}
         <pre>Claude Code
 {
   "command": "claude",
-  "args": ["-p", "{{kickoff}}", "--dangerously-skip-permissions"],
+  "args": ["-p", "{{kickoff}}", "--output-format", "stream-json", "--verbose",
+           "--dangerously-skip-permissions"],
   "modelArgs": ["--model", "{{model}}"],
   "model": null,
   "env": {}
@@ -346,58 +347,20 @@ function killAgent() {
   const reason = prompt("Why is this session being killed? It goes in the intervention log.", "no progress for a long time");
   if (reason !== null) post("/api/kill", { reason: reason || "killed from the panel" });
 }
-function oneLine(value, max) {
-  const flat = String(value == null ? "" : value).replace(/\s+/g, " ").trim();
-  return flat.length > max ? flat.slice(0, max) + "…" : flat;
-}
-
-/** A stream-json transcript is NDJSON, one event per line, and read raw it is four kilobytes of
-    tool inventory before the first word the agent said. This turns it back into the session as
-    prose. A transcript carrying no events at all is passed through untouched: an agent that does
-    not speak this format still has to be watchable. Pure, like lintCardHtml. */
-function transcriptText(raw) {
-  const out = [];
-  let events = 0;
-  const lines = (raw || "").split("\n");
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    let e = null;
-    if (line.charAt(0) === "{") { try { e = JSON.parse(line); } catch (err) { e = null; } }
-    if (!e || typeof e.type !== "string") { out.push(line); continue; }
-    events += 1;
-    if (e.type === "system") {
-      // Only init is the session announcing itself. The other subtypes a real session emits are
-      // telemetry - thinking_tokens arrives every few turns - and belong nowhere on this page.
-      if (e.subtype === "init") out.push("- session started" + (e.model ? " on " + e.model : "") + (e.cwd ? " in " + e.cwd : ""));
-    } else if (e.type === "result") {
-      const secs = typeof e.duration_ms === "number" ? " after " + Math.round(e.duration_ms / 1000) + "s" : "";
-      const turns = typeof e.num_turns === "number" ? ", " + e.num_turns + " turns" : "";
-      out.push("- session ended" + (e.is_error ? " with an error" : "") + secs + turns);
-    } else if (e.message && Array.isArray(e.message.content)) {
-      for (const b of e.message.content) {
-        if (b.type === "text" && b.text && b.text.trim()) out.push(b.text.trim());
-        else if (b.type === "thinking" && b.thinking) out.push("(thinking) " + b.thinking.trim());
-        else if (b.type === "tool_use") out.push("> " + b.name + " " + oneLine(JSON.stringify(b.input || {}), 200));
-        else if (b.type === "tool_result") out.push("< " + oneLine(typeof b.content === "string" ? b.content : JSON.stringify(b.content), 240));
-      }
-    }
-  }
-  return events ? out.join("\n\n") : (raw || "");
-}
-
 let openLog = null, logTimer = null;
 
-/* The transcript is followed while it is open, not fetched once: a stream-json session appends to
-   it for as long as it runs, so a single read would freeze the live view on its first second. The
+/* The transcript is followed while it is open, not fetched once: a streaming session appends to it
+   for as long as it runs, so a single read would freeze the live view on its first second. The
    scroll sticks to the bottom only while the reader is already there, so following a session does
-   not yank the page out from under someone reading further up. */
+   not yank the page out from under someone reading further up. Following stops in stopFollowing(),
+   off the pulse rather than off the file's contents. */
 async function refreshLog() {
   const body = document.getElementById("logBody");
   const name = openLog;
   if (!name) return;
   try {
     const r = await fetch(api("/api/transcript") + "&name=" + encodeURIComponent(name), { headers: auth });
-    const text = r.ok ? transcriptText(await r.text()) : "could not read it: " + (await r.json()).error;
+    const text = r.ok ? await r.text() : "could not read it: " + (await r.json()).error;
     if (openLog !== name) return;
     const atEnd = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
     const shown = text || "nothing in it yet - the session has not written its first event";
@@ -418,10 +381,15 @@ function viewLog(name) {
   refreshLog();
 }
 
+/** Stop polling but leave the card up: what it shows is still worth reading. */
+function stopFollowing() {
+  if (logTimer) { clearInterval(logTimer); logTimer = null; }
+}
+
 function closeLog() {
   document.getElementById("logView").style.display = "none";
   openLog = null;
-  if (logTimer) { clearInterval(logTimer); logTimer = null; }
+  stopFollowing();
 }
 
 /** The lint card body, one row per finding. Kept pure so a test can render it without a browser. */
@@ -851,11 +819,19 @@ function renderHub(d) {
 
 function render(d) {
   renderRunsBar(d);
+  // Following stops off the pulse, not off the transcript's contents: whether there is still a
+  // session writing to this file is the engine's question, and asking it here is the one form of
+  // the question that holds for every agent. It also ends the pointless follow of a transcript
+  // opened from the attempt history, which by definition will never grow again.
+  if (openLog && logTimer && !(d.pulse && d.pulse.runnerAlive && d.pulse.transcript === openLog)) stopFollowing();
   document.getElementById("hubView").style.display = d.hub ? "block" : "none";
   document.getElementById("runView").style.display = d.hub ? "none" : "block";
   document.getElementById("conn").textContent = "updated " + new Date().toTimeString().slice(0, 5);
   if (d.hub) {
     document.getElementById("run").textContent = "every run on this machine";
+    // The log card lives inside runView, so the hub hides it anyway. Closing it means coming back
+    // to a run reopens a live view rather than a frozen one still captioned as the live transcript.
+    closeLog();
     renderHub(d);
     document.querySelectorAll("[data-w]").forEach(b => { b.disabled = !d.writable; });
     if (!stayOnHub && (d.runs || []).length === 1) goRun(d.runs[0].projectRoot);

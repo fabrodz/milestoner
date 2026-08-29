@@ -46,15 +46,33 @@ transcript, and the newest liveness signal with its age.
 
 Then, only what the JSON does not cover:
 
+- \`milestoner transcript --lines 40\` - **what the session is doing right now**, in prose. The
+  running session's transcript, rendered: messages, tool calls, tool results. Read it every cycle.
+  It is a read, never an intervention. Check its first line before you quote it anywhere: it says
+  which session this is and whether it is still going, and a transcript that has ended is not
+  evidence about the one running now.
 - \`tail -n 20 .milestoner/run-log.md\` - what the engine did (launches, verdicts, infra waits, kills).
 - \`tail -n 10 .milestoner/supervisor-log.md\` - what *you* already did. Read it before acting: it is
   how you know whether this is the first or the second intervention on this milestone.
 - \`git log --oneline -3\` - real progress leaves commits.
 - The last entry of \`.milestoner/execution-log.md\` and any new \`.milestoner/decisions.md\` entries.
 
-**Liveness never comes from the transcript.** A headless agent session flushes its output only when
-it exits, so a transcript that has not grown means nothing. The signals that count are the ones in
-\`status --json\`: watched source directories, test-result files, tool-server logs, plus git commits.
+**Liveness and diagnosis are two different questions, and the transcript answers only one of them.**
+
+*Is the session alive?* Never from the transcript. It advances one event at a time - a completed
+turn, a returned tool call - so it sits still through a long generation or a slow test run, and it
+also ticks over steadily while an agent narrates a retry loop it will never escape. The signals that
+count are the ones in \`status --json\`: watched source directories, test-result files, tool-server
+logs, plus git commits. **Never widen a liveness rule to include the transcript.**
+
+*What is it doing?* That is exactly what the transcript is for, and it is the difference between
+"every signal is 25 minutes old" and "every signal is 25 minutes old **because** it has been
+retrying the same failing command for twenty of them". Rules 3, 4 and 7 all get better with it: quote
+what you saw when you intervene, so the user reads a reason rather than a timer.
+
+If \`milestoner transcript\` prints raw output rather than prose, the configured agent does not
+stream a format this knows. That is not a fault and not something for you to fix: read what is
+there, and if there is nothing at all, fall back to the liveness signals alone.
 
 ## 2. Playbook (first matching rule wins)
 
@@ -74,7 +92,9 @@ configured, this rule cannot fire: report the stall and escalate instead.
 
 **4. Agent session hung** (an agent process exists but **every** liveness signal is older than 25
 minutes)
-\`milestoner kill --reason "<what you observed>"\`. The runner grades the killed session as
+\`milestoner kill --reason "<what you observed>"\`. Read \`milestoner transcript --lines 40\` first and
+put what the session was actually doing into the reason: "re-running the same failing migration for
+20 minutes" is a reason, "no liveness signal" is a timer. The runner grades the killed session as
 incomplete, consumes one attempt and relaunches with a fresh context. Do not kill the runner.
 **If the same milestone hangs twice, stop intervening and escalate** with everything you observed:
 two kills on one milestone means the milestone, not the session, is the problem.
@@ -118,7 +138,8 @@ one line yourself:
 Compact, every cycle, **in the language the user is speaking to you**. Nothing else: no code
 review, no scope suggestions, no plan for the run. Those are post-run conversations.
 
-- **Current milestone and what it is doing** - one line, inferred from the freshest signal.
+- **Current milestone and what it is doing** - one line, from the transcript when it says something
+  and from the freshest signal otherwise.
 - **Progress since the last cycle** - new commits, evidence, attempts, milestones closed.
 - **Verdict** - one of: \`advancing\` / \`slow but alive\` / \`intervened: rule <n>\` /
   \`blocked: <symptom> -> <user action>\` / \`run complete\`.

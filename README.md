@@ -116,6 +116,7 @@ Then, in a Claude Code session at the project root:
 | `milestoner report [--out <path>] [--open]` | Write a single self-contained HTML report of the run. |
 | `milestoner serve [--all] [--port <n>] [--write]` | Local web panel. Loopback only, key in the URL. `--all` serves every run on the machine, from any directory. |
 | `milestoner skill install [<name>] [-g\|--global] [--force] [--print]` | Install the bundled skills (supervisor, planner) into `.claude/skills/`; name one to install just it. |
+| `milestoner transcript [--name <file>] [--lines <n>] [--raw]` | What the running session is doing, as prose rather than as its wire format. Read-only. |
 | `milestoner kill [--reason <text>] [--rule <n>]` | Supervisor intervention: kill the hung agent session. Never the runner. |
 | `milestoner attend [--seconds <n>] [--rule <n>]` | Supervisor intervention: run the configured environment adapter. |
 
@@ -147,8 +148,10 @@ overnight is the one worth being told about.
    usage limit, or crashes at any point leaving a next-to-empty transcript, does not consume an
    attempt. An announced reset time is parsed and waited out.
 6. **Liveness comes from side signals.** Watched source dirs, test-result files and tool logs, never
-   the transcript: it grows while an agent narrates a retry loop, and an mtime moves only when
-   something was done.
+   the transcript: it sits still through a long generation and grows while an agent narrates a retry
+   loop. An mtime moves only when something was done. What the transcript *is* for is the other
+   question - what the session is doing - which `milestoner transcript` answers in prose, for a
+   person or for a supervisor deciding whether to step in.
 
 ## The supervisor
 
@@ -165,9 +168,11 @@ Then, in a Claude Code session at the project root:
 /loop 10m Use the milestoner-supervisor skill to perform one supervision cycle.
 ```
 
-Each cycle it reads the whole run through `milestoner status --json` and applies the first matching
-rule: healthy, environment stalled, agent session hung, waiting out a usage limit, runner dead,
-blocked for real, or something it cannot explain. Its entire write surface is `milestoner kill`,
+Each cycle it reads the whole run through `milestoner status --json`, reads what the live session is
+doing through `milestoner transcript`, and applies the first matching rule: healthy, environment
+stalled, agent session hung, waiting out a usage limit, runner dead, blocked for real, or something
+it cannot explain. The transcript is why an intervention can name what it saw instead of quoting a
+timer; it is never a liveness signal. Its entire write surface is `milestoner kill`,
 `milestoner attend`, relaunching `milestoner run`, and appending to `.milestoner/supervisor-log.md`.
 It never edits project code, never touches `state.json`, and never runs the project's own tools
 while a session owns them. Clearing a block stays a human decision.

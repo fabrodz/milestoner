@@ -268,62 +268,29 @@ test("the page's inline script is parseable javascript", () => {
   assert.doesNotThrow(() => new Function(script[1]!));
 });
 
-/** transcriptText is pure for the same reason milestoneCardHtml is: the panel's whole reason to
-    render NDJSON is that a stream-json session is unreadable raw, and that is provable here. */
-function transcriptRenderer(): (raw: string) => string {
-  const src = [grab("function oneLine\\(value, max\\) \\{"), grab("function transcriptText\\(raw\\) \\{")];
-  assert.ok(src.every(Boolean), "the page must carry transcriptText and its helper");
-  return new Function(`${src.join("\n")}\nreturn transcriptText;`)() as (raw: string) => string;
-}
-
-test("a transcript with no events at all is shown exactly as it was written", () => {
-  const render = transcriptRenderer();
-  assert.equal(render("Execution error\nand nothing else"), "Execution error\nand nothing else");
-  assert.equal(render(""), "");
+/** The page must not grow a parser back: rendering is the server's job now, and one format known
+    in one place is the whole point of moving it there. */
+test("the page carries no transcript parser of its own", () => {
+  for (const gone of ["function transcriptText", "function oneLine", "function sessionEnded"]) {
+    assert.equal(PAGE.includes(gone), false, `${gone} belongs in src/transcript.ts, not in the page`);
+  }
+  assert.match(PAGE, /api\("\/api\/transcript"\)/, "the page still reads the transcript, it just does not decode it");
 });
 
-test("a stream-json session is rendered as the session, not as its wire format", () => {
-  const render = transcriptRenderer();
-  const out = render([
-    JSON.stringify({ type: "system", subtype: "init", cwd: "/repo", model: "claude-opus-5", tools: ["Bash", "Read"] }),
-    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "Reading the runner." }] } }),
-    JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name: "Read", input: { file_path: "src/runner.ts" } }] } }),
-    JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", content: "export function run() {}" }] } }),
-    JSON.stringify({ is_error: false, num_turns: 4, duration_ms: 92_000, type: "result" }),
-  ].join("\n"));
-
-  assert.match(out, /- session started on claude-opus-5 in \/repo/);
-  assert.match(out, /Reading the runner\./);
-  assert.match(out, /> Read .*src\/runner\.ts/);
-  assert.match(out, /< export function run/);
-  assert.match(out, /- session ended after 92s, 4 turns/);
-  assert.doesNotMatch(out, /"type":/, "no line survives as raw JSON");
+test("following a transcript stops off the pulse, so it holds for any agent", () => {
+  // Sniffing the file for a result event only ever worked for one output format, and left a
+  // historical transcript being polled forever.
+  assert.match(PAGE, /function stopFollowing\(\)/);
+  assert.match(PAGE, /d\.pulse\.transcript === openLog/);
+  assert.match(PAGE, /if \(openLog && logTimer && !\(d\.pulse/);
+  // The card lives inside runView; leaving for the hub must not park a frozen view captioned live.
+  assert.match(PAGE, /renderHub\(d\);/);
+  const hubBranch = PAGE.slice(PAGE.indexOf("if (d.hub) {"), PAGE.indexOf("renderHub(d);"));
+  assert.match(hubBranch, /closeLog\(\);/);
 });
 
-test("a half-written last line does not lose the session that came before it", () => {
-  const render = transcriptRenderer();
-  const out = render(
-    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "still going" }] } }) + '\n{"type":"assis',
-  );
-  assert.match(out, /still going/, "the completed events still render");
-  assert.match(out, /\{"type":"assis/, "and the partial line is shown rather than swallowed");
-});
-
-test("an errored result says so", () => {
-  const render = transcriptRenderer();
-  assert.match(render(JSON.stringify({ is_error: true, type: "result", duration_ms: 3000 })), /- session ended with an error after 3s/);
-});
-
-test("the telemetry a real session emits between turns is not rendered as anything", () => {
-  const render = transcriptRenderer();
-  const out = render([
-    JSON.stringify({ type: "system", subtype: "init", cwd: "/repo", model: "claude-opus-5" }),
-    JSON.stringify({ type: "system", subtype: "thinking_tokens", estimated_tokens: 50 }),
-    JSON.stringify({ type: "system", subtype: "thinking_tokens", estimated_tokens: 120 }),
-    JSON.stringify({ type: "assistant", message: { content: [{ type: "text", text: "done" }] } }),
-  ].join("\n"));
-
-  assert.equal(out.match(/- session started/g)?.length, 1, "one session, said once");
-  assert.doesNotMatch(out, /thinking_tokens|estimated_tokens/);
-  assert.match(out, /done/);
+test("the pasteable Claude block is the config the lint rule asks for", () => {
+  const block = PAGE.slice(PAGE.indexOf("Claude Code\n{"), PAGE.indexOf("OpenAI Codex"));
+  assert.match(block, /stream-json/, "a config copied out of the panel must not be one the linter warns about");
+  assert.match(block, /--verbose/, "the CLI refuses stream-json without it");
 });

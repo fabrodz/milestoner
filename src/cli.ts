@@ -13,6 +13,7 @@ import { serve, serveAll } from "./commands/serve.js";
 import { installSkill } from "./commands/skill.js";
 import { steer } from "./commands/steer.js";
 import { status } from "./commands/status.js";
+import { transcript } from "./commands/transcript.js";
 import { unblock } from "./commands/unblock.js";
 import { loadConfig } from "./config.js";
 import { MILESTONER_DIR, findLegacyRoot, findProjectRoot, layoutFor, projectsPath, registryPath } from "./paths.js";
@@ -71,6 +72,11 @@ ${color.bold("milestoner")} - supervised autonomous-run engine for coding agents
   milestoner skill install [<name>] [-g|--global] [--force] [--print]
       Install the bundled skills into .claude/skills/ (--global: ~/.claude/skills/).
       With no name, installs all of them: supervisor, planner. --print needs a name.
+
+  milestoner transcript [--name <file>] [--lines <n>] [--raw]
+      Print what the running session is doing, as prose rather than as its wire format.
+      Defaults to the transcript in flight; --name reads a past attempt from
+      .milestoner/logs/. Read-only: it is a signal, not an intervention.
 
   milestoner kill [--reason <text>] [--rule <n>]
       Supervisor intervention: kill the hung agent session. The runner consumes the
@@ -144,6 +150,9 @@ async function main(): Promise<number> {
       "keep-attempts": { type: "boolean" },
       global: { type: "boolean", short: "g" },
       print: { type: "boolean" },
+      name: { type: "string" },
+      lines: { type: "string" },
+      raw: { type: "boolean" },
       reason: { type: "string" },
       rule: { type: "string" },
       seconds: { type: "string" },
@@ -260,6 +269,21 @@ async function main(): Promise<number> {
     const port = panelPort(values.port);
     if (port === null) return 1;
     return serve({ config, layout: project.layout, port, write: Boolean(values.write), token: values.token });
+  }
+
+  if (command === "transcript") {
+    const lines = values.lines ? Number(values.lines) : undefined;
+    if (lines !== undefined && (!Number.isInteger(lines) || lines < 1)) {
+      fail("--lines must be a positive integer");
+      return 1;
+    }
+    return transcript({
+      layout: project.layout,
+      projectRoot: project.root,
+      name: values.name,
+      lines,
+      raw: Boolean(values.raw),
+    });
   }
 
   if (command === "kill") {

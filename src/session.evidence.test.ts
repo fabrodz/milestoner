@@ -45,6 +45,39 @@ test("a non-allowed rate limit is reported with its reset time", () => {
   assert.deepEqual(readTranscriptEvidence(file).usageLimit, { resetsAt: 1788045600 });
 });
 
+test("a warning that the limit is near is not the limit being gone", () => {
+  // "allowed_warning" is the CLI saying you are close to the quota. The session runs straight
+  // through it, so reading it as exhaustion refunds an attempt and sleeps out the whole reset.
+  const file = write([rateLimit({ status: "allowed_warning", resetsAt: 1788045600 }), init(), assistant("still working"), ""]);
+  assert.equal(readTranscriptEvidence(file).usageLimit, null);
+});
+
+test("a quota rejected early and allowed again is not what ended the session", () => {
+  const file = write([
+    rateLimit({ status: "rejected", resetsAt: 1788045600 }),
+    init(),
+    assistant("carried on"),
+    rateLimit({ status: "allowed", resetsAt: 1788049200 }),
+    result({ is_error: true }),
+    "",
+  ]);
+  assert.equal(readTranscriptEvidence(file).usageLimit, null, "the last event is the one that counts");
+});
+
+test("the result envelope is searched for its words, not for its counters", () => {
+  // `429` is a usageLimitPattern and the envelope is a kilobyte of digits: costs, token counts and
+  // hex uuids all carry it. Only what the session closed with is worth searching.
+  const file = write([
+    init(),
+    assistant("working"),
+    result({ is_error: true, total_cost_usd: 0.14297, session_id: "429deadbeef", result: "stream disconnected" }),
+    "",
+  ]);
+  const evidence = readTranscriptEvidence(file);
+  assert.match(evidence.text, /stream disconnected/, "the closing words stay searchable");
+  assert.doesNotMatch(evidence.text, /429/, "the counters around them do not");
+});
+
 test("an allowed rate limit is the every-session case and reports nothing", () => {
   const file = write([rateLimit({ status: "allowed", resetsAt: 1788045600 }), init(), assistant("done"), result(), ""]);
   assert.equal(readTranscriptEvidence(file).usageLimit, null);

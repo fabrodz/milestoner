@@ -1277,6 +1277,36 @@ install just it. `--print <name>` dumps that skill's text to stdout without writ
 is how to read a playbook before installing it. It refuses to overwrite an existing file without
 `--force`.
 
+### milestoner transcript
+
+```sh
+milestoner transcript [--name <file>] [--lines <n>] [--raw]
+```
+
+What the running session is doing, in words. With no arguments it reads the transcript the pulse
+names - the session in flight - and falls back to the newest log in `.milestoner/logs/` once a run
+has ended. `--name` reads a past attempt by file name; the name is resolved inside the logs
+directory, so a path that tries to leave it simply will not be found.
+
+The output is prose, not the wire format: `- session started`, the agent's own text, `>` for a tool
+call and `<` for its result, `- session ended`. Tool results are cut at 240 characters, because the
+reader is often a supervisor spending its own context on this every ten minutes. `--lines <n>` keeps
+the last n lines, `--raw` skips the rendering and prints the file as written.
+
+The first line names what was read and whether it is still going - `M02-...log - live on M02 attempt
+2, 14m in`, or `- not the session in flight; this one has ended`. That line matters more than it
+looks: a supervisor quoting a transcript in an intervention has to be certain it quoted the running
+session, and the fallback to the newest log hands it a finished one that reads exactly like a live
+one. `--raw` omits the line so the output stays a clean dump.
+
+It is a read and nothing else. A supervisor may call it every cycle without it counting as an
+intervention, which is the point: knowing what a session is doing has to be free, or it will not be
+done. The panel's "watch the live transcript" is the same rendering of the same file, and both come
+from `src/transcript.ts`.
+
+An agent whose transcript is plain text, or NDJSON of some other shape, is printed exactly as it was
+written. See [Running a different agent](#running-a-different-agent) for what that means per agent.
+
 ### milestoner kill
 
 ```sh
@@ -1423,6 +1453,23 @@ An agent qualifies if it can:
    (`{{promptFile}}`);
 2. read and write files in the project without asking a human for permission;
 3. exit on its own when the work is finished.
+
+**Watching a session live is not a fourth requirement.** The engine pipes stdout and stderr into the
+transcript as they arrive, for any command, so the panel and `milestoner transcript` follow whatever
+the agent writes while it writes it. Two things vary by agent:
+
+| | Transcript grows during the run | Rendered as prose |
+| --- | --- | --- |
+| Claude Code with the default args | yes | yes |
+| Claude Code without `--output-format stream-json --verbose` | no, it arrives at exit | n/a - `milestoner lint` warns |
+| An agent that prints progress as plain text | yes | shown as written, which is already readable |
+| An agent that prints NDJSON of another shape | yes | shown as written |
+
+Only Claude Code's stream-json is decoded, because it is the only format the engine knows the shape
+of and guessing at another one is how a tool starts being confidently wrong. Everything else is
+passed through byte for byte, which for an agent that already speaks prose is the right answer. No
+agent is worse off than before, and none needs configuration beyond its own streaming flag, if it
+has one.
 
 ### Claude Code (default)
 
@@ -1732,6 +1779,13 @@ It never edits project code, prompts, the protocol or `state.json`. It never run
 tools (build, tests, dev server, editor) because the executor session owns them and a parallel call
 can corrupt the run. And it never calls `milestoner unblock`: clearing a block is a human decision.
 
+What it *reads* is deliberately wider: `milestoner status --json` for the shape of the run, and
+`milestoner transcript` for what the live session is actually doing. Reading is not intervening, and
+it is what makes the difference between "every signal is 25 minutes old" and "every signal is 25
+minutes old because it has been retrying the same failing command for twenty of them". The second
+is a reason you can act on; the first is a timer. The transcript is never a liveness signal, for the
+reasons in [The pulse](#the-pulse-is-this-run-alive) - it is the diagnosis, not the heartbeat.
+
 ### The playbook, first match wins
 
 | # | Situation | Action |
@@ -2019,11 +2073,12 @@ The engine never learns agent names.
 **Read what a session actually claimed.** `.milestoner/results/M03-attempt2.json` is the raw, ungraded
 claim. Compare it against the graded outcome in `state.json` when a verdict surprises you.
 
-**Watch a live session's output.** The default `agent.args` run Claude Code with
-`--output-format stream-json --verbose`, so the transcript is written event by event as the session
-works: `tail -f` on the log follows it, and the panel's "watch the live transcript" renders those
-events as prose and keeps following while the card is open. An agent configured without a streaming
-output format writes nothing until it exits; watch the liveness paths there, or `milestoner status`.
+**Watch a live session's output.** `milestoner transcript` prints what the running session is doing,
+as prose. The default `agent.args` run Claude Code with `--output-format stream-json --verbose`, so
+the transcript is written turn by turn as the session works, and the panel's "watch the live
+transcript" is the same rendering, refreshed while the card is open. An agent configured without a
+streaming output format writes nothing until it exits; watch the liveness paths there, or
+`milestoner status`.
 
 **Notify yourself when the run needs you.**
 

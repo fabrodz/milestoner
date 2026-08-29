@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import { delimiter, extname, join, sep } from "node:path";
 import { isProcessAlive } from "./pulse.js";
+import { parseEvent } from "./transcript.js";
 import { ensureDir, fileSize } from "./util/fs.js";
 import type { InfraConfig } from "./types.js";
 import { secondsUntilReset } from "./util/time.js";
@@ -296,20 +297,12 @@ export interface TranscriptEvidence {
   usageLimit: { resetsAt: number | null } | null;
 }
 
-function parseEvent(line: string): Record<string, unknown> | null {
-  if (line.charCodeAt(0) !== 123) return null;
-  try {
-    const value: unknown = JSON.parse(line);
-    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
-    return typeof (value as { type?: unknown }).type === "string" ? (value as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
 function exhaustedQuota(event: Record<string, unknown>): { resetsAt: number | null } | null {
   const info = event.rate_limit_info as { status?: unknown; resetsAt?: unknown } | undefined;
-  if (!info || typeof info !== "object" || info.status === "allowed" || info.status === undefined) return null;
+  // Only "rejected" is the quota being gone. "allowed_warning" is the CLI saying the limit is near
+  // and the session runs straight through it; read as exhaustion it sleeps out a reset that never
+  // applied. `overageStatus` sits in the same object and answers a different question.
+  if (!info || typeof info !== "object" || info.status !== "rejected") return null;
   return { resetsAt: typeof info.resetsAt === "number" ? info.resetsAt : null };
 }
 
@@ -345,7 +338,9 @@ export function readTranscriptEvidence(file: string, maxTextBytes = 20_000): Tra
     if (!counting && !line.includes('"rate_limit_event"')) continue;
     const event = parseEvent(line);
     const type = event ? String(event.type) : null;
-    if (type === "rate_limit_event") usageLimit = exhaustedQuota(event!) ?? usageLimit;
+    // The last event wins: a quota rejected early and allowed again is not the quota that ended
+    // the session. Past the cap only these lines are parsed, so the last one is still the last one.
+    if (type === "rate_limit_event") usageLimit = exhaustedQuota(event!);
     if (counting && (type === null || !PROTOCOL_EVENTS.has(type))) {
       bytes += Buffer.byteLength(line) + (i === lines.length - 1 ? 0 : 1);
     }
@@ -353,7 +348,19 @@ export function readTranscriptEvidence(file: string, maxTextBytes = 20_000): Tra
 
   const text = (raw.length > maxTextBytes ? raw.slice(-maxTextBytes) : raw)
     .split("\n")
-    .filter((line) => parseEvent(line)?.type !== "system")
+    .map((line) => {
+      const event = parseEvent(line);
+      if (!event) return line;
+      if (event.type === "system") return null;
+      // The envelope's counters are digits, not prose: a cost or a hex uuid carries `429` as
+      // readily as a rate limit does. Only what the session closed with is searched, and
+      // api_error_status is where a real one lands.
+      if (event.type === "result") {
+        return [event.result, event.subtype, event.api_error_status].filter((v) => typeof v === "string").join(" ");
+      }
+      return line;
+    })
+    .filter((line): line is string => line !== null)
     .join("\n");
 
   return { bytes, text, usageLimit };

@@ -362,10 +362,11 @@ export async function run(options: RunOptions): Promise<RunExit> {
         logEvent(layout, next.id, "killed", killed.reason);
       }
 
-      const evidence = readTranscriptEvidence(transcript);
-      const infra = killed
-        ? null
-        : classifyInfraFailure(
+      // Read only when the verdict can use it: a killed session is not classified, and a
+      // stream-json transcript is the whole file in memory.
+      const evidence = killed ? null : readTranscriptEvidence(transcript);
+      const infra = evidence
+        ? classifyInfraFailure(
             {
               seconds,
               bytes: outcome.bytes,
@@ -375,7 +376,8 @@ export async function run(options: RunOptions): Promise<RunExit> {
               wroteResult: rawResult !== null,
             },
             config.infra,
-          );
+          )
+        : null;
 
       if (infra) {
         infraRetries += 1;

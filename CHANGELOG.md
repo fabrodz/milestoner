@@ -7,10 +7,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- One transcript renderer, in `src/transcript.ts`, behind the panel's `/api/transcript` and
+  `milestoner transcript`. The page no longer decodes anything; a test asserts it never grows a
+  parser back. A line without a top-level `type` is not an event, so a plain-text transcript and
+  NDJSON of another shape (`codex exec --json` nests its type under `msg`) are passed through
+  exactly as written, which is what keeps every agent watchable.
 - The default `agent.args` run Claude Code with `--output-format stream-json --verbose`. A headless
   `claude -p` with the default text format writes nothing until it exits, so the panel's "watch the
-  live transcript" opened a file that was empty for the whole session. It now fills event by event
-  while the session works.
+  live transcript" opened a file that was empty for the whole session. It now fills turn by turn
+  while the session works: an event appears when a turn completes or a tool returns, so a long
+  generation is a still frame rather than a stall.
 - Infrastructure classification weighs what the agent produced, not what the transcript file holds.
   A stream-json session opens with a four-kilobyte `system`/`init` tool inventory and closes with a
   `result` envelope; counted as evidence those alone cleared `tinyTranscriptBytes` and
@@ -19,16 +25,32 @@ All notable changes to this project are documented here. The format follows
   plain-text transcript from any other agent weighs exactly what it always did. See D-040.
 - The init inventory is no longer searched for `infraFailurePatterns` or `usageLimitPatterns`. It
   lists every installed skill and slash command, so a session could be classified from somebody
-  else's prose. The `result` envelope is still searched: that is where a failure names itself.
+  else's prose. The `result` envelope still is, but only its words - `result`, `subtype` and
+  `api_error_status` - and not the kilobyte of costs, token counts and hex uuids around them, any
+  of which can carry the `429` pattern.
 
 ### Added
 
-- A usage limit the agent reports outright (`rate_limit_event`, with its epoch `resetsAt`) is
-  checked before the text patterns and outside the `deathSeconds` bound they sit behind, so a quota
-  that ran out mid-session refunds the attempt and waits for the announced reset.
-- The panel follows an open transcript while the session runs, refreshing every 2.5s, and renders
-  its NDJSON as prose - messages, tool calls, tool results - instead of raw wire format. The scroll
-  sticks to the bottom only while the reader is already there.
+- A usage limit the agent reports outright (a `rate_limit_event` with status `rejected`, and its
+  epoch `resetsAt`) is checked before the text patterns and outside the `deathSeconds` bound they
+  sit behind, so a quota that ran out mid-session refunds the attempt and waits for the announced
+  reset. Only `rejected` counts: `allowed_warning` means the limit is near, not reached, and a
+  session runs straight through it. The last event decides.
+- `milestoner transcript [--name <file>] [--lines <n>] [--raw]` prints what the running session is
+  doing, as prose rather than as its wire format: the agent's own text, `>` for a tool call and `<`
+  for its result, cut to 240 characters. Its first line names the session and says whether it is
+  still going, so a transcript quoted in an intervention cannot silently be a finished one; `--raw`
+  omits it. Read-only, and outside the supervisor's intervention set on purpose - knowing what a
+  session is doing has to be free to be done every cycle.
+- The panel follows an open transcript while the session runs, refreshing every 2.5s, and shows the
+  same rendering the command prints. The scroll sticks to the bottom only while the reader is
+  already there, and following stops when the pulse says no session is writing to that file - which
+  also ends the pointless follow of a transcript opened from the attempt history.
+- The bundled supervisor skill reads the transcript every cycle and quotes what it saw when it
+  intervenes. It also no longer claims a transcript proves nothing: liveness and diagnosis are now
+  two separate questions, with the transcript answering only the second. **Re-run
+  `milestoner skill install --force` to pick this up** - the installer will not overwrite a skill
+  you already have.
 - `milestoner lint` warns (`agent-not-streaming`) when a `claude` agent is configured without
   `stream-json`, which is what an existing `.milestoner/config.json` written before this release
   will be.

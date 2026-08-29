@@ -45,6 +45,9 @@ Liveness comes from side signals only - watched source dirs, test-result files, 
 from the transcript, because a headless `claude -p` flushes its transcript only at exit. The watch
 list is `liveness` in config.json, per project.
 
+The reason is superseded by [D-040](#d-040---the-transcript-streams-and-the-byte-rules-learn-to-read-it-2026-08-29): the transcript streams now. The rule is not - it
+holds on the sharper reason given there.
+
 Rejected for v0.1: the HTML report (v0.3) and a live web view. A status command a supervisor can
 poll is the minimum that makes the pulse real.
 
@@ -986,9 +989,11 @@ the numbers per project.
 **The preamble is not searchable either.** `infraFailurePatterns` contains `not logged in` and
 `usageLimitPatterns` contains `429`. The init inventory carries the description of every skill and
 slash command installed on the machine, so leaving it in the searched text meant any session under
-`deathSeconds` could be classified from somebody else's prose. It is dropped from the text; the
-`result` envelope is not, because a failing session's closing words are where the failure names
-itself.
+`deathSeconds` could be classified from somebody else's prose. It is dropped from the text. The
+`result` envelope keeps its words, because a failing session's closing words are where the failure
+names itself, but not its counters: it is a kilobyte of `total_cost_usd` to seventeen digits, token
+totals and hex uuids, and `429` is a `usageLimitPattern`. Only `result`, `subtype` and
+`api_error_status` are searched, which is where a real 429 arrives anyway.
 
 **A reported quota outranks a guessed one, at any duration.** `rate_limit_event` carries a status
 and an epoch `resetsAt`. That is the agent stating the quota is gone, not a substring suggesting it,
@@ -996,9 +1001,46 @@ so it is checked before the patterns and outside the `deathSeconds` bound they s
 reached forty minutes in explains a missing `result.json` exactly as well as one that was gone at
 launch. `wroteResult` still outranks it - a session that finished the work is never refunded.
 
-**Liveness still does not watch the transcript.** The old reason is gone; the rule is not. A
-transcript ticks over while an agent narrates a retry loop it will never escape, and a watched
-path's mtime moves only when something was done.
+Only `rejected` is the quota being gone, and the check is an allowlist rather than "anything but
+allowed". The CLI emits three statuses, and the third is `allowed_warning` - "you're close to your
+usage limit" - which a session runs straight through. Read as exhaustion it refunds the attempt and
+sleeps until `resetsAt`, five hours of a run that was never rate limited, and it fires exactly when
+milestoner is being used: deep into a long night. The cost of the allowlist is that a future status
+meaning "gone" would be missed and charge one attempt. One attempt against five hours is the trade
+worth taking. `overageStatus` lives in the same object and answers a different question; it is not
+read. The last event wins, so a quota rejected early and allowed again is not what ended the
+session.
+
+**It streams by event, not by token.** Sampling the file every 1.5s through a real session: 2562 B
+at 1.5s (the init inventory), 2872 B at 3s, unchanged at 4.5s, 6s and 7.5s while the model wrote,
+then 7431 B at 9s when the assistant message and the result landed together. A turn appears when it
+completes. That is worth stating because "streams" invites the question, and because it bounds what
+the panel shows: a long generation or a slow tool call is a still frame, not a stall.
+
+Rejected: `--include-partial-messages`, which would stream token deltas as `stream_event` lines. It
+buys a smoother panel and costs a transcript inflated by an order of magnitude, every delta counted
+as work by `readTranscriptEvidence` - the exact measurement this decision just went to the trouble
+of fixing. Anyone who sets it themselves gets that inflation; it makes infra classification less
+likely to fire, never more, so it charges an attempt rather than refunding one falsely.
+
+**Liveness still does not watch the transcript.** The old reason is gone; the rule is not, and it is
+now better founded. A transcript sits still through a long generation and ticks over steadily while
+an agent narrates a retry loop it will never escape. Neither is a signal. A watched path's mtime
+moves only when something was done. [D-004](#d-004---observability-status-plus-a-pulse-block-in-v01-2026-08-18) carries a note pointing here.
+
+**One parser, because there are now two readers.** The panel renders the transcript for a person and
+`milestoner transcript` renders it for a supervisor, which is what makes a streaming transcript worth
+having: an agent that can see what the session is doing can say *why* it killed it rather than
+quoting a timer. Two readers of one format is two places to teach every event type the harness adds,
+so `src/transcript.ts` is the only thing that knows the shape. `/api/transcript` serves prose and the
+page carries no decoder - a test asserts it never grows one back.
+
+Nothing in it is agent-specific by construction. A line without a top-level `type` is not an event,
+so a plain-text transcript and NDJSON of another shape (`codex exec --json` nests its type under
+`msg`) come back byte-for-byte as written, which for an agent that already speaks prose is the right
+answer. Following stops off the pulse rather than off the file's contents, for the same reason: "is
+a session still writing to this" is the engine's question and it holds for every agent, where
+sniffing for a `result` event held for one.
 
 Rejected: raising `tinyTranscriptBytes` and `crashTranscriptBytes` past the preamble, which trades a
 universal constant for a number that has to be measured per project, since the inventory's size is
