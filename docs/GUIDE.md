@@ -3,11 +3,11 @@
 Everything you need to plan, launch and babysit an autonomous run. Written for the person who is
 going to leave a coding agent working for ten hours and wants to find something real in the morning.
 
-Applies to **v0.7**: the engine (`init`, `run`, `status`, `unblock`), the active supervisor
-(`skill install`, `kill`, `attend`), mid-flight steering (`steer`), the HTML run report (`report`),
-the local web panel (`serve`, or `run --serve`), the machine-level run registry (`runs`), agent
-fallback, and the two Claude Code skills (`skill install`). Where a behaviour is planned for a
-later version it says so.
+Applies to **v0.10**: the engine (`init`, `add`, `lint`, `run`, `status`, `unblock`), the active
+supervisor (`skill install`, `kill`, `attend`, `transcript`), mid-flight steering (`steer`), the
+HTML run report (`report`), the local web panel (`serve`, or `run --serve`), the machine-level run
+registry (`runs`), agent fallback, and the two Claude Code skills (`skill install`). Where a
+behaviour is planned for a later version it says so.
 
 - [What milestoner actually does](#what-milestoner-actually-does)
 - [When to use it, and when not to](#when-to-use-it-and-when-not-to)
@@ -30,7 +30,7 @@ later version it says so.
 - [Recipes](#recipes)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
-- [Limits of v0.7](#limits-of-v07)
+- [Limits of v0.10](#limits-of-v010)
 
 ## What milestoner actually does
 
@@ -2149,7 +2149,7 @@ it as a protocol violation and fix the prompt.
 **Does `done` mean the code is good?** It means the acceptance criteria have written evidence. The
 strength of that guarantee is the quality of your criteria. Review the tags.
 
-## Limits of v0.7
+## Limits of v0.10
 
 - **One install channel.** npm is the only distribution; the Claude Code skills are written by
   `milestoner skill install` from the installed package. The plugin/marketplace channel v0.4
@@ -2157,6 +2157,11 @@ strength of that guarantee is the quality of your criteria. Review the tags.
 - **Two agents exercised.** Claude Code and Codex; see
   [Running a different agent](#running-a-different-agent). The command is a config string, so others
   are a config change, not an engine change.
+- **One transcript format is decoded.** Claude Code's stream-json. Every other agent's output is
+  passed through as written, which for one that already speaks prose is the right answer and for one
+  that speaks NDJSON of another shape is merely raw. The table under
+  [Running a different agent](#running-a-different-agent) says what that means per agent. Teaching
+  the renderer a second format is a config-independent change; guessing at one is not.
 - **One run per project directory.** Runs across the machine are listed by
   [`milestoner runs`](#milestoner-runs), which reads a registry at `~/.milestoner/runs.json`, and
   the [machine panel](#the-machine-panel---all) is the view across them in a browser - one panel,

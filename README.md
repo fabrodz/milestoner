@@ -346,6 +346,17 @@ a local model through Ollama, the fallback pool - are in
   `init` handing a new run the previous run's protocol. First version published to npm. Done.
 - **v0.7** the planner skill, the machine panel (one panel spanning every run, brought up by the
   first one), one distribution channel (the plugin retired, D-034), and `skill install -g`. Done.
+- **v0.8** [`milestoner lint`](#commands): the run's form checked before a session spends real time
+  on it, the same rules gating the start of a run and shown in the panel. The line between form and
+  judgement is D-035. Done.
+- **v0.9** the panel-only workflow: a run created, a milestone added mid-run, the config and the
+  protocol edited, all from the browser, against the same engine primitives the CLI calls. Every
+  attempt also records the model that ran it, not just the agent. Done.
+- **v0.10** the live transcript. A headless session streams its output instead of flushing at exit,
+  which took teaching the infrastructure rules to weigh what the agent produced rather than what
+  the file holds (D-040). One renderer serves both readers: the panel follows the running session,
+  and [`milestoner transcript`](#commands) hands the supervisor the same thing in prose, so an
+  intervention can name what it saw instead of quoting a timer. Done.
 
 Validated end to end, by building itself. v0.4 was a four-milestone milestoner run and v0.5 to v0.6
 was a seven-milestone one, every milestone a fresh Claude Code session graded against the evidence it
